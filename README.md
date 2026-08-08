@@ -5,7 +5,7 @@ generative shaders, twenty-one effects, four-slot chains with per-slot blend
 modes, LFO / MIDI / audio modulation, and video export — in **one HTML file with
 no build step and no dependencies**.
 
-It's the WebGL2 sibling of [recur](https://github.com/thedirgemedia/recur), an
+It's the WebGL2 sibling of [recur](https://github.com/thedirgemedia/recur-recur), an
 mpv-based video sampler for the Raspberry Pi 5.
 
 ---
