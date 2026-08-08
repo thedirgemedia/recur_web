@@ -12,28 +12,15 @@ mpv-based video sampler for the Raspberry Pi 5.
 
 ## Quick start
 
-Download `index.html` and open it. That's the whole install.
+Download `index.html` and open it or drag it onto a web browser
 
-```
-git clone https://github.com/thedirgemedia/recur-recur-browser
-cd recur-recur-browser
-open index.html          # or double-click it
-```
 
-To serve it instead (needed if you want the camera on a device other than
-localhost, since `getUserMedia` requires a secure context):
-
-```
-python3 -m http.server 8000
-# then visit http://localhost:8000
-```
 
 **Requirements:** any browser with WebGL2 — Chrome, Edge, Firefox, Safari 15+.
-Share links additionally need `CompressionStream` (Safari 16.4+). No install,
-no npm, no server-side anything. Everything runs locally; no media ever leaves
-your machine.
+Share links additionally need `CompressionStream` (Safari 16.4+). No install, npm, server-side
+Everything runs locally
 
-Tap the **◀ tab** at the bottom of the screen to open the control panel.
+Tap the **◀** at the bottom of the screen to open the control panel.
 
 ---
 
@@ -42,12 +29,8 @@ Tap the **◀ tab** at the bottom of the screen to open the control panel.
 | Mode | Source | Use |
 |---|---|---|
 | **SAMPLER** | a video file you load | sampling and mangling footage |
-| **SHADER** | nothing — purely generative | visuals from scratch, optionally composited over footage |
+| **SHADER** | purely generative | visuals from scratch, optionally composited over footage |
 | **LIVE** | the device camera | live camera processing |
-
-`ENTER` cycles between them. In SAMPLER and LIVE the generative chain is
-bypassed by default so the shaders don't hide your source — the **blend** toggle
-in the SRC row layers them back over it.
 
 ## Signal flow
 
@@ -79,21 +62,18 @@ escape-time Julia set. Style 0 is always the original behaviour.
 colorizer, grain, hsv-shift, hue-cycle, kaleido-warp, rotate-zoom, wobble,
 zoom-fx, ascii, halftone, levels, sample-hold, feature-dots, scatter.
 
-Some worth calling out:
-
-- **glitch** — macroblock corruption modelled on how codecs actually fail: runs
+- **glitch** — macroblock corruption modelled on how codecs fail: runs
   of consecutive blocks share a wrong motion vector, DC-only blocks, scrambled
   DCT coefficients, chroma desync.
 - **ascii** — five selectable character sets (full printable ASCII, katakana,
   CJK), each ranked by ink coverage so the tonal ramp is correct.
 - **feature-dots** — Shi-Tomasi corner detection with Lucas-Kanade optical flow;
-  dots track the structure they mark.
-- **scatter** — cuts the frame into a grid and rearranges it; the swap mode is a
-  true permutation, so nothing is duplicated or lost.
+  dots track structure
+- **scatter** — cuts the frame into a grid and rearranges it; the swap modeso nothing is duplicated or lost.
 - **levels** — a five-point tone curve with a live editable canvas.
 
 Every slot has up to 12 parameters, and every parameter can be driven by audio,
-an LFO, or a MIDI CC — they stack.
+an LFO, or a MIDI CC — these stack.
 
 ## Modulation
 
@@ -126,28 +106,6 @@ browser supports it, WebM otherwise — both can be reloaded as SAMPLER sources.
 Includes a hand-rolled WebM duration repair, because `MediaRecorder` writes
 unseekable files.
 
-## Keyboard
-
-| Key | Action |
-|---|---|
-| `ENTER` | cycle SAMPLER → SHADER → LIVE |
-| `SPACE` | play / pause (SAMPLER) |
-| `R` | reverse playback (SAMPLER) |
-| `O` | open a video file |
-| `L` | toggle the camera |
-| `F` | fullscreen |
-| `0` | SAMPLER/LIVE: in → out → clear · SHADER: cycle selected gen |
-| `4`–`9` | toggle gen shader slots 1–6 |
-| `−` / `+` | previous / next FX slot |
-| `*` | next FX slot |
-| `/` | clear the FX chain |
-| `.` | toggle the feedback trail |
-| `1` / `2` / `3` | next param · decrease · increase |
-| `BKSP` | switch param layer, gen ↔ fx |
-| `?` | help overlay |
-
-The layout mirrors a numpad — it's designed to be played from one.
-
 Full documentation for every shader and control is in the **in-app help
 overlay** (`?`), which is kept in sync with the code.
 
@@ -155,63 +113,11 @@ overlay** (`?`), which is kept in sync with the code.
 
 ## Development
 
-**The single-file structure is deliberate.** Portability beats structure here:
+**The single-file structure is deliberate.** 
 one file you can drop on a USB stick, email, or serve from anything. All CSS,
 JavaScript and GLSL live inline in `index.html`. Please keep it that way.
 
-### Shader hot-reload
 
-Editing shaders inside a 400 KB HTML file is miserable, so there's an opt-in dev
-path:
-
-```
-node tools/extract-shaders.js index.html      # explode shaders into shaders/
-python3 serve.py                              # then open /?dev
-node tools/inline-shaders.js                  # fold edits back into index.html
-```
-
-With `?dev` the page polls `shaders/` and recompiles on change. Without it, no
-requests are made at all — the shipped build is unaffected.
-
-### Adding a shader
-
-Append to the end of `GEN[]` or `FX[]` — never insert in the middle, or you
-shift every saved preset's indices.
-
-```js
-{
-  name: 'my-shader',
-  params: ['speed', 'scale'],      // up to 12
-  def:    [.5, .5],
-  snapVals: [null, [0,1,2,3]],     // optional: discrete selectors snap
-  src: H + `void main(){ FC = vec4(vU, 0., 1.); }`
-}
-```
-
-Two rules that matter:
-
-- **0 must be neutral for any parameter you append to an existing shader.**
-  Presets saved before it existed load it as 0, so 0 has to mean "off".
-- **Declare time as `highp`.** `uFrame` grows without bound and `mediump` is
-  fp16 on mobile, where it stops resolving single frames after about 34 seconds.
-
-### Version marker
-
-`BUILD` near the top of the script shows dim in the panel header and logs to the
-console. Bump it when you deploy — it's the fastest way to tell whether a device
-is running a cached copy.
-
-### Diagnostics
-
-Two standalone pages live alongside the app:
-
-- **`pi-check.html`** — GPU capabilities, float precision, texture limits, codec
-  support and a fill-rate benchmark. Written for the Raspberry Pi 5 but useful on
-  any unfamiliar device.
-- **`seek-check.html`** — drop a video on it to measure whether backward seeking
-  actually works, which is what reverse and ping-pong playback depend on.
-
----
 
 ## Known issues
 
