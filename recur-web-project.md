@@ -20,10 +20,7 @@ sha256 `f253cbdf5a3c…`. `BUILD` constant currently reads
   the Raspberry Pi **recur** project (an mpv-based video sampler on Pi 5).
 - Repo: `https://github.com/thedirgemedia/recur-recur-browser` (public, GPL-3.0).
 - Deployed at `dirgemedia.com/recur…`; Dirge pushes and deploys manually.
-- Owner: **Dirge** — electrical/building-services trade background, NZ, very
-  comfortable with low-level graphics/DSP work. Tests on desktop **and** an
-  Android phone; reports issues from the phone often. **The phone is 120Hz** —
-  measured, and worth remembering for anything frame-rate dependent.
+- Owner: **Dirge** 
 
 ## Non-negotiable conventions
 
