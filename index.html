@@ -604,6 +604,11 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .spi-hbtn:hover { background:rgba(0,80,0,.95); border-color:#0f0; color:#fff; }
 .spi-hbtn.c-share { border-color:#066; color:#0cc; }
 .spi-hbtn.c-share:hover { border-color:#0ff; color:#fff; background:rgba(0,40,60,.95); }
+/* Pinned at the far left of the zoom row and deliberately the loudest button
+   there — it replaces both chains wholesale, so it should not look like the
+   1:1 and RES buttons sitting beside it. */
+.spi-hbtn.c-rnd { border-color:#a60; color:#fc0; flex-shrink:0; font-weight:bold; }
+.spi-hbtn.c-rnd:hover { border-color:#fc0; color:#fff; background:rgba(90,60,0,.95); }
 .spi-hbtn.c-cast { border-color:#060; color:#0a0; }
 .spi-hbtn.c-cast:hover { border-color:#0f0; color:#fff; background:rgba(0,50,0,.95); }
 .spi-hbtn.c-cast.cast-live { border-color:#0ff; color:#0ff; animation:cast-pulse 1.4s ease-in-out infinite; }
@@ -884,6 +889,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 </div>
 
 
+
 <!-- ── SPI Control Panel ─────────────────────────────────────────────────── -->
 <div id="spi-tab" title="Controls">◀</div>
 
@@ -918,7 +924,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
            camera (LIVE), transform (always) and the blend toggle pinned right.
            The two sliders get full-width rows of their own beneath it. -->
       <div class="spi-source-row" id="src-main-row">
-        <span class="src-grp" id="src-transport-group"><div class="src-ico-wrap"><button class="src-ico" data-action="open" id="src-open-file" title="open a video file"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 12.6V4.2h4.2l1.3 1.5h6.9v6.9Z"/></svg></button><span class="src-ico-cap">open</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-pause" id="src-playpause" title="play / pause"><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-play"><path d="M5 3.2 12.4 8 5 12.8Z" class="fil"/></svg><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-pause"><path d="M4.8 3.4h2.2v9.2H4.8Z" class="fil"/><path d="M9.0 3.4h2.2v9.2H9.0Z" class="fil"/></svg></button><span class="src-ico-cap" id="src-playpause-cap">play</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="reverse" id="src-reverse" title="reverse playback direction"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3.2 3.6 8 11 12.8Z" class="fil"/></svg></button><span class="src-ico-cap">reverse</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-restart" id="src-restart" title="jump to the in-point and play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3.2v9.6"/><path d="M12.6 3.2 5.4 8l7.2 4.8Z" class="fil"/></svg></button><span class="src-ico-cap">restart</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-loop-toggle" id="src-loop-toggle" title="loop at the out-point"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.6 7.2A4.6 4.6 0 0 1 12 5.6"/><path d="M12.9 3.1l.5 3.4-3.3-.6z" class="fil"/><path d="M12.4 8.8A4.6 4.6 0 0 1 4 10.4"/><path d="M3.1 12.9l-.5-3.4 3.3.6z" class="fil"/></svg></button><span class="src-ico-cap">loop</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-pingpong-toggle" id="src-pingpong-toggle" title="bounce direction at each boundary"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6h9.6"/><path d="M2.2 6 4.8 4.3v3.4z" class="fil"/><path d="M12.8 10H3.2"/><path d="M13.8 10 11.2 8.3v3.4z" class="fil"/></svg></button><span class="src-ico-cap">bounce</span></div></span>
+        <span class="src-grp" id="src-transport-group"><div class="src-ico-wrap"><button class="src-ico" data-action="open" id="src-open-file" title="open a video file"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 12.6V4.2h4.2l1.3 1.5h6.9v6.9Z"/></svg></button><span class="src-ico-cap">open</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-pause" id="src-playpause" title="play / pause"><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-play"><path d="M5 3.2 12.4 8 5 12.8Z" class="fil"/></svg><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-pause"><path d="M4.8 3.4h2.2v9.2H4.8Z" class="fil"/><path d="M9.0 3.4h2.2v9.2H9.0Z" class="fil"/></svg></button><span class="src-ico-cap" id="src-playpause-cap">play</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="reverse" id="src-reverse" title="play backwards / pause"><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-play"><path d="M11 3.2 3.6 8 11 12.8Z" class="fil"/></svg><svg viewBox="0 0 16 16" aria-hidden="true" class="pp-pause"><path d="M4.8 3.4h2.2v9.2H4.8Z" class="fil"/><path d="M9.0 3.4h2.2v9.2H9.0Z" class="fil"/></svg></button><span class="src-ico-cap" id="src-reverse-cap">reverse</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-restart" id="src-restart" title="jump to the in-point and play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3.2v9.6"/><path d="M12.6 3.2 5.4 8l7.2 4.8Z" class="fil"/></svg></button><span class="src-ico-cap">restart</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-loop-toggle" id="src-loop-toggle" title="loop at the out-point"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.6 7.2A4.6 4.6 0 0 1 12 5.6"/><path d="M12.9 3.1l.5 3.4-3.3-.6z" class="fil"/><path d="M12.4 8.8A4.6 4.6 0 0 1 4 10.4"/><path d="M3.1 12.9l-.5-3.4 3.3.6z" class="fil"/></svg></button><span class="src-ico-cap">loop</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-pingpong-toggle" id="src-pingpong-toggle" title="bounce direction at each boundary"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6h9.6"/><path d="M2.2 6 4.8 4.3v3.4z" class="fil"/><path d="M12.8 10H3.2"/><path d="M13.8 10 11.2 8.3v3.4z" class="fil"/></svg></button><span class="src-ico-cap">bounce</span></div></span>
         <span class="src-grp" id="src-cam-group"><div class="src-ico-wrap"><button class="src-ico" data-action="camera" id="src-cam-toggle" title="camera on / off"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.2H14V13H2Z"/><path d="M5.6 5.2 6.7 3.1h2.6l1.1 2.1"/><path d="M8 6.4a2.4 2.4 0 1 0 .01 0"/></svg></button><span class="src-ico-cap">cam</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="face-user" id="src-face-user" title="front camera"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.6 3.4H13.4V12.6H2.6Z"/><path d="M8 6.1a1.7 1.7 0 1 0 .01 0"/><path d="M5.2 11.4a2.9 2.9 0 0 1 5.6 0"/></svg></button><span class="src-ico-cap">front</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="face-env" id="src-face-env" title="rear camera"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 3.2H13.8V12.8H2.2Z"/><path d="M3.4 11.2 6.4 6.6l2.3 3.2 1.6-2 2.3 3.4Z" class="fil"/><path d="M11 5.6a1.05 1.05 0 1 0 .01 0" class="fil"/></svg></button><span class="src-ico-cap">rear</span></div></span>
         <span class="src-grp" id="src-xform-group"><div class="src-ico-wrap"><button class="src-ico" data-action="src-rot" id="src-rot-btn" title="rotate 90°"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8A5 5 0 1 1 8 3"/><path d="M8 .8v4.4l3.6-2.2z" class="fil"/></svg></button><span class="src-ico-cap" id="src-rot-lbl">rot 0&deg;</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="src-flip" id="src-flip-btn" title="flip vertically"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12"/><path d="M8 2.4 4.9 6.1h6.2z" class="fil"/><path d="M8 13.6 4.9 9.9h6.2z" class="fil"/></svg></button><span class="src-ico-cap">flip</span></div><div class="src-ico-wrap"><button class="src-ico" data-action="mirror" id="src-mirror-btn" title="mirror horizontally"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12"/><path d="M2.4 8 6.1 4.9v6.2z" class="fil"/><path d="M13.6 8 9.9 4.9v6.2z" class="fil"/></svg></button><span class="src-ico-cap">mirror</span></div></span>
         <div class="src-ico-wrap src-gen-wrap" id="src-genover-row"><button class="src-ico" data-action="gen-over-all" id="src-genover-toggle" title="blend the shader stack over the source, or show the source straight"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 8a2.9 2.9 0 1 0 .01 0"/><path d="M9.8 8a2.9 2.9 0 1 0 .01 0"/></svg></button><span class="src-ico-cap">blend</span></div>
@@ -950,6 +956,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     </div>
     <div id="spi-view-hdr" class="spi-section">ZOOM &amp; CHAINS</div>
     <div id="spi-zoom-row">
+      <button class="spi-hbtn c-rnd" data-action="randomise" id="spi-randomise" title="randomise: 4 shaders, 4 effects, all values, blend modes and LFO movement">RND</button>
       <span class="spi-zoom-lbl">ZOOM</span>
       <input type="range" id="spi-zoom-slider" min="0.5" max="3" step="0.01" value="1">
       <span id="spi-zoom-val">1.00×</span>
@@ -1260,6 +1267,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">PARAMS header</span><span class="hk-desc">The slider area has its own header above it, which folds the sliders away the same as any other section and names the shader they belong to — so you can still see what is selected with the sliders hidden</span></div>
     <div class="hk-row"><span class="hk-key">section headers</span><span class="hk-desc">Every heading in the lower body — GEN SHADER, FX SHADER, VIDEO, LFO, AUDIO INPUT, MIDI, MISC — is a show/hide toggle. Tap one to fold that section away; the arrow on the right points down when open and right when closed. Useful on a phone where the panel would otherwise be a long scroll. VIDEO, LFO, AUDIO INPUT, MIDI and MISC start closed since they are mostly set-and-forget; GEN SHADER and FX SHADER start open. What you collapse from then on is remembered between sessions</span></div>
     <div class="hk-row"><span class="hk-key">MODE buttons</span><span class="hk-desc">sampler / shader / live sit at the top of the panel, directly under SAVE / LOAD / SHARE / CAST, so they stay visible instead of scrolling away with the rest of the body</span></div>
+    <div class="hk-row"><span class="hk-key">RND</span><span class="hk-desc">Randomise, at the far left of the zoom row. Fills the GEN chain with 4 different shaders and the FX chain with 4 different effects, rolls every param, picks blend modes and amounts, re-rolls the per-slot seeds, re-rolls all three LFO oscillators (shape, period and amp — your BPM on/off choice is left alone) and assigns two to four of them onto random params so the result moves. Switches to SHADER, since the GEN chain is bypassed in SAMPLER and LIVE and you would not see the result otherwise. Blend modes are weighted rather than uniform: multiply, darken and burn each remove light, so a flat random pick would land on a black frame a good share of the time, and the first slot is always normal at full because it composites onto black. Snapping params land exactly on a position, so style selectors give you a real variant rather than something halfway between two. Audio and MIDI bindings are left untouched. It replaces both chains outright — save or share anything you want to keep first</span></div>
     <div class="hk-row"><span class="hk-key">ZOOM</span><span class="hk-desc">Global zoom slider in the header — scales the canvas output. Useful when the device resolution is larger than the display area. Tap 1:1 to reset</span></div>
     <div class="hk-row"><span class="hk-key">param sliders</span><span class="hk-desc">The upper slot shows the active shader's parameters — scroll it independently. The lower body scrolls separately</span></div>
 
@@ -1272,16 +1280,16 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">drag off strip</span><span class="hk-desc">Drag a block out of the strip area and release to remove it from the chain entirely — including the last GEN shader (SHADER mode will output black with an empty chain)</span></div>
 
     <div class="hk-section">Modes</div>
-    <div class="hk-row"><span class="hk-key">SAMPLER</span><span class="hk-desc">Plays a loaded video file as the source texture — open file, drag onto canvas, or use a previously recorded export</span></div>
-    <div class="hk-row"><span class="hk-key">SHADER</span><span class="hk-desc">Generates visuals from GLSL shaders — no video source needed. Optionally blend a video layer over the output</span></div>
-    <div class="hk-row"><span class="hk-key">LIVE</span><span class="hk-desc">Uses the device camera as the source texture in real time</span></div>
-    <div class="hk-row"><span class="hk-key">ENTER</span><span class="hk-desc">Cycle SAMPLER → SHADER → LIVE (keyboard)</span></div>
+    <div class="hk-row"><span class="hk-key">SAMPLER</span><span class="hk-desc">Plays a loaded video file as the source texture — open file, drag onto canvas, or use a previously recorded export. Arriving here bypasses the whole GEN chain so the video shows straight through: both this and LIVE are about the source, and landing in one with the shader stack painted over the top hides the thing you just switched to look at. The chain is kept intact — the blend button in the source row puts it back in one tap</span></div>
+    <div class="hk-row"><span class="hk-key">SHADER</span><span class="hk-desc">Generates visuals from GLSL shaders — no video source needed. Optionally blend a video layer over the output. Arriving here undoes an all-bypassed chain, since SAMPLER and LIVE both leave one behind and you would otherwise land in the mode built for shaders and see none. If you have muted only SOME slots from the flow strip that selection is kept — only the everything-off state is cleared</span></div>
+    <div class="hk-row"><span class="hk-key">LIVE</span><span class="hk-desc">Uses the device camera as the source texture in real time. Like SAMPLER, arriving here bypasses the GEN chain so the camera shows straight through</span></div>
+    <div class="hk-row"><span class="hk-key">ENTER</span><span class="hk-desc">Cycle SAMPLER → SHADER → LIVE (keyboard). Each mode arrives set up for what that mode is about — see the three entries above</span></div>
 
     <div class="hk-section">Video source (SAMPLER)</div>
     <div class="hk-row"><span class="hk-key">open file</span><span class="hk-desc">Browse for a video file — mp4, webm, mov and most common formats supported</span></div>
     <div class="hk-row"><span class="hk-key">drag & drop</span><span class="hk-desc">Drop any video file directly onto the canvas</span></div>
     <div class="hk-row"><span class="hk-key">capture screen</span><span class="hk-desc">Share your screen or a window as a live source — browser will prompt for permission</span></div>
-    <div class="hk-row"><span class="hk-key">SPACE / R</span><span class="hk-desc">Play/pause · Reverse playback direction</span></div>
+    <div class="hk-row"><span class="hk-key">SPACE / R</span><span class="hk-desc">Play/pause forwards · Play/pause backwards</span></div>
     <div class="hk-row"><span class="hk-key">in/out points</span><span class="hk-desc">Tap the in→out→clr button (or 0 key): first tap sets in-point, second sets out-point, third clears both. Video loops between the two points</span></div>
     <div class="hk-row"><span class="hk-key">flip V / rot 90°</span><span class="hk-desc">Flip video vertically or rotate 90° clockwise (cycles 0/90/180/270)</span></div>
 
@@ -1328,6 +1336,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">zoom-fx</span><span class="hk-desc">Zoom with a heartbeat. zoom scales from a quarter up to 3x about the chosen centre, and pulse adds a continuous sine breathing on top. At pulse 0 it is a static zoom</span></div>
     <div class="hk-section">Parameters</div>
     <div class="hk-row"><span class="hk-key">param slider</span><span class="hk-desc">Drag horizontally to change value. Tap a row to select it (highlighted). Some params are toggles (☐/☑) — tap to flip</span></div>
+    <div class="hk-row"><span class="hk-key">pattern centring</span><span class="hk-desc">Effects built on a repeating grid used to measure that grid out from the bottom-left corner of the frame, because that is where the coordinate origin sits. It looked fine standing still, but animating the size — especially from an LFO — slid the whole pattern diagonally out of that corner instead of scaling in place. bitcrush, ascii, halftone and feature-dots now count their grids out from the CENTRE of the frame, so a size sweep grows and shrinks around the middle and whatever is in the centre of shot stays put. halftone gained the most: its angle sliders rotate about the origin too, so they used to swing the entire screen around the bottom-left corner rather than spinning the dot screen in place. gamma-ray, grain, oscilloscope and scatter are deliberately unchanged — measured, they gain nothing, and scatter's grid has to stay an exact tiling for its swap mode to remain reversible. Existing presets shift by under half a cell standing still; the difference is only obvious in motion</span></div>
     <div class="hk-row"><span class="hk-key">snapping sliders</span><span class="hk-desc">Some params are selectors rather than continuous values and snap to fixed positions as you drag: style on plasma, flowing-colours and zoom-clouds, charset on ascii, sides on kaleidoscope, and sectors on kaleido-warp. The row shows the position number rather than a decimal, and the help entry for that shader lists what each one is</span></div>
     <div class="hk-row"><span class="hk-key">GEN / FX layer</span><span class="hk-desc">Tap the GEN or FX layer buttons to switch which shader's params are shown in the upper slot</span></div>
     <div class="hk-row"><span class="hk-key">audio badge</span><span class="hk-desc">Each param row has an audio badge (—/B/M/T/V). Tap to cycle: none → bass → mid → treble → volume. The selected band drives that param with audio level</span></div>
@@ -1375,7 +1384,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 
     <div class="hk-section">Source section</div>
     <div class="hk-row"><span class="hk-key">appears automatically</span><span class="hk-desc">A permanent row of source controls appears just below the SAVE/LOAD/SHARE/CAST buttons whenever the camera is on, or LIVE or SAMPLER mode is selected — no need to open anything</span></div>
-    <div class="hk-row"><span class="hk-key">SAMPLER transport</span><span class="hk-desc">A row of icon buttons matching the SRC row: play/pause (the icon shows what tapping will do, and the caption follows it), reverse, restart to the in-point, open a file, loop, and ping-pong. Each lights when active. Speed sits on its own row as text pills, and the in/out slider gets a full row to itself since it needs the width</span></div>
+    <div class="hk-row"><span class="hk-key">SAMPLER transport</span><span class="hk-desc">A row of icon buttons matching the SRC row: play/pause (the icon shows what tapping will do, and the caption follows it), reverse — which works the same way, playing backwards and then pausing, with the play button being how you return to forwards — restart to the in-point, open a file, loop, and ping-pong. Each lights when active, and only one direction can be lit at a time. Speed sits on its own row as text pills, and the in/out slider gets a full row to itself since it needs the width</span></div>
     <div class="hk-row"><span class="hk-key">play from a dead spot</span><span class="hk-desc">If the playhead is outside the in/out range — which is where dragging the out handle leaves it — play snaps back to the in-point instead of resuming into a dead spot and stopping again. Pausing and playing anywhere inside the range resumes where you left off; restart always jumps to the in-point</span></div>
     <div class="hk-row"><span class="hk-key">SAMPLER: restart</span><span class="hk-desc">Jumps back to the in-point (or the start) and plays forward from there</span></div>
     <div class="hk-row"><span class="hk-key">SAMPLER: open file…</span><span class="hk-desc">Same as the O key / open file button elsewhere — opens the file picker dialog to load a video</span></div>
@@ -1412,12 +1421,12 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">DEF</span><span class="hk-desc">Revert to initial state — clears the FX chain, resets the GEN chain to a single shader with default params, and clears all blend and mod settings</span></div>
 
     <div class="hk-section">Keyboard shortcuts</div>
-    <div class="hk-row"><span class="hk-key">ENTER</span><span class="hk-desc">Cycle mode: SAMPLER → SHADER → LIVE</span></div>
+    <div class="hk-row"><span class="hk-key">ENTER</span><span class="hk-desc">Cycle mode: SAMPLER → SHADER → LIVE. SAMPLER and LIVE arrive with the GEN chain bypassed so the source shows through; SHADER arrives with it restored</span></div>
     <div class="hk-row"><span class="hk-key">F</span><span class="hk-desc">Toggle fullscreen</span></div>
     <div class="hk-row"><span class="hk-key">L</span><span class="hk-desc">Toggle camera</span></div>
     <div class="hk-row"><span class="hk-key">O</span><span class="hk-desc">Open video file</span></div>
     <div class="hk-row"><span class="hk-key">SPACE</span><span class="hk-desc">Play / pause (SAMPLER)</span></div>
-    <div class="hk-row"><span class="hk-key">R</span><span class="hk-desc">Reverse playback (SAMPLER)</span></div>
+    <div class="hk-row"><span class="hk-key">R</span><span class="hk-desc">Play backwards, or pause if already reversing (SAMPLER). Press SPACE to go forwards again</span></div>
     <div class="hk-row"><span class="hk-key">0</span><span class="hk-desc">SAMPLER/LIVE: in → out → clear. SHADER: cycle selected gen</span></div>
     <div class="hk-row"><span class="hk-key">4 – 9</span><span class="hk-desc">SHADER: toggle gen shaders 1–6</span></div>
     <div class="hk-row"><span class="hk-key">− / +</span><span class="hk-desc">Toggle previous / next FX slot</span></div>
@@ -1519,7 +1528,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-07b · src-icons';
+const BUILD = '2026-08-09d · randomise';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -2197,6 +2206,10 @@ void main(){
   highp float t=float(uFrame)+uSeed;
   // pixel size: 1 = single pixel, higher = larger dots
   float sz=max(1.,floor(mix(1.,6.,uP3)));
+  // Deliberately left corner-anchored. Re-anchoring this lattice to the frame
+  // centre measured at exactly 1.0x — no improvement — because sz is a 6-step
+  // integer and, more to the point, the cell value below is re-randomised every
+  // frame, so where the lattice sits is invisible under the flicker.
   vec2 cell=floor(uv/sz);
   // new random position each frame — true flicker
   float r=hash3(vec3(cell,t));
@@ -2652,12 +2665,16 @@ vec3 hue2rgb(float h){
 void main(){
   float block=mix(1.,64.,uP1*uP1);
   vec2 bsz=vec2(block)/uRes;
-  vec2 buv=floor(vU/bsz)*bsz+bsz*.5;
+  // Block lattice measured from the frame CENTRE. block is a continuous size, so
+  // it never divides the frame evenly — anchored at the corner, animating
+  // block-size marched the whole grid up and to the right.
+  vec2 bq=(vU-.5)/bsz;
+  vec2 buv=(floor(bq)+.5)*bsz+.5;
   vec3 raw=texture(uTex,buv).rgb;
   vec3 col=raw;
   float levels=mix(2.,64.,1.-uP2);
   col=floor(col*levels+.5)/levels;
-  vec2 fr=fract(vU/bsz);
+  vec2 fr=fract(bq);
   float gap=uP3*.5;
   float inGap=step(1.-gap,fr.x)+step(1.-gap,fr.y);
   col=mix(col,vec3(0.),clamp(inGap,0.,1.)*uP3);
@@ -2812,8 +2829,14 @@ ${ASCII_BLOCK_GLSL}
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   vec2 cellSz=vec2(mix(4.,96.,uP1)*vec2(CW/CH,1.));
-  vec2 cellId=floor(vU*uRes/cellSz);
-  vec2 cellUV=(cellId*cellSz+cellSz*.5)/uRes;
+  // Character cells counted out from the frame CENTRE. cellSz is continuous and
+  // almost never divides uRes evenly, so anchoring the lattice at the corner
+  // made every change of char-size slide the whole grid diagonally — very
+  // obvious under an LFO, where the text crawled instead of resizing in place.
+  vec2 aCtr=uRes*.5;
+  vec2 aQ=(vU*uRes-aCtr)/cellSz;
+  vec2 cellId=floor(aQ);
+  vec2 cellUV=((cellId+.5)*cellSz+aCtr)/uRes;
   vec3 col=texture(uTex,clamp(cellUV,0.,1.)).rgb;
   float luma=dot(col,vec3(.299,.587,.114));
   // invert (uP2) picks which end of the density-sorted charset maps to bright.
@@ -2851,7 +2874,7 @@ void main(){
   // charset (uP5) selects a block; the glyph index is an offset within it.
   float bs,bn; blockOf(int(uP5*4.99),bs,bn);
   float idx=bs+clamp(floor(lv*(bn-.01)),0.,bn-1.);
-  vec2 pos=fract(vU*uRes/cellSz);
+  vec2 pos=fract(aQ);
   // 2D atlas. highp because the address is a texel index reconstructed from a
   // normalised coordinate: at the mediump minimum, u carries about 0.4 texels of
   // error against a 640-texel row, which is close enough to half a texel to
@@ -2871,20 +2894,25 @@ void main(){
 vec2 rot2(vec2 p,float a){return vec2(cos(a)*p.x-sin(a)*p.y,sin(a)*p.x+cos(a)*p.y);}
 void main(){
   vec3 col=texture(uTex,vU).rgb;
-  vec2 p=vU*uRes;
+  // Screen coordinates relative to the frame CENTRE. This re-anchors two things
+  // at once: the dot lattice, and — more visibly — the rotation pivot, because
+  // rot2() turns about the origin. With raw vU*uRes the angle params swung the
+  // entire screen around the bottom-left corner instead of spinning in place.
+  vec2 hCtr=uRes*.5;
+  vec2 p=vU*uRes-hCtr;
   float rSz=mix(2.,28.,uP1*uP1),rA=uP2*3.14159;
   float gSz=mix(2.,28.,uP3*uP3),gA=uP4*3.14159;
   float bSz=mix(2.,28.,uP5*uP5),bA=uP6*3.14159;
   vec2 pR=rot2(p,rA)/rSz;
-  vec2 ccR=rot2((floor(pR)+.5)*rSz,-rA)/uRes;
+  vec2 ccR=(rot2((floor(pR)+.5)*rSz,-rA)+hCtr)/uRes;
   float R=texture(uTex,clamp(ccR,0.,1.)).r;
   float dR=step(length(fract(pR)-.5),R*.5);
   vec2 pG=rot2(p,gA)/gSz;
-  vec2 ccG=rot2((floor(pG)+.5)*gSz,-gA)/uRes;
+  vec2 ccG=(rot2((floor(pG)+.5)*gSz,-gA)+hCtr)/uRes;
   float G=texture(uTex,clamp(ccG,0.,1.)).g;
   float dG=step(length(fract(pG)-.5),G*.5);
   vec2 pB=rot2(p,bA)/bSz;
-  vec2 ccB=rot2((floor(pB)+.5)*bSz,-bA)/uRes;
+  vec2 ccB=(rot2((floor(pB)+.5)*bSz,-bA)+hCtr)/uRes;
   float B=texture(uTex,clamp(ccB,0.,1.)).b;
   float dB=step(length(fract(pB)-.5),B*.5);
   FC=vec4(mix(col,vec3(dR,dG,dB),uP7),1.);}`,
@@ -3002,7 +3030,11 @@ void main(){
   vec2 mv=(track>0.)?texture(uMat,vU).xy:vU;
   if (mv.x==0.&&mv.y==0.) mv=vU;            // field not seeded yet
 
-  vec2 gp=mv*uRes/spacing;
+  // Dot lattice counted out from the frame CENTRE. spacing is continuous, so
+  // anchored at the corner every change of it dragged the whole dot field
+  // diagonally rather than letting the dots spread in place.
+  vec2 shCtr=uRes*.5;
+  vec2 gp=(mv*uRes-shCtr)/spacing;
   vec2 base=floor(gp);
 
   vec3 acc=vec3(0.);
@@ -3024,7 +3056,7 @@ void main(){
     // Reject on distance first: r never exceeds dotR, so anything further than
     // reach cannot contribute, and this skips the 16-tap tensor entirely.
     if (length(gp-ctr)>reach) continue;
-    vec2 sp=ctr*spacing/uRes;
+    vec2 sp=(ctr*spacing+shCtr)/uRes;
     if (sp.x<0.||sp.x>1.||sp.y<0.||sp.y>1.) continue;
 
     // Cornerness and colour are read in screen space: the feature is where it
@@ -3604,6 +3636,54 @@ let inOutScrubbing = false;
 // how long seeks take, and is only pushed to the element once the last one has
 // landed — you lose displayed frames, which is unavoidable, but not speed.
 let _stepT = null;
+
+// One seek in flight at a time. Cleared when the decoder actually presents a
+// frame (requestVideoFrameCallback), NOT when the seek algorithm finishes —
+// 'seeked' fires before the picture is composited, so clearing on it would let
+// the seek storm straight back in. Only used as a fallback where rVFC is absent.
+//
+// The watchdog is not optional. A previous divergence-resync guard deadlocked
+// this same code path and had to be reverted, so this one can never wedge: if a
+// frame never arrives the gate reopens after SEEK_WATCHDOG_MS and stepping
+// continues at a floor of ~7 seeks/sec instead of stopping dead.
+let _seekPending  = false;
+let _seekIssuedMs = 0;
+const SEEK_WATCHDOG_MS = 150;
+
+// True once the element has presented at least one frame, so there is something
+// real for texImage2D to read even while a seek has knocked readyState down.
+let _vidHasFrame = false;
+// Set when the frame callback has already uploaded this frame, so render() does
+// not repeat the upload.
+let _vidTexFresh = false;
+
+// Frame-arrival hook. This is load-bearing, not diagnostic: clearing
+// _seekPending here is what paces the reverse stepper. Registered once from
+// loop(), which always runs, so it survives a clip being loaded later.
+let _framePresentHooked = false;
+function hookFramePresented() {
+  if (_framePresentHooked) return;
+  _framePresentHooked = true;
+  if (vid.requestVideoFrameCallback) {
+    const tick = () => {
+      _seekPending = false;
+      _vidHasFrame = true;
+      // Upload HERE, which is the one instant a fresh frame is guaranteed to
+      // exist. Uploading only from render() meant every upload landed in the
+      // middle of the next seek, with readyState knocked down to 1 — which is
+      // how 116 presented frames a second reached the texture zero times.
+      if (!contextLost && uploadVideoFrame(vid)) _vidTexFresh = true;
+      vid.requestVideoFrameCallback(tick);
+    };
+    vid.requestVideoFrameCallback(tick);
+  } else {
+    // No rVFC (older WebKit). 'seeked' fires before the frame is composited, so
+    // this paces more loosely than the real thing — but it is still one seek per
+    // completed seek rather than one per rAF, which is the whole point.
+    vid.addEventListener('seeked', () => { _seekPending = false; });
+  }
+}
+
 function stepPlayhead(dt, lo, hi, back) {
   // Only adopt currentTime when starting fresh. An earlier version also resynced
   // whenever the two diverged by more than 0.75s, which deadlocked: on slow seeks
@@ -3615,8 +3695,81 @@ function stepPlayhead(dt, lo, hi, back) {
   let hitHi = false, hitLo = false;
   if (_stepT >= hi) { _stepT = hi; hitHi = true; }
   else if (_stepT <= lo) { _stepT = lo; hitLo = true; }
-  if (!vid.seeking) vid.currentTime = _stepT;
+  // Issue the next seek only once the previous one has actually PRESENTED a
+  // frame. Firing one per rAF is what froze the picture: each assignment
+  // superseded the one before it, so the decoder never got to present anything.
+  // That is exactly why pausing snapped to the right frame — pausing ends the
+  // storm, and the last seek finally lands. _stepT keeps advancing at the true
+  // rate either way, so this costs displayed frames, never speed.
+  // The watchdog deliberately overrides vid.seeking too. Gating it behind
+  // !vid.seeking would make it unable to fire in the one case it exists for — a
+  // seek that never retires leaves seeking stuck true forever, and the stepper
+  // would stop dead. Re-assigning currentTime mid-seek is legal; it retargets.
+  const stalled = _seekPending && (performance.now() - _seekIssuedMs > SEEK_WATCHDOG_MS);
+  if (stalled || (!_seekPending && !vid.seeking)) {
+    vid.currentTime = _stepT;
+    _seekPending  = true;
+    _seekIssuedMs = performance.now();
+  }
   return { hitHi, hitLo };
+}
+
+// Reverse as a real transport button, mirroring play: press to run backwards,
+// press again to PAUSE. It used to toggle direction instead, which gave the
+// button no distinct engaged state — same glyph either way, so the only feedback
+// was #0a0 going to #0f0 and it read as not responding at all.
+// Direction is still exclusive: the play button forces reversed = false, so the
+// two lamps can never be lit together. Both the R key and the panel button come
+// through here so they cannot drift apart.
+function togglePlay() {
+  if (MODES[modeIdx] !== 'SAMPLER' || !vid.src) return;
+  if (!paused && !reversed) {
+    paused = true;
+    vid.pause();
+  } else {
+    // Play always means FORWARD. This used to be a blind `paused = !paused`,
+    // which meant pressing play while reversing set paused = true and stopped
+    // the clip instead of handing it back to forward playback.
+    paused   = false;
+    reversed = false;
+    // Resuming with the playhead outside the active range is what made play look
+    // dead: parked on the out-point — where dragging the out handle leaves it —
+    // it would run for PLAY_EPS, hit the boundary and stop again. Snap to the
+    // in-point in that case; otherwise carry on from where it sits.
+    const lo = inPt ?? 0;
+    const hi = (outPt ?? vid.duration);
+    const t  = vid.currentTime;
+    if (!Number.isFinite(t) || t < lo - 0.01 || t >= hi - PLAY_EPS) vid.currentTime = lo;
+    _stepT = null;                // native playback owns currentTime again
+    _seekPending = false;         // the stepper is no longer driving
+    vid.play().catch(() => {});
+  }
+  toast(paused ? 'pause' : 'play');
+}
+
+function toggleReverse() {
+  if (MODES[modeIdx] !== 'SAMPLER' || !vid.src) return;
+  if (reversed && !paused) {
+    paused = true;
+    vid.pause();
+  } else {
+    reversed = true;
+    paused   = false;
+    vid.pause();                  // the stepper drives the clip, not native playback
+    // The same trap the play button hit from the other end: resuming with the
+    // playhead parked on the boundary you are heading towards runs for PLAY_EPS,
+    // hits it and stops again, which reads as dead. Going backwards that dead end
+    // is the bottom of the range, so snap to the top.
+    const lo = inPt ?? 0;
+    const hi = (outPt ?? vid.duration);
+    const t  = vid.currentTime;
+    if (Number.isFinite(hi) && (!Number.isFinite(t) || t <= lo + 0.01 || t > hi)) {
+      vid.currentTime = Math.max(lo + 0.05, hi - PLAY_EPS);
+    }
+    _stepT = null;                // stepper re-reads the real position
+    _seekPending = false;         // do not inherit a stale in-flight seek
+  }
+  toast(paused ? 'pause' : 'reverse');
 }
 
 // Video transform
@@ -3726,7 +3879,16 @@ function drawQuad(prog, tex, params, targetFBO, tex2, seed) {
 function needsTransformPass() { return vidRot !== 0 || vidMirrorH; }
 
 function uploadVideoFrame(el) {
-  if (el.readyState < 2) return false;
+  // MEASURED on device, reversing: up0 bail120 with vfc116 and rs1. The decoder
+  // was presenting 116 frames a second and not one of them reached the texture,
+  // because a seek in flight knocks readyState down to HAVE_METADATA (1) and
+  // this guard skipped every upload. The element still holds the frame it last
+  // presented, so readyState >= 2 is the wrong question — "is there a frame to
+  // read" is the right one. Once one has been presented, there always is.
+  const ready = el.readyState >= 2 ||
+                (el === vid && _vidHasFrame && el.videoWidth > 0);
+  if (!ready) return false;
+  if (el === vid && el.readyState >= 2) _vidHasFrame = true;
   gl.bindTexture(gl.TEXTURE_2D, vidTex);
   const flipAtUpload = !needsTransformPass() && vidFlipV;
   if (flipAtUpload) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -4087,7 +4249,10 @@ function render() {
   // blend mode meaningless because there was nothing underneath it.
   let base = null;
   if (mode === 'SAMPLER') {
-    uploadVideoFrame(vid);
+    // The frame callback may already have uploaded this frame at the moment it
+    // was presented, which is a better instant than here — see hookFramePresented.
+    if (!_vidTexFresh) uploadVideoFrame(vid);
+    _vidTexFresh = false;
     base = effectiveVidTex();
   } else if (mode === 'LIVE') {
     base = uploadVideoFrame(cam) ? effectiveVidTex() : null;
@@ -4152,6 +4317,7 @@ function loop(ts) {
     if (vid.paused) vid.play().catch(() => {});
   }
 
+  hookFramePresented();                 // paces the reverse stepper — see stepPlayhead
   lastFrameTs = ts;
   updateAudioData();
   _frameSrcTex = null;
@@ -4295,6 +4461,7 @@ function updateHUD() {
     if (dur > 0) st.push(cur.toFixed(1) + '/' + dur.toFixed(1));
   }
   _setTxt(hstEl, st.join('  '));
+
   // The panel walks 32 grid buttons, both mod arrays and every param row. It is
   // all dirty-checked, but running it once per frame competes with a chain that
   // can be 25 fullscreen passes deep. 30Hz is indistinguishable on sliders and
@@ -4483,11 +4650,7 @@ document.addEventListener('keydown', e => {
 
   // ── ENTER: cycle mode ───────────────────────────────────────────────────
   if (c === 'Enter' || c === 'NumpadEnter') {
-    modeIdx = (modeIdx + 1) % 3;
-    if (MODES[modeIdx] === 'LIVE') { disableAllGenShaders(); startCamera(); }
-    else stopCamera();
-    layer = MODES[modeIdx] === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
-    toast(MODES[modeIdx]);
+    setMode(MODES[(modeIdx + 1) % 3]);
     e.preventDefault(); return;
   }
 
@@ -4558,21 +4721,10 @@ document.addEventListener('keydown', e => {
   // ── Extra browser-only keys ──────────────────────────────────────────────
   switch (e.key) {
     case 'r': case 'R':
-      if (mode === 'SAMPLER') {
-        reversed = !reversed;
-        _stepT   = null;                  // stepper re-reads the real position
-        if (reversed) { paused = false; vid.pause(); }   // the stepper drives it
-        else if (!paused) vid.play().catch(() => {});
-        toast(reversed ? 'reverse' : 'forward');
-      }
+      toggleReverse();
       break;
     case ' ':
-      if (mode === 'SAMPLER' && vid.src) {
-        paused = !paused;
-        if (paused) vid.pause();
-        else if (!reversed) vid.play().catch(() => {});
-        toast(paused ? 'pause' : 'play');
-      }
+      togglePlay();
       e.preventDefault();
       break;
     case 'o': case 'O':
@@ -4743,20 +4895,152 @@ function stopCamera() {
   cam.srcObject = null;
 }
 
+// ── Randomise ─────────────────────────────────────────────────────────────────
+// Fills both chains with fresh shaders, values, blend modes and LFO movement.
+//
+// Blend modes are drawn from a WEIGHTED bag, not uniformly. multiply, darken and
+// burn each remove light, so a uniform pick puts one of them in a four-deep
+// chain most of the time and three in a row leave a black frame. Slot 0 is
+// forced to normal at full amount because it composites onto black, where any
+// subtractive mode is an immediate blackout regardless of what follows.
+const RND_MODES = [0,0,0,0, 1,1, 2,2, 5, 7, 4];  // normal ×4, add ×2, screen ×2, lighten, overlay, difference
+const _rnd  = (a, b) => a + Math.random() * (b - a);
+const _rndI = n => Math.floor(Math.random() * n);
+
+// Distinct picks: a chain of four should be four different shaders. Duplicates
+// are legal in a chain but read as one shader turned up rather than as variety.
+function _pickDistinct(n, count) {
+  const pool = Array.from({ length: n }, (_, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = _rndI(i + 1);
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(count, n));
+}
+
+// A snapped param has to land exactly ON a position. The slider value that round
+// trips to index k is k/(len-1); any other value renders between two selector
+// positions, which for something like plasma's style means a half-applied style.
+function _rndParams(sh) {
+  return sh.params.map((_, i) => {
+    const sv = sh.snapVals?.[i];
+    if (!sv || sv.length < 2) return _rnd(0.05, 0.95);
+    return _rndI(sv.length) / (sv.length - 1);
+  });
+}
+
+function randomiseAll() {
+  const gPick = _pickDistinct(GEN.length, 4);
+  const fPick = _pickDistinct(FX.length, 4);
+
+  genChain        = gPick.slice();
+  genChainSeeds   = gPick.map(() => Math.random() * 10000);
+  genSlotParams   = gPick.map(gi => _rndParams(GEN[gi]));
+  genSlotAudioMod = gPick.map(gi => GEN[gi].params.map(() => ({ band: null, depth: 0.5 })));
+  genSlotLfoMod   = gPick.map(gi => GEN[gi].params.map(() => ({ lfo: null })));
+  genSlotMidiMod  = gPick.map(gi => GEN[gi].params.map(() => ({ cc: null })));
+  // These two stay length 4 whatever the chain length — genChainToggle keeps
+  // that invariant by splicing and re-pushing, so match it here.
+  genChainMode = [0, 1, 2, 3].map(pos => (pos === 0 || pos >= gPick.length) ? 0 : RND_MODES[_rndI(RND_MODES.length)]);
+  genChainAmt  = [0, 1, 2, 3].map(pos => (pos === 0 || pos >= gPick.length) ? 1.0 : _rnd(0.55, 1.0));
+  genDisabled.clear();
+  genIdx = 0;
+
+  fxChain        = fPick.slice();
+  fxSlotParams   = fPick.map(fi => _rndParams(FX[fi]));
+  fxSlotAudioMod = fPick.map(fi => FX[fi].params.map(() => ({ band: null, depth: 0.5 })));
+  fxSlotLfoMod   = fPick.map(fi => FX[fi].params.map(() => ({ lfo: null })));
+  fxSlotMidiMod  = fPick.map(fi => FX[fi].params.map(() => ({ cc: null })));
+  fxSlotMode     = fPick.map(() => RND_MODES[_rndI(RND_MODES.length)]);
+  fxSlotAmt      = fPick.map(() => _rnd(0.5, 1.0));
+  fxDisabled.clear();
+  fxIdx = 0;
+
+  // Shape, period and amp only. offset is left alone, and skew/curve stay at
+  // their 0.5 identity — warping the phase of an already-random shape makes the
+  // motion impossible to read as any particular waveform. Both the free-running
+  // period and the BPM beat index are set so this lands either way, and
+  // lfoUseBpm is NOT touched: whether you are running to a clock is your choice,
+  // not something a randomiser should overturn.
+  lfos.forEach((l, i) => {
+    l.shape  = _rndI(LFO_SHAPE_NAMES.length);
+    l.amp    = _rnd(0.15, 0.7);
+    l.period = _rnd(1.5, 16);
+    lfoBeatIdx[i] = _rndI(BPM_BEATS.length);
+  });
+
+  // A handful of assignments spread over the three oscillators — enough that the
+  // frame is clearly alive, few enough that each shader stays readable. Driving
+  // most params at once reads as mush rather than as motion.
+  const targets = [];
+  genChain.forEach((gi, pos) => GEN[gi].params.forEach((_, pi) => targets.push([genSlotLfoMod, pos, pi])));
+  fxChain.forEach((fi, pos)  => FX[fi].params.forEach((_, pi)  => targets.push([fxSlotLfoMod,  pos, pi])));
+  const nAssign = Math.min(targets.length, 2 + _rndI(3));   // 2–4
+  for (let k = 0; k < nAssign; k++) {
+    const [arr, pos, pi] = targets.splice(_rndI(targets.length), 1)[0];
+    arr[pos][pi].lfo = _rndI(lfos.length);
+  }
+
+  syncGenIdx();
+  syncFxIdx();
+  layer    = 'gen';
+  selParam = 0;
+  // SHADER, because the gen chain is bypassed in SAMPLER and LIVE — randomising
+  // from either would otherwise produce a result you cannot see.
+  setMode('SHADER');
+  // Every dirty-check key that could still match its previous value.
+  _flowLastKey = '';
+  _srcSectionLastKey = '';
+  _spiForce = true;
+  toast('randomised');
+}
+
 function disableAllGenShaders() {
   genChain.forEach((_, pos) => genDisabled.add(pos));
 }
 
-async function toggleCamera() {
-  if (modeIdx === 2) {
-    modeIdx = 0;
-    stopCamera();
-    toast('sampler');
-  } else {
-    modeIdx = 2;
+// Single entry point for every interactive mode change — the ENTER key, the MODE
+// button, the three set-mode buttons and toggleCamera all came through here
+// after each having its own copy of this, which is how SAMPLER ended up without
+// the gen bypass that LIVE had.
+//
+// Arriving in SAMPLER or LIVE shows the source straight through. Both modes are
+// about the source, so landing in one with the shader stack painted over the top
+// hides the thing you just switched to look at. The bypass is positional and the
+// chain is left intact, so the blend button puts it straight back.
+//
+// Deliberately NOT used by applyState(): a preset carries its own genDisabled
+// and has to be restored exactly as saved, not overwritten by this policy.
+function setMode(m) {
+  const i = MODES.indexOf(m);
+  if (i < 0) return Promise.resolve();
+  modeIdx = i;
+  let started = Promise.resolve();
+  if (m === 'LIVE') {
     disableAllGenShaders();
-    await startCamera();
+    started = startCamera();
+  } else {
+    stopCamera();
+    if (m === 'SAMPLER') {
+      disableAllGenShaders();
+    } else if (genChain.length && genChain.every((_, pos) => genDisabled.has(pos))) {
+      // The mirror of the above, and not optional now that SAMPLER bypasses too.
+      // SHADER exists to show the gen stack; arriving with every slot bypassed
+      // renders the bare source — or black, with no source — in the one mode
+      // where the shaders are the point. SAMPLER and LIVE both leave exactly
+      // that state behind and the ENTER cycle runs SAMPLER -> SHADER, so this is
+      // the common path, not an edge case. Only the all-off state is cleared: a
+      // partial per-slot bypass set from the flow strip is deliberately kept.
+      genDisabled.clear();
+    }
   }
+  layer = m === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
+  toast(m);
+  return started;
+}
+
+async function toggleCamera() {
+  await setMode(MODES[modeIdx] === 'LIVE' ? 'SAMPLER' : 'LIVE');
 }
 
 // ── Audio Engine ──────────────────────────────────────────────────────────────
@@ -5340,6 +5624,10 @@ function loadVideo(url, name) {
   reversed = false;
   inPt     = null;
   outPt    = null;
+  _stepT       = null;
+  _seekPending = false;
+  _vidHasFrame = false;   // new clip: nothing presented yet, so nothing to upload
+  _vidTexFresh = false;
   stopCamera();
   vid.crossOrigin = '';
   vid.src = url;
@@ -5682,10 +5970,7 @@ document.getElementById('spi-panel').addEventListener('click', e => {
 
   switch (act) {
     case 'mode':
-      modeIdx = (modeIdx + 1) % 3;
-      if (MODES[modeIdx] === 'LIVE') { disableAllGenShaders(); startCamera(); } else stopCamera();
-      layer = MODES[modeIdx] === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
-      toast(MODES[modeIdx]);
+      setMode(MODES[(modeIdx + 1) % 3]);
       break;
     case 'slot':
       handleSlot(parseInt(btn.dataset.n));
@@ -5697,6 +5982,9 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       // the shader alone with no way to blend it over the source.
       selParam = 0;
       if (genChain.length > 0) toast(GEN[genChain[genIdx]].name + (genChain.length > 1 ? ' [' + genChain.length + ' layers]' : ''));
+      break;
+    case 'randomise':
+      randomiseAll();
       break;
     case 'zero':
       handleZero();
@@ -5740,46 +6028,13 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       document.getElementById('fi').click();
       break;
     case 'pause':
-      if (mode === 'SAMPLER' && vid.src) {
-        paused = !paused;
-        if (paused) vid.pause(); else if (!reversed) vid.play().catch(() => {});
-        toast(paused ? 'pause' : 'play');
-      }
+      togglePlay();
       break;
     case 'src-pause':
-      if (mode === 'SAMPLER' && vid.src) {
-        paused = !paused;
-        if (paused) {
-          vid.pause();
-        } else {
-          // Play always means forward. Without this, play and reverse could both
-          // read as engaged at once and it was ambiguous which was driving.
-          reversed = false;
-          _stepT = null;
-          // Resuming with the playhead outside the active range is what made play
-          // look dead: parked on the out-point — where dragging the out handle
-          // leaves it — it would run for PLAY_EPS, hit the boundary and stop
-          // again. Snap to the in-point in that case; otherwise carry on.
-          const lo = inPt ?? 0;
-          const hi = (outPt ?? vid.duration);
-          const t  = vid.currentTime;
-          if (!Number.isFinite(t) || t < lo - 0.01 || t >= hi - PLAY_EPS) {
-            vid.currentTime = lo;
-            _stepT = null;
-          }
-          if (!reversed) vid.play().catch(() => {});
-        }
-        toast(paused ? 'pause' : 'play');
-      }
+      togglePlay();
       break;
     case 'reverse':
-      if (mode === 'SAMPLER') {
-        reversed = !reversed;
-        _stepT   = null;                  // stepper re-reads the real position
-        if (reversed) { paused = false; vid.pause(); }   // the stepper drives it
-        else if (!paused) vid.play().catch(() => {});
-        toast(reversed ? 'reverse' : 'forward');
-      }
+      toggleReverse();
       break;
     case 'camera':
       // In LIVE the camera IS the source, so there is nothing to toggle —
@@ -5843,14 +6098,9 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       vidRot = (vidRot + 1) % 4;
       toast('rot ' + (vidRot * 90) + '°');
       break;
-    case 'set-mode': {
-      const m = btn.dataset.mode;
-      modeIdx = MODES.indexOf(m);
-      if (m === 'LIVE') { disableAllGenShaders(); startCamera(); } else stopCamera();
-      layer = m === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
-      toast(m);
+    case 'set-mode':
+      setMode(btn.dataset.mode);
       break;
-    }
     case 'audio-src': {
       const src = btn.dataset.src;
       if (src === 'off') audioStop();
@@ -6561,7 +6811,11 @@ function renderSourceSection() {
     const fwd = !paused && !reversed;
     _tog(document.getElementById('src-playpause'), 'on', fwd);
     _setTxt(document.getElementById('src-playpause-cap'), fwd ? 'pause' : 'play');
-    _tog(document.getElementById('src-reverse'), 'on', !paused && reversed);
+    // Same rule as play: the glyph shows the ACTION, so a lit reverse button
+    // wears pause bars, and the caption follows the glyph.
+    const rev = !paused && reversed;
+    _tog(document.getElementById('src-reverse'), 'on', rev);
+    _setTxt(document.getElementById('src-reverse-cap'), rev ? 'pause' : 'reverse');
     const rsl = document.getElementById('src-rate-slider');
     if (rsl) {
       const t = tFromRate(vidRate);
@@ -7458,6 +7712,28 @@ function getState() {
 // Build a per-slot array. Prefers modern slot-keyed data; falls back to
 // legacy shader-keyed data by looking each chain entry up by shader index;
 // otherwise fills from defaults. `chain` holds shader indices per slot.
+// Force every slot's arrays to the length its shader declares RIGHT NOW.
+//
+// Two directions, both real. A preset saved before a param was appended stores a
+// SHORT array, and the panel reads shader.params.length entries — pvals[i] came
+// back undefined and .toFixed(2) threw, killing updateSPI and updateHUD, which
+// run every frame: the whole control panel died on load. A V5 share URL is the
+// other way round, always carrying N_P=12 entries, so it arrives LONG with
+// trailing junk that would be re-encoded on the next share.
+//
+// Missing params fill with 0, not with the shader's def. 0 is the documented
+// neutral for an appended param, and neutral is what makes an old preset render
+// the way it did when it was saved; def is the fresh-instance value and is not
+// neutral (plasma's detail defaults to 0.45).
+function _padSlots(slots, chain, table, make) {
+  return slots.map((vals, pos) => {
+    const want = table[chain[pos]]?.params.length ?? 0;
+    const out = (vals || []).slice(0, want);
+    while (out.length < want) out.push(make());
+    return out;
+  });
+}
+
 function _slotsFrom(slotArr, legacyArr, chain, makeDefault) {
   const clone = a => a.map(v => (v && typeof v === 'object') ? { ...v } : v);
   if (slotArr) return chain.map((sh, pos) => slotArr[pos] ? clone(slotArr[pos]) : makeDefault(sh));
@@ -7507,6 +7783,16 @@ function applyState(s) {
   fxSlotAudioMod  = _slotsFrom(s.fxSlotAudioMod,  s.audioFxMod,  fxChain,  fi => FX[fi].params.map(() => ({ band: null, depth: 0.5 })));
   fxSlotLfoMod    = _slotsFrom(s.fxSlotLfoMod,    s.lfoFxMod,    fxChain,  fi => FX[fi].params.map(() => ({ lfo: null })));
   fxSlotMidiMod   = _slotsFrom(s.fxSlotMidiMod,   s.midiFxMod,   fxChain,  fi => FX[fi].params.map(() => ({ cc: null })));
+  // Whatever the source — JSON preset, share URL, legacy shader-keyed state —
+  // every one of these must now match the shader's declared param count exactly.
+  genSlotParams   = _padSlots(genSlotParams,   genChain, GEN, () => 0);
+  genSlotAudioMod = _padSlots(genSlotAudioMod, genChain, GEN, () => ({ band: null, depth: 0.5 }));
+  genSlotLfoMod   = _padSlots(genSlotLfoMod,   genChain, GEN, () => ({ lfo: null }));
+  genSlotMidiMod  = _padSlots(genSlotMidiMod,  genChain, GEN, () => ({ cc: null }));
+  fxSlotParams    = _padSlots(fxSlotParams,    fxChain,  FX,  () => 0);
+  fxSlotAudioMod  = _padSlots(fxSlotAudioMod,  fxChain,  FX,  () => ({ band: null, depth: 0.5 }));
+  fxSlotLfoMod    = _padSlots(fxSlotLfoMod,    fxChain,  FX,  () => ({ lfo: null }));
+  fxSlotMidiMod   = _padSlots(fxSlotMidiMod,   fxChain,  FX,  () => ({ cc: null }));
   // Rebuilt against fxChain rather than copied wholesale: fxChain has already been
   // filtered to valid shader indices, so a preset carrying a stale-length array
   // would otherwise leave these parallel arrays out of step with the chain.
@@ -7686,7 +7972,17 @@ function _stateToBufV5(s) {
   const encPeriod = (p) => Math.round(Math.max(0, Math.min(1, (p - 0.1) / 29.9)) * 65535);
   [0,1,2].forEach(i => { const p = encPeriod(lv[i]?.period ?? 4); buf[31+i*2]=(p>>8)&0xff; buf[32+i*2]=p&0xff; });
   let o = HDR5;
-  const w1  = (arr,i,j) => { buf[o++] = Math.round(((arr[i]||[])[j]??0.5)*255)&0xff; };
+  // Pads with 0, NOT 0.5. Every slot writes all N_P param bytes regardless of how
+  // many its shader actually declares, so the padding value is what a param
+  // appended LATER will read back as. The project rule is "0 is neutral for
+  // every appended param" — padding with 0.5 quietly broke it for share URLs
+  // (in-app JSON was never affected, which is why it went unnoticed): a URL made
+  // when plasma had four params fed 0.5 into style, which snaps to index 4 and
+  // reopened as marble instead of classic, with detail/contrast/fold/drift all
+  // half-on. Old URLs cannot be repaired — 0.5 written as padding is
+  // indistinguishable from 0.5 chosen deliberately — but nothing new is broken.
+  // Byte layout is unchanged, so older builds still read these URLs fine.
+  const w1  = (arr,i,j) => { buf[o++] = Math.round(((arr[i]||[])[j]??0)*255)&0xff; };
   const wBd = (arr,i,j) => { buf[o++] = BAND_ENC[arr[i]?.[j]?.band ?? null]; };
   const wDp = (arr,i,j) => { buf[o++] = Math.round(((arr[i]?.[j]?.depth)??0.5)*255)&0xff; };
   const wLf = (arr,i,j) => { const v=arr[i]?.[j]?.lfo; buf[o++] = v===null||v===undefined?0:v+1; };
