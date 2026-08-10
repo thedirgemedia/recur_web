@@ -1,140 +1,115 @@
 # recur_web
 
-A live video effect and generation tool that runs in a browser. Twelve
-generative shaders, twenty-one effects, four-slot chains with per-slot blend
-modes, LFO / MIDI / audio modulation, and video export — in **one HTML file with
-no build step and no dependencies**.
+Browser-based live video effects and generative shader tool. WebGL2, real-time,
+built for VJ use.
 
-It's the WebGL2 sibling of [recur](https://github.com/thedirgemedia/recur-recur), an
-mpv-based video sampler for the Raspberry Pi 5.
+Feed it a video file, a camera, or a screen capture, stack up to four generative
+shaders and four effects over it, and drive any parameter from audio, an LFO, or
+MIDI. Record the output or cast it to a second screen.
 
----
-
-## Quick start
-
-Download `index.html` and open it or drag it onto a web browser
-
-
-
-**Requirements:** any browser with WebGL2 — Chrome, Edge, Firefox, Safari 15+.
-Share links additionally need `CompressionStream` (Safari 16.4+). No install, npm, server-side
-Everything runs locally
-
-Tap the **◀** at the bottom of the screen to open the control panel.
+**[dirgemedia.com/recur](https://dirgemedia.com/recur)** · no install, no account.
 
 ---
 
-## The three modes
+## Run it
 
-| Mode | Source | Use |
-|---|---|---|
-| **SAMPLER** | a video file you load | sampling and mangling footage |
-| **SHADER** | purely generative | visuals from scratch, optionally composited over footage |
-| **LIVE** | the device camera | live camera processing |
+Open `index.html`. That's it — one self-contained file, no build step, no
+dependencies, works from `file://`.
 
-## Signal flow
+Requires a browser with **WebGL2**: Chrome/Edge 56+, Firefox 51+, Safari 15+.
+Share links additionally need `DecompressionStream` (Safari 16.4+).
 
-```
-  source  ──▶  GEN chain (max 4, each composited with its own blend mode)
-                  │
-                  ▼
-               FX chain (max 4, serial, each with wet/dry + blend mode)
-                  │
-                  ▼
-                screen  ──▶  optional CAST window / video export
-```
+## Use it
 
-The **flow strip** in the panel shows both chains. Drag a shader button onto it
-to insert at a position, drag blocks to reorder, double-click to bypass.
+**Three modes**, cycled with `ENTER`:
 
-## Shaders
+| | |
+|---|---|
+| **SAMPLER** | a loaded video file is the source |
+| **SHADER** | purely generative; optionally blend a source underneath |
+| **LIVE** | the camera is the source |
 
-**Generative (12)** — plasma, kaleidoscope, tunnel, flowing-colours,
-hypnotic-rings, squarewaves, starfield, voronoi, waves, zoom-clouds, gamma-ray,
-oscilloscope.
+SAMPLER and LIVE arrive with the shader stack bypassed so you see the source
+first. Tap the blend toggle to bring the stack back.
 
-Four of these carry a **style selector** with eight variants each — plasma,
-flowing-colours and zoom-clouds cover classic / fractal / domain-warped / ridged
-/ marble / contour / spiral / flow families, and plasma includes a real
-escape-time Julia set. Style 0 is always the original behaviour.
+**Two chains**, up to four slots each, shown in the flow strip:
 
-**Effects (21)** — vhs, glitch, feedback, mirror, posterize, invert, bitcrush,
-colorizer, grain, hsv-shift, hue-cycle, kaleido-warp, rotate-zoom, wobble,
-zoom-fx, ascii, halftone, levels, sample-hold, feature-dots, scatter.
+- **GEN** — 14 generative shaders, composited onto each other with per-slot blend
+  mode and amount.
+- **FX** — 21 effects, applied in series, each with its own wet/dry and blend mode.
 
-- **glitch** — macroblock corruption modelled on how codecs fail: runs
-  of consecutive blocks share a wrong motion vector, DC-only blocks, scrambled
-  DCT coefficients, chroma desync.
-- **ascii** — five selectable character sets (full printable ASCII, katakana,
-  CJK), each ranked by ink coverage so the tonal ramp is correct.
-- **feature-dots** — Shi-Tomasi corner detection with Lucas-Kanade optical flow;
-  dots track structure
-- **scatter** — cuts the frame into a grid and rearranges it; the swap modeso nothing is duplicated or lost.
-- **levels** — a five-point tone curve with a live editable canvas.
+Drag blocks in the strip to reorder, drag one in from the grid to insert,
+double-click to bypass, drag off the strip to remove. Duplicates are allowed and
+each gets its own seed.
 
-Every slot has up to 12 parameters, and every parameter can be driven by audio,
-an LFO, or a MIDI CC — these stack.
+**Modulation** — every parameter can be driven by an audio band (bass/mid/treble/
+volume), one of three LFOs, or a MIDI CC. LFOs run free or locked to a tap-tempo
+BPM clock.
 
-## Modulation
+### Keys
 
-- **Audio** — mic, tab audio or the loaded video's track, split into bass / mid /
-  treble / volume with a hold-decay envelope. Two shaders also read the raw
-  spectrum and waveform on the GPU.
-- **LFO** — three oscillators, each with shape, amplitude, offset, **skew**
-  (warps the waveform's timing) and **curve** (bends the trajectory spiky or
-  plateaued). Period in seconds or in musical divisions of a tap-tempo BPM.
-- **MIDI** — opt-in Web MIDI. Tap a parameter's MIDI badge and move a knob to
-  bind it. Bindings save with presets and share links.
+| key | |
+|---|---|
+| `ENTER` | cycle mode |
+| `SPACE` | play / pause |
+| `R` | play backwards |
+| `O` | open a video file |
+| `L` | camera on / off |
+| `F` | fullscreen |
+| `.` | feedback trail |
+| `0` | set in → out → clear (SAMPLER) · cycle gen (SHADER) |
+| `4`–`9` | toggle gen shaders 1–6 |
+| `−` `+` | previous / next FX |
+| `/` | clear the FX chain |
+| `1` `2` `3` | next param · decrease · increase |
+| `BKSP` | switch param layer, gen ↔ fx |
+| `P` `I` | perf meter · system info |
+| `?` | help |
 
-## Saving and sharing
+Everything is also on the control panel — tap the tab at the bottom of the screen.
 
-- **SAVE / LOAD** store named presets in the browser.
-- **SHARE** encodes the entire patch — chains, every per-slot parameter, blend
-  modes, LFO config, all modulation bindings — into a compact gzipped URL.
-  Video files are not included.
-- **CAST** opens a second window showing only the canvas, for a projector or
-  second screen. It syncs live over `BroadcastChannel` (same browser, same
-  machine).
+## Save and share
 
-Share links are forward-compatible: newer fields are appended as length-guarded
-trailing blocks, so a link made in an older build still opens.
+**SAVE / LOAD** keep presets in browser storage. **SHARE** encodes the entire
+patch into a URL — every parameter, chain order, blend mode and modulation
+binding, a few hundred bytes, no server. The video file itself is not included.
 
-## Recording
+Share URLs are forward-compatible: an older build will still open a link made by
+a newer one.
 
-Set a duration (5–120s), name the file, hit record. Saves as MP4 where the
-browser supports it, WebM otherwise — both can be reloaded as SAMPLER sources.
-Includes a hand-rolled WebM duration repair, because `MediaRecorder` writes
-unseekable files.
+## Performance
 
-Full documentation for every shader and control is in the **in-app help
-overlay** (`?`), which is kept in sync with the code.
+Two independent controls in **ZOOM & CHAINS**:
 
----
+- **RES** (½ / ¾ / 1×) — a *fraction* of your display resolution. First thing to
+  lower if a deep chain drops frames.
+- **RENDER CAP** (off / 1080 / 4K, default 4K) — an *absolute* pixel ceiling,
+  independent of screen size. Bounds GPU memory on large displays; does nothing
+  below the ceiling. Saved per device, not part of presets.
+
+Press `P` for a live frame-time meter, `I` for a GPU and platform report with a
+copy button. If something runs slower on one machine than another, those two
+answer it — the `mediump` line in particular, which differs between platforms and
+is not otherwise visible.
 
 ## Development
 
-**The single-file structure is deliberate.** 
-one file you can drop on a USB stick, email, or serve from anything. All CSS,
-JavaScript and GLSL live inline in `index.html`. Please keep it that way.
+The single-file structure is deliberate. Keep it.
 
+For shader work there is an opt-in hot-reload path that leaves the shipped file
+untouched:
 
+```
+node tools/extract-shaders.js     # index.html -> shaders/
+python3 serve.py                  # then open /?dev
+node tools/inline-shaders.js      # fold edits back into index.html
+```
 
-## Known issues
+Without `?dev` that code path returns immediately and issues no requests.
 
-- **Reverse and ping-pong playback can show a static frame.** Under
-  investigation. Backward playback is seek-driven and depends heavily on the
-  file's keyframe interval; `seek-check.html` will tell you whether your footage
-  is a factor.
-- **Share links can fail on a recipient's machine when a live camera is in the
-  patch** — suspected camera-permission mismatch, mostly on mobile.
-- Heavy chains need the render-scale control (`½` / `¾` / `1×` in the panel) on
-  phones and single-board computers. A typical 9-pass chain at 1080p60 asks for
-  around 1.1 Gpx/s.
-- **On a Raspberry Pi 5**, WebGL2 is hardware-accelerated but *video* is not:
-  the H.264 decode block was removed from the silicon, Chromium can't drive the
-  HEVC one, and there is no hardware encoder at all. Generative work is fine;
-  expect software decode for SAMPLER and slow exports.
+Validate before committing: extract the `<script>` and run `node --check`, and
+check element balance on any markup change.
 
 ## Licence
 
-GPL-3.0. See [LICENSE](LICENSE).
+GPL-3.0

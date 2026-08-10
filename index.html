@@ -495,6 +495,38 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .sk.c-red:hover .sk-label { color:#fff; }
 
 /* ── Help overlay ── */
+/* ── Diagnostic overlays ─────────────────────────────────────────────────────
+   Two of them, both corner-anchored and pointer-transparent so they never eat a
+   click meant for the canvas. The perf one is meant to be left running during a
+   set; the platform one is a static report you screenshot and send. */
+#perf-overlay, #diag-overlay {
+  display:none; position:fixed; z-index:250;
+  font-family:'Courier New',monospace; font-size:10px; line-height:1.45;
+  color:#0f0; background:rgba(0,12,0,.82);
+  border:1px solid #0a0; border-radius:3px;
+  padding:6px 8px; white-space:pre;
+  pointer-events:none; user-select:text;
+}
+#perf-overlay.vis, #diag-overlay.vis { display:block; }
+#perf-overlay { top:8px; left:8px; min-width:132px; }
+#diag-overlay {
+  top:8px; right:8px; max-width:min(420px, 46vw);
+  max-height:70vh; overflow:auto; white-space:pre-wrap; word-break:break-word;
+  pointer-events:auto;   /* it scrolls, and the copy button lives in it */
+}
+#diag-overlay .diag-hd { color:#0ff; }
+#diag-copy {
+  pointer-events:auto; margin-top:6px;
+  font-family:'Courier New',monospace; font-size:9px; letter-spacing:1px;
+  color:#0cc; background:rgba(0,20,25,.9); border:1px solid #066;
+  border-radius:3px; padding:3px 7px; cursor:pointer;
+}
+#diag-copy:hover { color:#fff; border-color:#0ff; }
+/* Amber at 2x the frame budget, red at 4x — absolute thresholds, because the
+   question is always "is this holding 60" and never "is this fast for me". */
+#perf-overlay .pf-warn { color:#fc0; }
+#perf-overlay .pf-bad  { color:#f44; }
+
 #help-overlay {
   display:none;
   position:fixed; inset:0;
@@ -572,16 +604,24 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
    without opening anything, not to be read all the time. */
 #spi-build { font-size:8px; color:#062; letter-spacing:0; white-space:nowrap;
   align-self:flex-end; padding-bottom:2px; }
+/* RND, ZOOM and RES only. The render cap used to live here too and squeezed the
+   row until the buttons were unreadable — it now sits on the SRC line below,
+   which has room to spare. flex-wrap stays as a backstop so a future addition
+   grows a second line instead of silently clipping controls off the end. */
 #spi-zoom-row {
   display:flex; align-items:center; gap:6px;
-  padding:2px 0;
+  padding:2px 0; flex-wrap:wrap;
 }
 .spi-zoom-lbl {
   font-size:9px; letter-spacing:1px; color:#0a0;
   white-space:nowrap; flex-shrink:0;
 }
 #spi-zoom-slider {
-  flex:1; height:3px; cursor:ew-resize;
+  /* min-width is not cosmetic: a range input's default min-width:auto is the UA
+     intrinsic width (~129px in Chrome), so flex:1 alone cannot shrink it and
+     anything after it gets pushed out of the panel. */
+  flex:1 1 90px; min-width:60px;
+  height:3px; cursor:ew-resize;
   accent-color:#0f0;
   -webkit-appearance:none; appearance:none;
   background:linear-gradient(to right,#0f0 0%,#0f0 calc((var(--zp,50))*1%),rgba(0,255,0,.15) calc((var(--zp,50))*1%),rgba(0,255,0,.15) 100%);
@@ -690,10 +730,22 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .audio-m-fill { height:100%; background:#0f0; width:0%; }
 
 /* ── Flow strip ───────────────────────────────────────────────────────────── */
+/* SRC lifted out of the flow strip and onto its own row above it: the camera is
+   the input to the stack, so it reads top-down as source -> gen -> fx. It also
+   frees the right-hand half of that line for the render cap, which has nothing
+   to do with the chain but everything to do with what the chain runs at. */
+#spi-src-cap-row {
+  display:flex; align-items:center; gap:4px;
+  padding:2px 0 1px; flex-wrap:wrap;
+}
+/* Pushes the cap group to the right edge, leaving SRC and CAM on the left. */
+#spi-src-cap-row .spi-cap-lbl { margin-left:auto; }
+#spi-src-cap-row .spi-hbtn { padding:3px 6px; flex-shrink:0; }
+
 #flow-strip {
   display:grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto;
   gap:2px 0;
   padding:2px 0 1px;
 }
@@ -880,6 +932,9 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 <body>
 <canvas id="c"></canvas>
 
+<div id="perf-overlay"></div>
+<div id="diag-overlay"></div>
+
 <div id="hud">
   <div class="hm" id="hm">SAMPLER</div>
   <div class="hs"  id="hs"></div>
@@ -965,6 +1020,15 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
       <button class="spi-hbtn" data-rs="0.5">½</button>
       <button class="spi-hbtn" data-rs="0.75">¾</button>
       <button class="spi-hbtn res-on" data-rs="1">1×</button>
+    </div>
+    <div id="spi-src-cap-row">
+      <span class="flow-row-lbl"><span class="fb fb-src">SRC</span></span>
+      <span class="fb fb-cam" id="flow-cam-btn" data-action="camera" title="camera on/off">○CAM</span>
+      <span class="spi-zoom-lbl spi-cap-lbl" title="Absolute ceiling on the internal buffer, independent of display resolution. Bounds GPU memory on large screens; below the ceiling it does nothing.">RENDER CAP</span>
+      <button class="spi-hbtn" data-px="off">off</button>
+      <button class="spi-hbtn" data-px="1080p">1080</button>
+      <button class="spi-hbtn" data-px="4k">4K</button>
+      <span id="spi-res-val" class="spi-zoom-lbl" title="Actual internal buffer size."></span>
     </div>
     <div id="flow-strip"></div>
     <div id="spi-audio-line"></div>
@@ -1239,6 +1303,14 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
         <span class="sk-key">?</span>
         <span class="sk-label">help</span>
       </div>
+      <div class="sk" data-action="perf">
+        <span class="sk-key">P</span>
+        <span class="sk-label">perf meter</span>
+      </div>
+      <div class="sk" data-action="diag">
+        <span class="sk-key">I</span>
+        <span class="sk-label">system info</span>
+      </div>
       <div class="sk c-red" data-action="defaultstate">
         <span class="sk-key">DEF</span>
         <span class="sk-label">default</span>
@@ -1263,17 +1335,21 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-section">Panel</div>
     <div class="hk-row"><span class="hk-key">◀ tab</span><span class="hk-desc">Tap the tab at the bottom centre of the screen to open / close the control panel</span></div>
     <div class="hk-row"><span class="hk-key">grip strip</span><span class="hk-desc">Tap the grip at the top of the panel to close it. Drag it up/down to resize the panel height</span></div>
-    <div class="hk-row"><span class="hk-key">ZOOM &amp; CHAINS</span><span class="hk-desc">Folds away the zoom / render-scale row, the GEN-FX-SRC flow strip and the audio line in one go, leaving the mode buttons and the param sliders. Handy on a phone when you only want to ride the sliders. While it is folded the flow strip stops rebuilding itself, so it saves a little work as well as space</span></div>
+    <div class="hk-row"><span class="hk-key">ZOOM &amp; CHAINS</span><span class="hk-desc">Folds away the zoom / render-scale row, the SRC + render-cap row, the SRC-GEN-FX flow strip and the audio line in one go, leaving the mode buttons and the param sliders. Handy on a phone when you only want to ride the sliders. While it is folded the flow strip stops rebuilding itself, so it saves a little work as well as space</span></div>
     <div class="hk-row"><span class="hk-key">PARAMS header</span><span class="hk-desc">The slider area has its own header above it, which folds the sliders away the same as any other section and names the shader they belong to — so you can still see what is selected with the sliders hidden</span></div>
     <div class="hk-row"><span class="hk-key">section headers</span><span class="hk-desc">Every heading in the lower body — GEN SHADER, FX SHADER, VIDEO, LFO, AUDIO INPUT, MIDI, MISC — is a show/hide toggle. Tap one to fold that section away; the arrow on the right points down when open and right when closed. Useful on a phone where the panel would otherwise be a long scroll. VIDEO, LFO, AUDIO INPUT, MIDI and MISC start closed since they are mostly set-and-forget; GEN SHADER and FX SHADER start open. What you collapse from then on is remembered between sessions</span></div>
     <div class="hk-row"><span class="hk-key">MODE buttons</span><span class="hk-desc">sampler / shader / live sit at the top of the panel, directly under SAVE / LOAD / SHARE / CAST, so they stay visible instead of scrolling away with the rest of the body</span></div>
     <div class="hk-row"><span class="hk-key">RND</span><span class="hk-desc">Randomise, at the far left of the zoom row. Fills the GEN chain with 4 different shaders and the FX chain with 4 different effects, rolls every param, picks blend modes and amounts, re-rolls the per-slot seeds, re-rolls all three LFO oscillators (shape, period and amp — your BPM on/off choice is left alone) and assigns two to four of them onto random params so the result moves. Switches to SHADER, since the GEN chain is bypassed in SAMPLER and LIVE and you would not see the result otherwise. Blend modes are weighted rather than uniform: multiply, darken and burn each remove light, so a flat random pick would land on a black frame a good share of the time, and the first slot is always normal at full because it composites onto black. Snapping params land exactly on a position, so style selectors give you a real variant rather than something halfway between two. Audio and MIDI bindings are left untouched. It replaces both chains outright — save or share anything you want to keep first</span></div>
     <div class="hk-row"><span class="hk-key">ZOOM</span><span class="hk-desc">Global zoom slider in the header — scales the canvas output. Useful when the device resolution is larger than the display area. Tap 1:1 to reset</span></div>
+    <div class="hk-row"><span class="hk-key">RES</span><span class="hk-desc">Render scale — &frac12; / &frac34; / 1&times;, at the right of the zoom row. A <em>fraction</em> of the display resolution, so it always tracks the screen you are on. Lower means fewer pixels through the shader chain, which is the first thing to reach for if the frame rate drops on a heavy chain</span></div>
+    <div class="hk-row"><span class="hk-key">RENDER CAP</span><span class="hk-desc">An <em>absolute</em> ceiling on the internal buffer, on the SRC row below — off / 1080 / 4K, defaulting to 4K. Where RES is a fraction of whatever display you plug into, this is a hard pixel budget that does not care how big the screen is. Below the ceiling it does nothing at all; above it, both axes scale down together so the aspect ratio is kept. It exists because the buffers are sized from the display: three are always resident and four more plus a half-float pair are allocated on demand, so an uncapped 5K screen means 169&nbsp;MB resident and 506&nbsp;MB worst case. The 4K default holds that to about 285&nbsp;MB on any display. Saved per device, and deliberately <em>not</em> part of presets or share links — what this machine can hold is nobody else's business</span></div>
+    <div class="hk-row"><span class="hk-key">resolution readout</span><span class="hk-desc">The figure at the end of the SRC row is the buffer size actually in use, after RES and RENDER CAP have both been applied. A &#9660; after it means the cap is currently biting — without that you could not tell a capped picture from a soft one</span></div>
     <div class="hk-row"><span class="hk-key">param sliders</span><span class="hk-desc">The upper slot shows the active shader's parameters — scroll it independently. The lower body scrolls separately</span></div>
 
     <div class="hk-section">Signal flow strip</div>
-    <div class="hk-row"><span class="hk-key">top row (GEN)</span><span class="hk-desc">Shows the active generative shader chain. Each block shows a short abbreviation — hover for the full name. Click to select its params</span></div>
-    <div class="hk-row"><span class="hk-key">bottom row (FX)</span><span class="hk-desc">Shows the active FX chain. Blocks use abbreviations; hover for full name. A dashed "fx" box means no effects are loaded. Click any block to select its params</span></div>
+    <div class="hk-row"><span class="hk-key">SRC row</span><span class="hk-desc">Sits <em>above</em> the GEN and FX rows, so the strip reads top-down in the order the signal actually travels: source &rarr; gen &rarr; fx. It holds the camera toggle on the left and the RENDER CAP controls on the right, which have nothing to do with the chain but everything to do with what the chain runs at</span></div>
+    <div class="hk-row"><span class="hk-key">GEN row</span><span class="hk-desc">Shows the active generative shader chain. Each block shows a short abbreviation — hover for the full name. Click to select its params</span></div>
+    <div class="hk-row"><span class="hk-key">FX row</span><span class="hk-desc">Shows the active FX chain. Blocks use abbreviations; hover for full name. A dashed "fx" box means no effects are loaded. Click any block to select its params</span></div>
     <div class="hk-row"><span class="hk-key">drag to reorder</span><span class="hk-desc">Drag blocks within either row to reorder the chain — a green slot highlights the drop position</span></div>
     <div class="hk-row"><span class="hk-key">drag from grid</span><span class="hk-desc">Drag a GEN or FX button from the grid below and drop it onto the flow strip to insert it at that position — dragging the same GEN shader multiple times adds duplicate instances, each with a unique random seed so procedural patterns differ</span></div>
     <div class="hk-row"><span class="hk-key">double-click</span><span class="hk-desc">Double-click a block to bypass (disable) it — shown dimmed with strikethrough. Double-click again to re-enable. The shader stays in the chain but is skipped during rendering</span></div>
@@ -1325,6 +1401,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">glitch</span><span class="hk-desc">Digital corruption stack. intensity = horizontal slice displacement; rate = how fast the glitch state jumps; channel = RGB split; slices = number of horizontal bands, scaling all the way up to one-per-scanline (per-pixel) at max; variation = pulls neighbouring slices together and occasionally stretches a band to a single repeated line. blocks = macroblock corruption, modelled on how a codec actually fails: a run of consecutive blocks along the scan share one wrong motion vector, so damage arrives as coherent horizontal drags of varying length rather than evenly scattered squares, and it runs at two block sizes at once so the chunks are not all the same size. Displacement snaps to the block lattice, which is what makes it tile like block damage instead of smearing. noise = digital dropout, cycling the failure modes a broken MPEG/JPEG frame really shows — DC-only blocks (detail gone, flat average colour), scrambled-AC blocks (a DCT basis wave showing through as a striped ripple), chroma desync (luma survives, colour comes from the wrong place) and channel roll. Dropouts share the run structure and cluster on blocks that are already displaced, so the two read as one fault. crush = colour bit-crush/quantise (down to ~2 levels), wave = analog sine warp / horizontal wobble. New features sit at 0 (off) on presets saved before they existed</span></div>
     <div class="hk-row"><span class="hk-key">scatter</span><span class="hk-desc">Cuts the frame into a square grid and rearranges it. grid sets how many cells across, from a handful of big slabs up to 48 fine tiles. shuffle is how far a cell may travel, up to ten cells away, and amount is how many of them move at all — the rest pass through untouched. pixelate quantises inside each cell, from full detail down to one flat colour per tile. rate re-rolls the arrangement on a timer; at 0 it holds still, so you get a fixed scramble rather than a churn. seam darkens a border inside each cell so the grid reads as laid tiles. mode picks how cells move: 0 scatter (each jumps somewhere random), 1 swap (cells trade in pairs — a true permutation, so nothing is duplicated or lost), 2 rows (whole rows slide sideways), 3 columns (whole columns slide vertically), 4 spin (cells stay put but their contents rotate in 90 degree steps)</span></div>
     <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Tracks corner features in the image (Shi-Tomasi detection + Lucas-Kanade optical flow) and marks them with coloured dots that move with the structure they're tracking. Pitch sets dot spacing, sensitivity sets how readily a point is treated as a feature, dot-size and jitter shape the dots, tint/backdrop/gamma control colour, track blends tracked motion in, and settle controls how strongly dots relax back toward their grid position each frame — too little and the field shears apart, too much and dots snap back to the lattice</span></div>
+    <div class="hk-row"><span class="hk-key">maze-flight</span><span class="hk-desc">Endless flight through an infinite fractal maze — a solid universe with corridors carved at three nested scales, so every wall is itself a smaller maze. Ported from a CC0 shader by ksin on glslop. speed sets how fast you travel (0 freezes the frame), fov widens or narrows the lens, turns is how hard the path wanders — at 0 it runs dead straight. width sets corridor size and density how many walls open, so the two together take you from tight warren to open hall. detail switches in the second and third nested scales at a third and three-quarters of its travel, and also buys the extra march steps needed to resolve them — it is the performance control, so drop it first if the frame rate suffers. It ships at 0.6, which leaves the third scale off: those corridors are under a tenth of a unit wide and sweep past the camera faster than a frame, which is most of what reads as sparkle. Push it past 0.75 for the full fractal and expect the near field to get busy. glow lights convex edges, circuits runs light along the wall grooves, windows lights sparse wall panels. hue sets the neon colour and drifts slowly on its own, saturation and fog finish the image. It ignores video entirely, so in LIVE mode set the slot blend to screen or add — the corridors are near black and the footage shows through them while the neon stays lit. Two slots running it land in different parts of the maze</span></div>
+    <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls in and out. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
 
     <div class="hk-row"><span class="hk-key">vhs</span><span class="hk-desc">Analog tape emulation. chroma pulls red and blue apart horizontally, scanlines darkens alternate lines, noise adds per-pixel grain, and tracking jitters whole scanlines sideways at random — the tape-alignment wobble. A slight desaturation and warm tint are applied on top</span></div>
     <div class="hk-row"><span class="hk-key">posterize</span><span class="hk-desc">Reduces the image to a small number of colour steps — levels sets how many, 2 to 16 per channel. contrast is applied after the quantisation, so it hardens the edges between bands rather than creating more of them. tint-hue rotates the hue of the posterised result, centre being no shift. mix blends back against the original</span></div>
@@ -1380,7 +1458,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">mode label</span><span class="hk-desc">Tap the mode label in the blend row to cycle through compositing modes: normal · add · screen · multiply · difference · lighten · darken · overlay · dodge · burn</span></div>
     <div class="hk-row"><span class="hk-key">FX blend row</span><span class="hk-desc">FX slots have the same two rows, but they mix the effect against its own input rather than against the layer below. The full list of modes is identical</span></div>
     <div class="hk-row"><span class="hk-key">normal vs the rest</span><span class="hk-desc">normal at mix 1.00 is a plain serial effect — nothing is composited, so it costs nothing extra. Any other mode always runs a compositing pass, even at mix 1.00</span></div>
-    <div class="hk-row"><span class="hk-key">◉ CAM</span><span class="hk-desc">Tap the camera icon in the flow strip to turn the live camera on/off directly. In LIVE mode the camera is the base layer; in SAMPLER mode the loaded video is the base</span></div>
+    <div class="hk-row"><span class="hk-key">◉ CAM</span><span class="hk-desc">Tap the camera block on the SRC row — the top line of the flow strip, left-hand end — to turn the live camera on/off directly. In LIVE mode the camera is the base layer; in SAMPLER mode the loaded video is the base</span></div>
 
     <div class="hk-section">Source section</div>
     <div class="hk-row"><span class="hk-key">appears automatically</span><span class="hk-desc">A permanent row of source controls appears just below the SAVE/LOAD/SHARE/CAST buttons whenever the camera is on, or LIVE or SAMPLER mode is selected — no need to open anything</span></div>
@@ -1413,11 +1491,19 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">SAMPLER / LIVE</span><span class="hk-desc">The output window cannot share the control window's video or camera — load the same file (O key or drag) or start the camera (L) separately in the output window</span></div>
     <div class="hk-row"><span class="hk-key">same machine only</span><span class="hk-desc">BroadcastChannel works within the same browser on the same device only</span></div>
 
+    <div class="hk-section">Diagnostics</div>
+    <div class="hk-row"><span class="hk-key">P &mdash; perf meter</span><span class="hk-desc">Top-left overlay, also on the MISC row. Frame rate and mean frame time over a rolling second, the worst single frame in that second (<em>peak</em>), how many frames missed their deadline (<em>late</em>), the internal buffer size, the source texture size, an estimate of resident GPU memory, and how many non-bypassed GEN and FX slots are running. The figure turns amber past 16.8&nbsp;ms and red past 33.3&nbsp;ms &mdash; absolute thresholds, because the question is always whether it is holding 60</span></div>
+    <div class="hk-row"><span class="hk-key">mean vs peak</span><span class="hk-desc">Both are shown because either alone lies. A 90&nbsp;ms hitch once a second still averages out near 60&nbsp;fps, and a mean that looks fine next to a peak that does not is exactly what a visible stutter is</span></div>
+    <div class="hk-row"><span class="hk-key">I &mdash; system info</span><span class="hk-desc">Top-right overlay. GPU renderer and vendor, the translation backend (native, or which ANGLE flavour), shader precision, texture limits, float render-target support, device pixel ratio, screen and buffer size, cap and scale settings, and the loaded source. <em>COPY</em> puts the lot on the clipboard &mdash; the fastest way to answer &ldquo;it runs slower on my machine&rdquo;</span></div>
+    <div class="hk-row"><span class="hk-key">mediump line</span><span class="hk-desc">The one worth understanding. 10&nbsp;bits means the GPU runs <em>mediump</em> as true fp16, which is roughly twice the arithmetic throughput; 23&nbsp;bits means it is promoted to fp32. Apple Silicon gives the former, Windows through ANGLE the latter &mdash; the same shaders, a real speed difference, and not something either machine reports on its own</span></div>
+    <div class="hk-row"><span class="hk-key">source line</span><span class="hk-desc">Resolution, duration, estimated frame rate and file size of the loaded clip, also reported to the console on load. RENDER CAP does <em>not</em> bound this: the source texture is whatever the file is, and it is re-uploaded every frame. A clip wider than the GPU's texture limit cannot upload at all and now says so instead of showing black</span></div>
     <div class="hk-section">Save / Load / Share</div>
     <div class="hk-row"><span class="hk-key">SAVE</span><span class="hk-desc">Store the full current state as a named preset in the browser — shader chain, FX chain, all params, LFO config, blend settings</span></div>
     <div class="hk-row"><span class="hk-key">LOAD</span><span class="hk-desc">Restore a saved preset — lists all stored presets with timestamps</span></div>
-    <div class="hk-row"><span class="hk-key">SHARE</span><span class="hk-desc">Generate a compact URL with all settings encoded — all per-slot parameters, FX blend modes and mix amounts, chain order, LFO/audio/MIDI modulation are preserved. Bookmark or share to reload exact state on any device (video file not included)</span></div>
+    <div class="hk-row"><span class="hk-key">SHARE</span><span class="hk-desc">Generate a compact URL with all settings encoded — all per-slot parameters, FX blend modes and mix amounts, chain order, LFO/audio/MIDI modulation are preserved. Bookmark or share to reload exact state on any device (video file not included). A real link is a few hundred bytes; anything claiming to be far larger is refused rather than opened, so a malformed or hostile link fails with a message instead of locking up the tab</span></div>
+    <div class="hk-row"><span class="hk-key">unplayable files</span><span class="hk-desc">A file the browser cannot decode now says why &mdash; format unsupported, decode failed, network error or aborted &mdash; instead of leaving <em>loading&hellip;</em> up forever. Codec support is checked before the load starts, not after it fails</span></div>
     <div class="hk-row"><span class="hk-key">RST</span><span class="hk-desc">Reset all shader and FX parameters to defaults, keeping the current chain</span></div>
+    <div class="hk-row"><span class="hk-key">preset storage</span><span class="hk-desc">Presets live in browser storage, which is capped at a few megabytes. If it fills, saving says so rather than failing quietly &mdash; and no longer claims to have saved. Delete a few from the LOAD list to make room. Private-browsing windows may refuse to store anything at all</span></div>
     <div class="hk-row"><span class="hk-key">DEF</span><span class="hk-desc">Revert to initial state — clears the FX chain, resets the GEN chain to a single shader with default params, and clears all blend and mod settings</span></div>
 
     <div class="hk-section">Keyboard shortcuts</div>
@@ -1528,7 +1614,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-09d · randomise';
+const BUILD = '2026-08-11h · docs';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -2296,6 +2382,518 @@ void main(){
   col+=mix(tint,vec3(1.),.6)*edge*uP6*1.3;       // outline (uP6)
   col+=tint*scopeLine(uv,0.,rad,amp,thick*6.,asp)*uP7*.5*act;  // glow (uP7)
 
+  FC=vec4(clamp(col,0.,1.),1.);}`
+  },
+  {
+    name: 'maze-flight',
+    // Endless flythrough of an infinite fractal maze: a solid universe with
+    // corridors carved at three nested scales, so every wall is itself a
+    // smaller maze. Ported from "Can't Find My Way Out" by ksin on glslop
+    // (CC0-1.0, id gstbkfmm). The ISF original is GLSL ES 1.00 and assumes an
+    // unbounded fp32 TIME; four things had to change for it to survive here —
+    // see the comments in the source. Defaults reproduce the original's look.
+    params: ['speed','fov','turns','width','density','detail','glow','circuits','windows','hue','saturation','fog'],
+    // Mostly the original's published parameter set, mapped onto 0..1 sliders
+    // against the ISF MIN/MAX. Two are deliberately calmer than the ISF ships.
+    // detail 0.6 leaves the THIRD carve scale off: its corridors are under 0.1
+    // units wide, and at arm's length from the camera they sweep past faster
+    // than a frame, which measures as most of the remaining instability (3.8% of
+    // the frame changing hard per frame with it off, 5.6% with it on). Push
+    // detail past 0.75 to get it back. speed 0.25 is 0.75x the ISF default —
+    // every motion artefact scales linearly with it, and 3.2 units/sec through a
+    // corridor one cell wide is quick. Both are one slider away from the original.
+    def: [.25,.619,.815,.456,1.,.6,.04,.668,.944,.58,.77,.4],
+    src: H+`
+// Everything here is position-and-time math on an unbounded world coordinate,
+// which is exactly what the shared mediump header cannot carry: this is a
+// forward flythrough, so the camera's z IS the clock. A precision statement may
+// be re-issued at global scope and applies to every declaration after it, so
+// this promotes the whole shader without touching H or any other entry.
+precision highp float;
+precision highp int;
+
+#define TAU 6.28318530718
+const float CELL = 3.0;
+const float HW   = 0.5;     // stairs() half-width. The ISF ships "smoothness" at
+                            // 0.6; 0.5 is its ceiling and the only value that makes
+                            // floor(x)+smoothstep C1-continuous through every riser.
+const float PSTR = 3.0;     // path-noise stretch — see mzPath()
+const float ZHUE = 1.28;    // ISF "depthHue", fixed
+const float HCYC = 0.21;    // ISF "hueCycle", fixed
+const float LGHT = 1.0;     // ISF "headlight", fixed
+
+// Slider values, resolved once in main(). GLSL forbids initialising a global
+// from a uniform, so these are declared bare and assigned at the top of main().
+float mzTurn, mzWide, mzDens, mzDetl, mzGlow, mzStrp, mzWinL, mzSatu, mzFogA;
+
+// Rebasing state. The world is sampled at p + vec3(0,0,gK*CELL); everything the
+// march actually touches is the LOCAL p, which stays within a march length of
+// the origin no matter how long the shader has been running. gK carries the
+// displacement as an exact integer instead.
+int   gK;    // camera cell index along z
+float gZc;   // float(gK), the path-noise coordinate base
+float gHz;   // depth-hue offset for the rebase, pre-wrapped into 0..1
+float gTa, gTb, gTc;  // wrapped animation phases
+
+// ── hashing ──────────────────────────────────────────────────────────────────
+// The original hashes with fract(sin(x)*43758.5453) on unbounded coordinates.
+// That is fine for a 512x512 poster and wrong for a tool that runs for hours:
+// by the time the path coordinate reaches a few hundred, the sine argument is
+// in the tens of thousands and fp32 has shed most of the mantissa that made the
+// hash a hash. WebGL2 has integer ops, so the cell id can be hashed exactly at
+// any magnitude — cheaper than the sine version as well as stable.
+uint mzMix(uint x){
+  x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x;
+}
+float mzH3(ivec3 c,uint salt){
+  uint h=mzMix(uint(c.x+0x400000)^mzMix(uint(c.y+0x400000)^mzMix(uint(c.z+0x400000)^salt)));
+  return float(h>>8)/16777216.;
+}
+float mzH1(int c,uint salt){
+  return float(mzMix(uint(c+0x400000)^salt)>>8)/16777216.;
+}
+float mzVN(float x){
+  float i=floor(x), f=x-i;
+  f=f*f*(3.-2.*f);
+  int ii=int(i);
+  return mix(mzH1(ii,0x2545u),mzH1(ii+1,0x2545u),f);
+}
+
+// ── camera path ──────────────────────────────────────────────────────────────
+// Rounded right-angle turns: a staircase whose risers are smoothstepped.
+float mzStairs(float x){
+  return floor(x)+smoothstep(.5-HW,.5+HW,fract(x));
+}
+// The ISF version cross-fades a sine path against a noise path on "randomness",
+// which ships at 1.0 — the sine half is dead weight at the published setting, so
+// fixing randomness buys back four sin() calls from a function that runs on
+// every march step, every AO tap and every normal tap. Easily the largest single
+// saving in the port.
+//
+// PSTR stretches the whole path along z. As published, stairs() carries the
+// camera a full cell sideways in about a quarter of a second, so it slews
+// LATERALLY up to 4.1x faster than it flies forward — measured on a CPU port of
+// this field. Inside a corridor barely one cell wide that whips the near walls
+// across the frame and geometry appears to pop into existence just ahead of the
+// camera. Stretching by 3 brings the worst lateral rate to 0.74x forward and
+// cuts hard frame-to-frame changes in hit distance from 14.6% of the frame to
+// 5.6%; the path still changes cell roughly every ten units, so it reads as the
+// same wandering flythrough, just not a slalom.
+vec2 mzPath(float zLocal){
+  float zc=(zLocal/CELL+gZc)/PSTR;
+  float gx=((mzVN(zc/3.5 +3.)-.5)+.5*(mzVN(zc/1.575+9.) -.5))*1.60*mzTurn;
+  float gy=((mzVN(zc/3.9+21.)-.5)+.5*(mzVN(zc/1.75 +40.)-.5))*1.35*mzTurn;
+  return vec2((mzStairs(gx)+.5)*CELL,(mzStairs(gy)+.5)*CELL);
+}
+
+// ── the maze ─────────────────────────────────────────────────────────────────
+// Corridors reach through any cell face whose hash rolls open. The key is keyed
+// to the FACE, not the cell: on a doubled lattice the +x face of cell i and the
+// -x face of cell i+1 are both 2i+(1,0,0), so adjacent cells describe identical
+// geometry at the seam and the field stays continuous. kz is the rebase offset
+// for this scale — an exact integer, so the local fractional geometry below is
+// computed entirely from small numbers and never loses resolution.
+float mzCarve(vec3 p,float s,float prob,float w,uint salt,int kz){
+  vec3 idf=floor(p/s);
+  ivec3 id=ivec3(idf)*2; id.z+=kz*2;
+  vec3 f=p-(idf+.5)*s;
+  float e=.5*s+w, d=1e9;
+
+  float crx=max(abs(f.y),abs(f.z))-w;
+  if(mzH3(id+ivec3( 1,0,0),salt)<prob) d=min(d,max(crx,max( f.x-e,-f.x-w)));
+  if(mzH3(id+ivec3(-1,0,0),salt)<prob) d=min(d,max(crx,max(-f.x-e, f.x-w)));
+
+  float crz=max(abs(f.x),abs(f.y))-w;
+  if(mzH3(id+ivec3(0,0, 1),salt+0x33u)<prob) d=min(d,max(crz,max( f.z-e,-f.z-w)));
+  if(mzH3(id+ivec3(0,0,-1),salt+0x33u)<prob) d=min(d,max(crz,max(-f.z-e, f.z-w)));
+
+  // Vertical openings are rarer, or the maze reads as a shaft rather than a run.
+  float py=prob*.45;
+  float cry=max(abs(f.x),abs(f.z))-w;
+  if(mzH3(id+ivec3(0, 1,0),salt+0x71u)<py) d=min(d,max(cry,max( f.y-e,-f.y-w)));
+  if(mzH3(id+ivec3(0,-1,0),salt+0x71u)<py) d=min(d,max(cry,max(-f.y-e, f.y-w)));
+  return d;
+}
+
+float mzMap(vec3 p){
+  float w0=.34*CELL*mzWide;
+  float carve=mzCarve(p,CELL,.58*mzDens,w0,0x9e37u,gK);
+
+  // Guaranteed corridor along the camera path, so the flythrough never walls
+  // itself in. The Chebyshev distance to a centre that moves with z is not a
+  // true SDF, so it is scaled down to stay Lipschitz-safe: overstep here and the
+  // march punches blade-shaped shards through the walls. Scaling an SDF by a
+  // positive constant does not move its zero crossing, so this only costs steps.
+  // The ISF uses 0.2; 43,200 probe rays across 600 camera positions found zero
+  // overshoot events at 0.8, and the gentler path above makes it safer still, so
+  // 0.5 is taken as the conservative middle — worth ~20% of the march budget.
+  vec2 pc=mzPath(p.z);
+  carve=min(carve,(max(abs(p.x-pc.x),abs(p.y-pc.y))-w0)*.5);
+
+  // The walls are themselves mazes. CELL=3 makes every nested scale an exact
+  // divisor of the rebase step, which is what lets kz stay an integer.
+  if(mzDetl>.25){
+    float s1=CELL/3.;
+    carve=min(carve,mzCarve(p,s1,.42*mzDens,.30*s1*mzWide,0x65d9u,gK*3));
+  }
+  if(mzDetl>.75){
+    float s2=CELL/9.;
+    carve=min(carve,mzCarve(p,s2,.45*mzDens,.32*s2*mzWide,0x1b57u,gK*9));
+  }
+  return -carve;
+}
+
+vec3 mzNormal(vec3 p){
+  vec2 e=vec2(.0015,-.0015);
+  return normalize(e.xyy*mzMap(p+e.xyy)+e.yyx*mzMap(p+e.yyx)+
+                   e.yxy*mzMap(p+e.yxy)+e.xxx*mzMap(p+e.xxx));
+}
+float mzAO(vec3 p,vec3 n){
+  float occ=0.,sca=1.;
+  for(int i=0;i<5;i++){
+    float h=.02+.11*float(i);
+    occ+=(h-mzMap(p+n*h))*sca;
+    sca*=.72;
+  }
+  return clamp(1.-1.4*occ,0.,1.);
+}
+// Six more map() evaluations, which is why the caller gates this on the glow
+// slider rather than computing it and multiplying by zero.
+float mzEdge(vec3 p,float h){
+  float d0=mzMap(p);
+  float s=mzMap(p+vec3(h,0.,0.))+mzMap(p-vec3(h,0.,0.))
+         +mzMap(p+vec3(0.,h,0.))+mzMap(p-vec3(0.,h,0.))
+         +mzMap(p+vec3(0.,0.,h))+mzMap(p-vec3(0.,0.,h));
+  return clamp((s/6.-d0)/h*4.,0.,1.);
+}
+
+vec3 mzPal(float h){ return .5+.5*cos(TAU*(h+vec3(0.,.33,.67))); }
+
+vec3 mzShade(vec3 ro,vec3 rd,float t,float zl,float hue0){
+  vec3 p=ro+rd*t;
+  vec3 n=mzNormal(p);
+  float ao=mzAO(p,n);
+  vec3 an=abs(n);
+  // gHz folds the rebase into the depth-driven hue. mzPal has period 1, so
+  // adding the wrapped offset is exact — without it the hue would step every
+  // time the world rebases, about once a second at the default speed.
+  float hue=hue0+gHz+p.z*.012*ZHUE;
+  float dfade=exp(-t*.06);
+
+  float tint=mzH3(ivec3(floor(p/CELL))+ivec3(0,0,gK),0x7a7u);
+  vec3 alb=mix(vec3(.16,.17,.20),vec3(.23,.21,.27),tint);
+
+  // Circuit lines crawling the grooves of a half-unit lattice.
+  float gs=.5;
+  vec3 fr=fract(p/gs);
+  vec3 dl=gs*min(fr,1.-fr);
+  float lm=0.;
+  lm=max(lm,(1.-smoothstep(.006,.028,dl.x))*(1.-an.x));
+  lm=max(lm,(1.-smoothstep(.006,.028,dl.y))*(1.-an.y));
+  lm=max(lm,(1.-smoothstep(.006,.028,dl.z))*(1.-an.z));
+  lm*=dfade;
+  float lh=mzH3(ivec3(floor(p/gs))+ivec3(0,0,gK*6),0x13du);
+  float circuit=lm*step(.72,lh)*(.7+.3*sin(gTa+lh*TAU*3.));
+
+  // Sparse lit wall panels.
+  vec3 wq=abs(fract(p)-.5);
+  float inset=max(wq.x*(1.-an.x),max(wq.y*(1.-an.y),wq.z*(1.-an.z)));
+  float wh=mzH3(ivec3(floor(p))+ivec3(0,0,gK*3),0x91du);
+  float wmask=(1.-smoothstep(.27,.33,inset))*step(1.-.11*mzWinL,wh)
+             *(.65+.35*sin(gTb+wh*TAU*5.));
+
+  float trim=0.;
+  if(mzGlow>.001) trim=mzEdge(p,.06)*mzGlow;
+
+  vec3 lp=ro+vec3(0.,.2,0.);
+  vec3 ld=lp-p;
+  float lr=max(length(ld),1e-3);
+  ld/=lr;
+  float att=1./(1.+.14*lr*lr);
+  float dif=max(dot(n,ld),0.)*att;
+  float spe=pow(max(dot(reflect(rd,n),ld),0.),24.)*att;
+
+  // Coloured scout light drifting ahead down the corridor.
+  float z2=zl+9.+3.*sin(gTc);
+  vec3 ld2=vec3(mzPath(z2),z2)-p;
+  float lr2=max(length(ld2),1e-3);
+  float att2=1./(1.+.20*lr2*lr2);
+  float dif2=max(dot(n,ld2/lr2),0.)*att2;
+
+  vec3 neon=mzPal(hue);
+  vec3 col=alb*(.05+1.5*dif*LGHT)*ao;
+  col+=alb*mzPal(hue+.45)*dif2*2.2*LGHT;
+  col*=1.-.45*lm;
+  col+=vec3(.9)*spe*.5*LGHT*ao;
+  col+=neon*trim*1.5*(.3+.7*ao);
+  col+=neon*circuit*1.1*mzStrp;
+  col+=mzPal(hue+.13+wh*.35)*wmask*2.;
+  return col;
+}
+
+void main(){
+  mzTurn=mix(0.,2.,uP3);
+  mzWide=mix(.5,1.4,uP4);
+  mzDens=mix(0.,1.5,uP5);
+  mzDetl=uP6;
+  mzGlow=mix(0.,2.5,uP7);
+  mzStrp=mix(0.,2.5,uP8);
+  mzWinL=mix(0.,2.5,uP9);
+  mzSatu=mix(0.,2.,uP11);
+  mzFogA=mix(0.,2.5,uP12);
+
+  vec2 uv=(vU-.5)*2.*vec2(uRes.x/uRes.y,1.);
+
+  float t=(float(uFrame)+uSeed)/60.;
+  // mod() on the seed rather than the raw value: uSeed runs to 10000 and would
+  // otherwise start the flythrough tens of thousands of units downrange, giving
+  // away resolution before the first frame. This is only here so two slots
+  // carrying maze-flight land in different parts of the maze.
+  float zt=t*3.2*mix(0.,3.,uP1)+.4+mod(uSeed,997.)*3.;
+
+  // Rebase. gK is exact; zl is what the march sees, and it never leaves [0,3).
+  gK=int(floor(zt/CELL));
+  gZc=float(gK);
+  gHz=fract(gZc*CELL*.012*ZHUE);
+  float zl=zt-gZc*CELL;
+
+  // Animation phases are wrapped into one period before they reach sin(). t is
+  // unbounded, and sin() of a five-digit argument in fp32 is noise.
+  gTa=mod(t*2.,TAU); gTb=mod(t*1.5,TAU); gTc=mod(t*.4,TAU);
+
+  vec3 ro=vec3(mzPath(zl),zl);
+  vec3 ta=vec3(mzPath(zl+2.4),zl+2.4);
+  vec3 fw=normalize(ta-ro);
+
+  // Bank into the turns.
+  float lean=clamp(-.22*(mzPath(zl+2.8).x-ro.x)/CELL,-.35,.35);
+  vec3 rt=normalize(cross(fw,vec3(sin(lean),cos(lean),0.)));
+  vec3 up=cross(rt,fw);
+  vec3 rd=normalize(uv.x*rt+uv.y*up+fw*(1.15/max(mix(.4,2.,uP2),.25)));
+
+  float hue0=fract(uP10+t*HCYC);
+
+  // Step budget rides on detail: the two nested carve scales switch in at .25
+  // and .75, and each one triples the cost of every map() evaluation, so the
+  // march that resolves them has to be paid for out of the same slider. At
+  // detail 0 this is a third of the map cost and a third fewer steps.
+  const float TMAX=48.;
+  int steps=int(mix(56.,150.,mzDetl));
+  float tt=0., d=0.;
+  for(int i=0;i<150;i++){
+    if(i>=steps) break;
+    d=mzMap(ro+rd*tt);
+    if(d<.0013*(1.+tt*1.2)||tt>TMAX) break;
+    tt+=d*.8;
+  }
+
+  vec3 fogc=mzPal(hue0+gHz+tt*.008*ZHUE)*.10+vec3(.010,.012,.020);
+  vec3 col=fogc;
+  if(tt<TMAX&&d<.05){
+    col=mzShade(ro,rd,tt,zl,hue0);
+    col=mix(col,fogc,1.-exp(-tt*tt*.0014*mzFogA));
+  }
+
+  // Saturation above 1 pushes channels below the luma pivot NEGATIVE, and the
+  // original then feeds that straight to pow(col,0.4545) — undefined for a
+  // negative base, which returns NaN and blacks the pixel. It ships at 1.54, so
+  // this fires on any strongly tinted surface. Clamping is the whole fix.
+  float lum=dot(col,vec3(.299,.587,.114));
+  col=max(mix(vec3(lum),col,mzSatu),0.);
+  col=pow(1.-exp(-col*1.7),vec3(.4545));
+  col*=1.-.28*dot(uv*.55,uv*.55);
+  col+=(mzH3(ivec3(ivec2(gl_FragCoord.xy),int(fract(t)*1024.)),0x51u)-.5)/256.;
+  FC=vec4(clamp(col,0.,1.),1.);}`
+  },
+  {
+    name: 'quaternion',
+    // A 4D Julia set (q -> q^2 + c) raymarched with Inigo Quilez's analytic
+    // distance estimate, orbit-trap colour and a hot rim light. Ported from
+    // "Gilded Quaternion" by ufffd on glslop (CC0-1.0, id gxmhgi4r). The ISF
+    // exposes six knobs on a fixed 16s loop; this trades the loop for a free
+    // camera and splits form and colour across twelve. Every range below was
+    // measured on a CPU port of the distance estimate rather than guessed --
+    // see the comments for what each measurement was.
+    params: ['speed','spin','tilt','zoom','form','slice','morph','detail','hue','palette','glow','shade'],
+    // speed/morph/glow reproduce the ISF defaults; the rest are new. zoom is
+    // closer than the ISF's 2.7, which was framed for a square 512 poster: on a
+    // 16:9 canvas the wider horizontal field shrinks the object to 14% of the
+    // frame, and 2.45 brings it back to about 19% while still clearing the top
+    // and bottom edges (visible half-height 1.44 against a 1.37 radius).
+    def: [.333,.62,.62,.153,0.,.5,.417,.75,0.,0.,.333,.5],
+    src: H+`
+// The running derivative md2 reaches ~1e10 over the exposed parameter space.
+// That is 28 decades inside the fp32 ceiling, so it never needs clamping -- but
+// it is five orders of magnitude beyond what fp16 can hold, so at the shared
+// header's mediump this shader would return d=0 everywhere and paint a solid
+// block. Promoting here is not an optimisation, it is the difference between an
+// image and a flat colour.
+precision highp float;
+precision highp int;
+
+#define TAU 6.28318530718
+const float PERIOD = 16.0;
+const int   MAXI   = 14;
+// Bounding sphere. The bailout at |z|^2 > 6 puts the set inside |p| < 2.45, but
+// the surface never actually reached past 1.546 across 900k sampled points
+// spanning every form, slice and morph phase this shader can reach, so 1.8 is
+// both safe and tighter than the analytic bound. Rays that miss it cost nothing.
+const float BR     = 1.8;
+
+// Resolved once in main(): GLSL forbids initialising a global from a uniform.
+int   qIter;
+float qSlice;
+vec4  qC;
+mat2  qRt;
+
+mat2 rot2(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
+vec3 qPal(float t){ return .5+.5*cos(TAU*(t+vec3(.55,.40,.18))); }
+
+// The "form" slider walks a smoothstepped path through five seed quaternions
+// known to give well-formed sets. Every position along it was rendered on the
+// CPU: the object covers between 18% and 40% of the frame across the whole
+// range and never once collapses to nothing or floods the view, so the slider
+// has no dead spots to hunt past.
+vec4 qSeed(float f){
+  vec4 S0=vec4(-.450, .550, .360, .1800);
+  vec4 S1=vec4(-.125,-.256, .847, .0895);
+  vec4 S2=vec4(-1.00, .200, .000, .0000);
+  vec4 S3=vec4( .180, .880, .240, .1600);
+  vec4 S4=vec4(-.291,-.399, .339, .4370);
+  float x=clamp(f,0.,.9999)*4.;
+  float k=floor(x), u=x-k;
+  u=u*u*(3.-2.*u);
+  vec4 a=S0,b=S1;
+  if(k>2.5){a=S3;b=S4;}
+  else if(k>1.5){a=S2;b=S3;}
+  else if(k>.5){a=S1;b=S2;}
+  return mix(a,b,u);
+}
+
+// Quaternion Julia distance estimate. trap carries the orbit trap out for colour.
+float qMap(vec3 p, out vec4 trap){
+  p.xz=qRt*p.xz;
+  // The 4th component is the SLICE: this is a 3D cross-section of a 4D object,
+  // and moving w cuts a different section rather than deforming the same one.
+  // The set thins as |w| grows and is empty past about 0.85, so the slider stops
+  // at 0.75 -- measured, and the reason it cannot be dialled into a blank frame.
+  vec4 z=vec4(p,qSlice);
+  float md2=1., mz2=dot(z,z);
+  trap=vec4(abs(z.xyz),mz2);
+  for(int i=0;i<MAXI;i++){
+    if(i>=qIter) break;
+    md2*=4.*mz2;                                      // |dz| <- |2 z dz|
+    z=vec4(z.x*z.x-dot(z.yzw,z.yzw),2.*z.x*z.yzw)+qC; // z <- z^2 + c
+    trap=min(trap,vec4(abs(z.xyz),dot(z,z)));
+    mz2=dot(z,z);
+    if(mz2>6.) break;
+  }
+  // Guards, not clamps: mz2 can reach 0 on the attractor, where log(0) and a
+  // 0/0 ratio would poison the pixel. Neither was observed in 900k samples, but
+  // they cost nothing and the failure would be a permanent black speck.
+  mz2=max(mz2,1e-9);
+  return .25*sqrt(mz2/max(md2,1e-30))*log(mz2);
+}
+
+void main(){
+  vec2 uv=(vU-.5)*2.*vec2(uRes.x/uRes.y,1.);
+
+  highp float t=(float(uFrame)+uSeed)/60.;
+  // Unlike the maze this shader has no unbounded world coordinate -- the object
+  // sits at the origin and time only enters through fract(), so once these two
+  // phases are wrapped every downstream value is bounded for good.
+  float ph =fract(t*mix(0.,3.,uP1)/PERIOD+fract(uSeed*.0137));
+  float yaw=TAU*fract(t*(uP2-.5)*.5+fract(uSeed*.0091));
+  float th =TAU*ph;
+
+  // form + morph: the seed drifts on a small circle, so the creature breathes.
+  qC=qSeed(uP5)+mix(0.,1.2,uP7)*.12*vec4(cos(th),sin(th),cos(2.*th),sin(2.*th));
+  qSlice=mix(-.75,.75,uP6);
+  qRt=rot2(th*.5);
+  // detail buys iterations AND march steps together. Iteration count barely
+  // moves the silhouette (hit area held at 26.4-26.9% from 5 iterations to 14)
+  // but it triples the work, so it is a surface-detail and cost control, not a
+  // shape control -- drop it first if the frame rate suffers.
+  qIter=5+int(uP8*9.99);
+  int steps=70+int(uP8*60.99);
+
+  float el=mix(-1.1,1.1,uP3);                 // stays clear of the pole at pi/2
+  float cd=mix(1.9,5.5,uP4);
+  vec3 ro=cd*vec3(sin(yaw)*cos(el),sin(el),cos(yaw)*cos(el));
+  vec3 fwd=normalize(-ro);
+  vec3 rgt=normalize(cross(vec3(0.,1.,0.),fwd));
+  vec3 upv=cross(fwd,rgt);
+  vec3 rd=normalize(uv.x*rgt+uv.y*upv+1.7*fwd);
+
+  vec3 col=vec3(0.);
+
+  // Enter at the bounding sphere and stop at its far side, so background pixels
+  // never march and no ray wanders past the object burning its budget.
+  float bb=dot(ro,rd), cs=dot(ro,ro)-BR*BR;
+  float hh=bb*bb-cs;
+  if(hh>0.){
+    hh=sqrt(hh);
+    float tt=max(-bb-hh,.01), tcap=-bb+hh;
+    vec4 tr,trHit=vec4(0.);
+    float te=0.,d=1e9;
+    bool hit=false;
+    for(int i=0;i<130;i++){
+      if(i>=steps) break;
+      d=qMap(ro+rd*tt,tr);
+      if(d<.0004*tt){ hit=true; break; }
+      tt+=d*.85;
+      if(tt>tcap) break;
+    }
+    // Rays that grazed the surface creep without ever satisfying that epsilon
+    // and fall out of the loop as misses, punching black speckle along the
+    // silhouette -- 0.35% of the frame at these defaults and 1.4% at detail 0.
+    // Accepting a near-miss still inside the bounding sphere recovers about
+    // two thirds of them; the rest end with d as large as 0.4 and are genuine
+    // misses that would paint false surface if they were let through.
+    if(!hit && d<.01 && tt<tcap) hit=true;
+    if(hit){ te=tt; trHit=tr; }
+
+    if(hit){
+      vec3 p=ro+rd*te;
+      vec2 k=vec2(1.,-1.);
+      float e=.0008;
+      vec4 dm;
+      vec3 n=normalize(k.xyy*qMap(p+k.xyy*e,dm)+k.yyx*qMap(p+k.yyx*e,dm)+
+                       k.yxy*qMap(p+k.yxy*e,dm)+k.xxx*qMap(p+k.xxx*e,dm));
+
+      // palette picks WHICH orbit trap drives the hue, crossfading across four
+      // sources on a triangular basis. The gains are the reciprocals of each
+      // channel's measured 5th-95th percentile spread over the exposed space
+      // (|z.x| 0.157, |z.y| 0.343, |z| squared 0.947), so whichever one is
+      // selected sweeps roughly a full turn of the wheel. Without that scaling
+      // the narrow channels park the whole object on a single hue -- the usual
+      // way an orbit-trap palette comes out as one flat colour.
+      float pw=uP10*3.;
+      float a0=max(1.-abs(pw    ),0.), a1=max(1.-abs(pw-1.),0.);
+      float a2=max(1.-abs(pw-2.),0.), a3=max(1.-abs(pw-3.),0.);
+      float arg=a0*trHit.w*1.06+a1*trHit.y*2.90+a2*trHit.x*6.40+a3*length(p)*1.50;
+      vec3 base=qPal(uP9+.30+arg);
+
+      vec3 lig=normalize(vec3(.5,.8,.4));
+      float dif=max(dot(n,lig),0.);
+      float fres=pow(1.-max(dot(n,-rd),0.),2.2);
+      float ao=clamp(.5+.5*n.y,.3,1.);
+      float g=mix(0.,3.,uP11);
+
+      // shade balances flat-and-electric against modelled-and-solid. A steep
+      // fresnel alone piles all the colour into a thin rim and leaves the face
+      // unlit, so the ambient floor rises as the diffuse term falls.
+      col += base*mix(.18,.06,uP12)*ao;
+      col += base*dif*mix(.10,.55,uP12)*ao;
+      col += base*fres*3.*g;
+      col += vec3(1.)*pow(fres,5.)*.8*g;
+      col *= exp(-.18*max(te-cd+1.3,0.));
+    }
+  }
+
+  col=col/(1.+col);                 // soft knee, or the rim clips to flat white
+  col=pow(max(col,0.),vec3(.78));
+  col*=1.-.22*dot(uv,uv);
   FC=vec4(clamp(col,0.,1.),1.);}`
   },
 ];
@@ -3349,6 +3947,11 @@ function makeTex() {
 // Every GPU-side object, in one place, so a lost context can be rebuilt.
 // The ASCII atlas is re-uploaded from the existing 2D canvas rather than
 // re-rasterised - the glyph measurement work does not need repeating.
+// Source-texture bookkeeping. Declared up here because buildGLResources() below
+// resets it and runs immediately — a `let` further down the file would be in TDZ.
+const USE_TEXSUBIMAGE = true;
+let _vidTexW = 0, _vidTexH = 0, _vidTexErrShown = false;
+
 function buildGLResources() {
   // Compiled on first use, not up front. Eagerly building all 32 programs blocked
   // the main thread before the first frame — and again on every context restore —
@@ -3381,9 +3984,12 @@ function buildGLResources() {
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
 
-  // Video source texture (starts as 1x1 black)
+  // Video source texture (starts as 1x1 black). The cached dimensions must go
+  // with it: this also runs on context restore, and a stale size would send the
+  // next frame down the texSubImage2D path against a 1x1 texture.
   vidTex = makeTex();
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,255]));
+  _vidTexW = 0; _vidTexH = 0;
 }
 buildGLResources();
 
@@ -3410,14 +4016,31 @@ let fboTexHold = null, fboHold = null;  // sample-and-hold frozen frame
 // the right size long after makeFBO() ran.
 let _fbW = 0, _fbH = 0;
 
+// Returns [fb, tex], or null if the driver would not give us the memory.
+//
+// This used to return the pair unconditionally without checking anything, so a
+// failed allocation on a large display produced a framebuffer that silently
+// rendered black — no error, no message, nothing to diagnose from a stage.
+// ensureMat() had checked its status since it was written; this path never did.
 function _makeAttached() {
+  while (gl.getError() !== gl.NO_ERROR) {}   // clear stale errors first
   const tex = makeTex();
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, _fbW, _fbH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  const allocErr = gl.getError() !== gl.NO_ERROR;
   const fb = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const ok = !allocErr && gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (!ok) { gl.deleteTexture(tex); gl.deleteFramebuffer(fb); return null; }
   return [fb, tex];
+}
+let _allocWarned = false;
+function _allocFail(what) {
+  console.warn(`recur: framebuffer allocation failed (${what}) at ${_fbW}x${_fbH}`);
+  if (_allocWarned) return;
+  _allocWarned = true;
+  try { toast('GPU out of memory - lower RES or CAP'); } catch (e) {}
 }
 
 function _dropFBO(fb, tex) {
@@ -3432,10 +4055,54 @@ function _dropFBO(fb, tex) {
 // created the first time their effect actually runs, and kept until the next
 // resize or context restore (toggling an effect on and off should not thrash
 // the allocator).
-function ensureFx()   { if (!fboFx)      [fboFx,   fboTexFx]   = _makeAttached(); }
-function ensureHist() { if (!fboHist)    [fboHist, fboTexHist] = _makeAttached(); }
-function ensureHold() { if (!fboHold)    [fboHold, fboTexHold] = _makeAttached(); }
-function ensurePrev() { if (!fboPrev)    [fboPrev, fboTexPrev] = _makeAttached(); }
+// Callers already null-check the buffer, so a failed allocation degrades to
+// "that effect does nothing" rather than to a black frame.
+function _lazy(cur, what) { if (cur) return null; const p = _makeAttached(); if (!p) _allocFail(what); return p; }
+function ensureFx()   { const p = _lazy(fboFx,   'fx');   if (p) [fboFx,   fboTexFx]   = p; }
+function ensureHist() { const p = _lazy(fboHist, 'hist'); if (p) [fboHist, fboTexHist] = p; }
+function ensureHold() { const p = _lazy(fboHold, 'hold'); if (p) [fboHold, fboTexHold] = p; }
+function ensurePrev() { const p = _lazy(fboPrev, 'prev'); if (p) [fboPrev, fboTexPrev] = p; }
+
+// ── D: give the optional buffers back ────────────────────────────────────────
+// fboFx / fboHist / fboHold / fboPrev are allocated the first time the chain
+// wants them and used to live until the next resize, so one pass through a
+// feedback patch left a full-canvas buffer resident for the rest of the session.
+// At 5K that is 169 MB of stickiness. Reclaim them the frame after the chain
+// stops asking. The scans are over at most four slots, so this is free next to
+// a single GPU pass and needs no dirty flag to stay correct.
+// Held for REAP_FRAMES before freeing. Double-clicking a slot to bypass it is a
+// performance gesture, and reaping on the first frame the condition goes false
+// would throw away the feedback history — the thing you are bypassing to hear
+// come back — every time. Two seconds of grace costs nothing and makes a tap
+// non-destructive.
+const REAP_FRAMES = 120;
+let _reapHist = 0, _reapPrev = 0, _reapHold = 0;
+function reapFBOs() {
+  _reapHist = (fboHist && !isFeedback())      ? _reapHist + 1 : 0;
+  _reapPrev = (fboPrev && !chainNeedsPrev())  ? _reapPrev + 1 : 0;
+  _reapHold = (fboHold && !chainNeedsHold())  ? _reapHold + 1 : 0;
+  if (_reapHist > REAP_FRAMES) {
+    _dropFBO(fboHist, fboTexHist); fboHist = fboTexHist = null;
+    feedbackInit = false;          // history is gone; re-seed on the way back in
+    _reapHist = 0;
+  }
+  if (_reapPrev > REAP_FRAMES) {
+    _dropFBO(fboPrev, fboTexPrev); fboPrev = fboTexPrev = null;
+    prevSeeded = false;
+    _reapPrev = 0;
+  }
+  if (_reapHold > REAP_FRAMES) {
+    _dropFBO(fboHold, fboTexHold); fboHold = fboTexHold = null;
+    _reapHold = 0;
+  }
+}
+function chainNeedsHold() {
+  for (let i = 0; i < fxSlots.length; i++) {
+    if (fxSlots[i].off) continue;
+    if (FX[fxSlots[i].idx]?.name === 'sample-hold') return true;
+  }
+  return false;
+}
 
 // matOK is resolved here rather than at resize: it depends on both the extension
 // and a completeness check, which needs the textures to exist.
@@ -3477,12 +4144,16 @@ function makeFBO(w, h) {
   matTried = false; matOK = false;
 
   _fbW = w; _fbH = h;
-  [fbo,  fboTex]  = _makeAttached();
-  [fbo2, fboTex2] = _makeAttached();
-  [fbo3, fboTex3] = _makeAttached();
-
+  const a = _makeAttached(), b = _makeAttached(), c = _makeAttached();
   matSeeded = false;
   prevSeeded = false;         // contents are undefined until a frame is copied in
+  if (!a || !b || !c) {
+    // Free whichever of the three did land, so a retry at half size starts clean.
+    for (const p of [a, b, c]) if (p) _dropFBO(p[0], p[1]);
+    return false;
+  }
+  [fbo, fboTex] = a; [fbo2, fboTex2] = b; [fbo3, fboTex3] = c;
+  return true;
 }
 
 // True once the history FBO has been seeded. Declared here, with the rest of
@@ -3525,6 +4196,39 @@ let renderScale = 1;
 // quarters the pixel count on a 4x device and is near-indistinguishable at
 // phone viewing distance.
 const MAX_DPR_TOUCH = 2;
+
+// ── Pixel budget ─────────────────────────────────────────────────────────────
+// The canvas used to be sized purely from CSS size x devicePixelRatio, with no
+// ceiling on desktop. Three RGBA8 buffers are always resident and four more plus
+// an RG16F pair are allocated on demand, so a 5K display meant 169 MB resident
+// and 506 MB worst case; a Pro Display XDR, 233 MB and 699 MB. This caps the
+// internal buffer independently of how big the screen is.
+//
+// Separate from RES (renderScale), which is a fraction the user picks. This is
+// an absolute ceiling: below it nothing changes at all, above it both axes are
+// scaled by sqrt(budget / pixels) so the aspect ratio is preserved.
+const PIXEL_CAPS = { off: 0, '1080p': 1920 * 1080, '4k': 3840 * 2160 };
+let pixelCap = '4k';
+try { const v = localStorage.getItem('recur.pixelCap'); if (v && v in PIXEL_CAPS) pixelCap = v; } catch (e) {}
+let _capActive = false;   // true when the budget is actually biting, for the readout
+
+function capDims(w, h) {
+  const budget = PIXEL_CAPS[pixelCap] || 0;
+  // MAX_TEXTURE_SIZE is a hard driver limit, not a preference — always applied.
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  let s = 1;
+  if (budget && w * h > budget) s = Math.sqrt(budget / (w * h));
+  s = Math.min(s, maxTex / w, maxTex / h);
+  _capActive = s < 1;
+  if (!_capActive) return [w, h];
+  return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))];
+}
+function setPixelCap(v) {
+  if (!(v in PIXEL_CAPS)) return;
+  pixelCap = v;
+  try { localStorage.setItem('recur.pixelCap', v); } catch (e) {}
+  onResize(true);
+}
 const isCoarsePointer = window.matchMedia
   ? window.matchMedia('(pointer: coarse)').matches : false;
 
@@ -3536,12 +4240,19 @@ function effectiveDpr() {
 function onResize(force) {
   const dpr  = effectiveDpr();
   const rect = cv.getBoundingClientRect();
-  const w = Math.max(1, Math.round(rect.width  * dpr));
-  const h = Math.max(1, Math.round(rect.height * dpr));
+  let [w, h] = capDims(Math.max(1, Math.round(rect.width  * dpr)),
+                       Math.max(1, Math.round(rect.height * dpr)));
   if (!force && w === cv.width && h === cv.height) return;   // nothing changed
-  cv.width  = w;
-  cv.height = h;
-  makeFBO(w, h);
+  // Halve and retry rather than carry on with a black frame. The canvas is
+  // resized in lockstep with the buffers because the viewport calls throughout
+  // the render path are written against cv.width / cv.height.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    cv.width = w; cv.height = h;
+    if (makeFBO(w, h)) break;
+    _allocFail('main');
+    if (w <= 64 || h <= 64) break;
+    w = Math.max(64, w >> 1); h = Math.max(64, h >> 1);
+  }
   feedbackInit = false;   // history buffer is a different size now
 }
 
@@ -3564,51 +4275,83 @@ function setRenderScale(v) {
 
 const MODES = ['SAMPLER', 'SHADER', 'LIVE'];
 let modeIdx   = 1;
-let genChain  = [0];     // ordered list of active GEN indices (max 3)
-const genDisabled = new Set();  // chain POSITIONS bypassed (not shader indices — supports duplicates)
-const fxDisabled  = new Set();  // chain POSITIONS bypassed (not shader indices)
-let genChainSeeds = [0];        // per-slot random seed, parallel to genChain
+// ── Chain slots ──────────────────────────────────────────────────────────────
+// A chain is an array of SLOT OBJECTS. Everything belonging to one link — which
+// shader, its params, its three modulation tables, its seed, its blend onto the
+// layer below, and whether it is bypassed — lives on the same object, so an
+// insert, a delete or a reorder moves all of it or none of it.
+//
+// This replaced 13 parallel arrays plus two Sets of bypassed POSITIONS. Every
+// structural mutation had to touch all fifteen in lockstep, and each of the ten
+// mutation sites wrote that sequence out by hand. They had already drifted:
+// commitReorder's gen branch moved six arrays and left genChainMode and
+// genChainAmt behind, so dragging a GEN slot in the flow strip carried its
+// params, mods and seed to the new position and dropped its blend — while the
+// FX branch six lines below moved all seven. genChainToggle's delete path
+// treated blend as slot-owned, commitReorder treated it as position-owned, and
+// both could not be right. That whole class of bug is gone by construction:
+// there is one array to splice.
+//
+// Slot: { idx, params[], audioMod[], lfoMod[], midiMod[], seed, mode, amt, off }
+//   idx   index into GEN[] / FX[]. Duplicates in a chain are allowed.
+//   mode  blend of this slot onto the layer below — index into BLEND_MODES.
+//   amt   blend amount (GEN) or wet/dry (FX, 1 = full effect).
+//   off   bypassed. Was a Set of positions that every splice had to remap.
+//
+// The wire format still speaks the old flat shape — see getState/applyState.
+// Nothing between those two functions sees anything but slots.
 
-// Adjust genDisabled positions after a splice (delta=+1 insert, -1 remove at fromPos)
-function _adjustGenDisabled(fromPos, delta) {
-  const next = [...genDisabled].map(p => {
-    if (delta < 0 && p === fromPos) return -1;
-    return p >= fromPos ? p + delta : p;
-  }).filter(p => p >= 0);
-  genDisabled.clear();
-  next.forEach(p => genDisabled.add(p));
+const CHAIN_MAX = 4;
+
+function makeSlot(table, idx, opts = {}) {
+  const sh = table[idx];
+  return {
+    idx,
+    params:   opts.params ?? [...sh.def],
+    audioMod: sh.params.map(() => ({ band: null, depth: 0.5 })),
+    lfoMod:   sh.params.map(() => ({ lfo: null })),
+    midiMod:  sh.params.map(() => ({ cc: null })),
+    // Only GEN slots feed a seed uniform; the FX path never had a seed array and
+    // drawQuad passes none. Kept on the object for one slot shape, but not drawn
+    // from Math.random, which would consume entropy for a value nothing reads.
+    seed:     opts.seed ?? (table === FX ? 0 : Math.random() * 10000),
+    mode:     opts.mode ?? 0,
+    // GEN slot 0 composites onto black and FX defaults to full wet; the old
+    // genChainAmt/fxSlotAmt initialisers differed the same way.
+    amt:      opts.amt ?? (table === FX ? 1.0 : 0.5),
+    off:      false,
+  };
 }
-let genIdx    = 0;       // selected CHAIN POSITION (0..genChain.length-1), not shader index
-let genChainMode = [0, 0, 0, 0];  // blend mode for each slot onto the layer below it
-let genChainAmt  = [0.5, 0.5, 0.5, 0.5]; // blend amount for each slot
-// Per-slot independent state (parallel to genChain)
-let genSlotParams   = [[...GEN[0].def]];
-let genSlotAudioMod = [GEN[0].params.map(() => ({band:null, depth:0.5}))];
-let genSlotLfoMod   = [GEN[0].params.map(() => ({lfo:null}))];
-let genSlotMidiMod  = [GEN[0].params.map(() => ({cc:null}))];
-let fxChain   = [];       // ordered list of active FX shader indices (max 4, duplicates allowed)
-let fxIdx     = -1;      // selected CHAIN POSITION (0..fxChain.length-1), or -1 if empty
-// Per-slot independent state (parallel to fxChain)
-let fxSlotParams   = [];
-let fxSlotAudioMod = [];
-let fxSlotLfoMod   = [];
-let fxSlotMidiMod  = [];
-let fxSlotAmt      = [];  // per-slot wet/dry blend (1=full effect, 0=dry/bypass)
-let fxSlotMode     = [];  // per-slot blend mode, index into BLEND_MODES (0=normal)
-// Adjust fxDisabled positions after a splice
-function _adjustFxDisabled(fromPos, delta) {
-  const next = [...fxDisabled].map(p => {
-    if (delta < 0 && p === fromPos) return -1;
-    return p >= fromPos ? p + delta : p;
-  }).filter(p => p >= 0);
-  fxDisabled.clear();
-  next.forEach(p => fxDisabled.add(p));
+const makeGenSlot = (i, o) => makeSlot(GEN, i, o);
+const makeFxSlot  = (i, o) => makeSlot(FX,  i, o);
+
+// The only three places a chain changes shape. Every caller used to inline the
+// cap-and-shift sequence; two of the four copies ordered it differently, which
+// is how nobody noticed the reorder paths had diverged.
+function chainInsert(slots, slot, pos) {
+  if (slots.length >= CHAIN_MAX) slots.shift();
+  const at = Math.min(Math.max(pos ?? slots.length, 0), slots.length);
+  slots.splice(at, 0, slot);
+  return at;
 }
+function chainRemove(slots, pos) {
+  slots.splice(pos, 1);
+}
+function chainMove(slots, fromPos, toPos) {
+  const [slot] = slots.splice(fromPos, 1);
+  const at = toPos > fromPos ? toPos - 1 : toPos;
+  slots.splice(at, 0, slot);
+  return at;
+}
+
+let genSlots = [makeGenSlot(0, { seed: 0 })];
+let genIdx   = 0;   // selected CHAIN POSITION (0..genSlots.length-1), not a shader index
+let fxSlots  = [];
+let fxIdx    = -1;  // selected CHAIN POSITION, or -1 when the chain is empty
 let layer     = 'gen';   // which param set is being edited: 'gen' | 'fx'
 let selParam  = 0;       // selected parameter index (0-based)
-// NOTE: parameter and modulation state lives per CHAIN SLOT, not per shader -
-// see genSlotParams / fxSlotParams and the *SlotAudioMod / *SlotLfoMod /
-// *SlotMidiMod arrays below. The old per-shader arrays were removed; presets
+// NOTE: parameter and modulation state lives per CHAIN SLOT, not per shader —
+// see genSlots / fxSlots above. The old per-shader arrays were removed; presets
 // written by older builds are migrated onto slots in applyState().
 
 let paused   = false;
@@ -3889,11 +4632,26 @@ function uploadVideoFrame(el) {
                 (el === vid && _vidHasFrame && el.videoWidth > 0);
   if (!ready) return false;
   if (el === vid && el.readyState >= 2) _vidHasFrame = true;
+  // The source texture is the one allocation RENDER CAP does not bound: it is
+  // whatever the file is. 1080p costs 8 MB, 4K 33 MB, 8K 132 MB — and this runs
+  // every frame. texImage2D REALLOCATES storage on each call; texSubImage2D
+  // reuses it once the dimensions are known, which matters most on ANGLE/D3D11.
+  // Set USE_TEXSUBIMAGE false if a device dislikes the sub-image path — the
+  // texImage2D branch below is the original behaviour, unchanged.
+  const vw = el.videoWidth || 0, vh = el.videoHeight || 0;
   gl.bindTexture(gl.TEXTURE_2D, vidTex);
   const flipAtUpload = !needsTransformPass() && vidFlipV;
   if (flipAtUpload) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   try {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+    // vidTex is shared between the sampler clip and the camera, so a source
+    // swap at a different resolution has to reallocate — hence the size compare
+    // rather than a simple "first time" flag.
+    if (USE_TEXSUBIMAGE && vw && vh && vw === _vidTexW && vh === _vidTexH) {
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, el);
+    } else {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+      _vidTexW = vw; _vidTexH = vh;
+    }
   } catch(e) {
     if (e.name === 'SecurityError') toast('CORS: texture blocked by server');
     return false;
@@ -3901,6 +4659,19 @@ function uploadVideoFrame(el) {
     // Global pixelStore state — leaving it set would flip the 256x2 audio texture
     // and swap its spectrum and waveform rows.
     if (flipAtUpload) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  }
+  // A source wider than MAX_TEXTURE_SIZE fails here with INVALID_VALUE and the
+  // texture keeps whatever it held — black — with nothing said. There was no
+  // getError anywhere in this path, so an 8K clip on a 4096-limit GPU looked
+  // like a broken app rather than an unsupported file. Reported once: this runs
+  // sixty times a second and getError is a pipeline flush.
+  if (!_vidTexErrShown) {
+    const err = gl.getError();
+    if (err !== gl.NO_ERROR) {
+      _vidTexErrShown = true;
+      console.warn(`recur: video upload failed, GL error 0x${err.toString(16)} at ${vw}x${vh} (MAX_TEXTURE_SIZE ${gl.getParameter(gl.MAX_TEXTURE_SIZE)})`);
+      toast('source too large for this GPU');
+    }
   }
   return true;
 }
@@ -3963,50 +4734,35 @@ function drawBlend(src1, src2, amount, targetFBO, modeOverride) {
 }
 
 function syncGenIdx() {
-  if (genIdx >= genChain.length || genIdx < 0) genIdx = genChain.length - 1;
+  if (genIdx >= genSlots.length || genIdx < 0) genIdx = genSlots.length - 1;
 }
 
 function genChainToggle(i) {
-  const pos = genChain.indexOf(i);
+  const pos = genSlots.findIndex(sl => sl.idx === i);
   // SAMPLER/LIVE start with every slot bypassed so the source shows through. A
   // tap on a bypassed slot means "put this back over the video" — previously it
   // fell through to the remove branch, which silently did nothing for a
   // single-entry chain, so gens looked unreachable in those modes.
-  if (pos >= 0 && genDisabled.has(pos)) {
-    genDisabled.delete(pos);
+  if (pos >= 0 && genSlots[pos].off) {
+    (genSlots[pos].off = false);
     genIdx = pos;
     syncGenIdx();
     layer = 'gen';
     return;
   }
-  if (pos >= 0 && genChain.length > 1) {
-    genChain.splice(pos, 1);
-    genChainSeeds.splice(pos, 1);
-    genSlotParams.splice(pos, 1);
-    genSlotAudioMod.splice(pos, 1);
-    genSlotLfoMod.splice(pos, 1);
-    genSlotMidiMod.splice(pos, 1);
-    _adjustGenDisabled(pos, -1);
-    genChainMode.splice(pos, 1); genChainMode.push(0);
-    genChainAmt.splice(pos, 1);  genChainAmt.push(0.5);
-    genIdx = Math.min(genIdx, genChain.length - 1);
+  if (pos >= 0 && genSlots.length > 1) {
+    chainRemove(genSlots, pos);
+    genIdx = Math.min(genIdx, genSlots.length - 1);
   } else if (pos < 0) {
-    if (genChain.length >= 4) { genChain.shift(); genChainSeeds.shift(); _adjustGenDisabled(0, -1); genSlotParams.shift(); genSlotAudioMod.shift(); genSlotLfoMod.shift(); genSlotMidiMod.shift(); genChainMode.shift(); genChainMode.push(0); genChainAmt.shift(); genChainAmt.push(0.5); }
-    genChain.push(i);
-    genChainSeeds.push(Math.random() * 10000);
-    genSlotParams.push([...GEN[i].def]);
-    genSlotAudioMod.push(GEN[i].params.map(() => ({band:null, depth:0.5})));
-    genSlotLfoMod.push(GEN[i].params.map(() => ({lfo:null})));
-    genSlotMidiMod.push(GEN[i].params.map(() => ({cc:null})));
-    genIdx = genChain.length - 1;
+    genIdx = chainInsert(genSlots, makeGenSlot(i));
   }
   syncGenIdx();
   layer = 'gen';
 }
 
-// Render all gens in genChain blended together; returns the output texture.
+// Render all gens in genSlots blended together; returns the output texture.
 function renderGenChain() {
-  if (genChain.length === 0) {
+  if (genSlots.length === 0) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.viewport(0, 0, cv.width, cv.height);
     gl.clearColor(0, 0, 0, 1);
@@ -4015,8 +4771,8 @@ function renderGenChain() {
   }
   const fbs   = [fbo,  fbo2];
   const fbtex = [fboTex, fboTex2];
-  const allSlots = genChain.map((gi, pos) => ({ gi, pos }));
-  const chain = allSlots.filter(({ pos }) => !genDisabled.has(pos));
+  const allSlots = genSlots.map((sl, pos) => ({ gi: sl.idx, pos }));
+  const chain = allSlots.filter(({ pos }) => !genSlots[pos].off);
   if (chain.length === 0) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.viewport(0, 0, cv.width, cv.height);
@@ -4025,23 +4781,23 @@ function renderGenChain() {
     return fboTex;
   }
   const { gi: gi0, pos: pos0 } = chain[0];
-  drawQuad(genProg(gi0), vidTex, effParams(genSlotParams[pos0], genSlotAudioMod[pos0], genSlotLfoMod[pos0], genSlotMidiMod[pos0]), fbs[0], null, genChainSeeds[pos0]);
+  drawQuad(genProg(gi0), vidTex, effParams(genSlots[pos0].params, genSlots[pos0].audioMod, genSlots[pos0].lfoMod, genSlots[pos0].midiMod), fbs[0], null, genSlots[pos0].seed);
   let accIdx = 0;
   for (let i = 1; i < chain.length; i++) {
     const { gi, pos } = chain[i];
-    drawQuad(genProg(gi), vidTex, effParams(genSlotParams[pos], genSlotAudioMod[pos], genSlotLfoMod[pos], genSlotMidiMod[pos]), fbo3, null, genChainSeeds[pos]);
+    drawQuad(genProg(gi), vidTex, effParams(genSlots[pos].params, genSlots[pos].audioMod, genSlots[pos].lfoMod, genSlots[pos].midiMod), fbo3, null, genSlots[pos].seed);
     const nextIdx = 1 - accIdx;
-    drawBlend(fbtex[accIdx], fboTex3, genChainAmt[pos] ?? 1.0, fbs[nextIdx], genChainMode[pos] ?? 0);
+    drawBlend(fbtex[accIdx], fboTex3, genSlots[pos].amt ?? 1.0, fbs[nextIdx], genSlots[pos].mode ?? 0);
     accIdx = nextIdx;
   }
   return fbtex[accIdx];
 }
 
 function isFeedback() {
-  return fxChain.some(i => FX[i].name === 'feedback');
+  return fxSlots.some(sl => FX[sl.idx].name === 'feedback');
 }
 function feedbackChainIdx() {
-  return fxChain.findIndex(i => FX[i].name === 'feedback');
+  return fxSlots.findIndex(sl => FX[sl.idx].name === 'feedback');
 }
 
 // tempFB/tempTex: a free FBO pair to use as intermediate (must not be fboHist)
@@ -4052,9 +4808,9 @@ function applyFeedback(src, tempFB, tempTex) {
     feedbackInit = true;
   }
   const fbPos = feedbackChainIdx();
-  const fi = fxChain[fbPos];
+  const fi = fxSlots[fbPos].idx;
   // 1. Decay/spread/transform history → temp
-  drawQuad(fxProg(fi), fboTexHist, effParams(fxSlotParams[fbPos], fxSlotAudioMod[fbPos], fxSlotLfoMod[fbPos], fxSlotMidiMod[fbPos]), tempFB);
+  drawQuad(fxProg(fi), fboTexHist, effParams(fxSlots[fbPos].params, fxSlots[fbPos].audioMod, fxSlots[fbPos].lfoMod, fxSlots[fbPos].midiMod), tempFB);
   // 2. Screen-blend decayed history with current source → fboHist
   gl.bindFramebuffer(gl.FRAMEBUFFER, fboHist);
   gl.viewport(0, 0, cv.width, cv.height);
@@ -4069,7 +4825,7 @@ function applyFeedback(src, tempFB, tempTex) {
   gl.activeTexture(gl.TEXTURE0);
 }
 
-// Run fxChain (excluding feedback) on src, ping-ponging fbo↔fbo2.
+// Run fxSlots (excluding feedback) on src, ping-ponging fbo↔fbo2.
 // Returns { tex, tempFB, tempTex } — tex is output texture, tempFB/Tex is the free slot.
 function applyFXChain(src) {
   const fbs   = [fbo,  fbo2];
@@ -4077,12 +4833,12 @@ function applyFXChain(src) {
   // If src lives in fbo (fboTex), start writing to fbo2 to avoid read-write collision.
   let pass = (src === fboTex) ? 1 : 0;
   let cur = src;
-  const fbChain = fxChain.map((fi, pos) => ({ fi, pos })).filter(({ fi, pos }) => FX[fi].name !== 'feedback' && !fxDisabled.has(pos));
+  const fbChain = fxSlots.map((sl, pos) => ({ fi: sl.idx, pos })).filter(({ fi, pos }) => FX[fi].name !== 'feedback' && !fxSlots[pos].off);
   for (const { fi, pos } of fbChain) {
     const fx = FX[fi];
-    const ep = effParams(fxSlotParams[pos], fxSlotAudioMod[pos], fxSlotLfoMod[pos], fxSlotMidiMod[pos]);
-    const slotAmt  = fxSlotAmt[pos]  ?? 1.0;
-    const slotMode = fxSlotMode[pos] ?? 0;
+    const ep = effParams(fxSlots[pos].params, fxSlots[pos].audioMod, fxSlots[pos].lfoMod, fxSlots[pos].midiMod);
+    const slotAmt  = fxSlots[pos].amt  ?? 1.0;
+    const slotMode = fxSlots[pos].mode ?? 0;
     // 'normal' at full amount is the only combination where the blend pass is a
     // no-op, so a non-normal mode has to take the blend path even at amount 1.
     const needsBlend = slotAmt < 0.999 || slotMode !== 0;
@@ -4131,9 +4887,9 @@ function applyFXChain(src) {
 // fullscreen copy every frame, so it is only maintained while such an effect is
 // actually in the chain.
 function chainNeedsPrev() {
-  for (let i = 0; i < fxChain.length; i++) {
-    if (fxDisabled.has(i)) continue;
-    if (FX[fxChain[i]] && FX[fxChain[i]].usesPrev) return true;
+  for (let i = 0; i < fxSlots.length; i++) {
+    if (fxSlots[i].off) continue;
+    if (FX[fxSlots[i].idx] && FX[fxSlots[i].idx].usesPrev) return true;
   }
   return false;
 }
@@ -4175,14 +4931,14 @@ function renderWithFX(src) {
   if (_frameSrcTex) {
     // Gain and relax come from the first enabled effect that wants the field.
     let g = 0.6, r = 0.04;
-    for (let i = 0; i < fxChain.length; i++) {
-      if (fxDisabled.has(i)) continue;
-      const d = FX[fxChain[i]];
+    for (let i = 0; i < fxSlots.length; i++) {
+      if (fxSlots[i].off) continue;
+      const d = FX[fxSlots[i].idx];
       if (d && d.usesPrev) {
         // Signature is (base, audioMod, lfoMod, midiMod) — an older call site
         // passed the descriptor/index/kind here, which silently resolved to
         // undefined and left gain/settle unmodulated.
-        const pr = effParams(fxSlotParams[i], fxSlotAudioMod[i], fxSlotLfoMod[i], fxSlotMidiMod[i]);
+        const pr = effParams(fxSlots[i].params, fxSlots[i].audioMod, fxSlots[i].lfoMod, fxSlots[i].midiMod);
         g = pr[7] !== undefined ? pr[7] : g;
         r = pr[8] !== undefined ? Math.max(0.005, pr[8] * 0.25) : r;
         break;
@@ -4201,11 +4957,11 @@ function renderWithFX(src) {
 }
 
 // Composite each gen shader onto the base (video/camera) using per-slot blend modes.
-// genChainMode[pos] / genChainAmt[pos] control how shader at pos blends onto the layer below.
+// genSlots[pos].mode / genSlots[pos].amt control how shader at pos blends onto the layer below.
 // fbo3 is used as scratch for each shader render; fbo/fbo2 ping-pong for accumulation.
 // fboFx holds the initial base if it came from fboTex2 (to prevent clobber).
 function blendGenOntoBase(baseTex) {
-  const chain = genChain.map((gi, pos) => ({ gi, pos })).filter(({ pos }) => !genDisabled.has(pos));
+  const chain = genSlots.map((sl, pos) => ({ gi: sl.idx, pos })).filter(({ pos }) => !genSlots[pos].off);
   // Nothing to composite: return null so the caller falls back to baseTex. Taking
   // the protective copy below and returning fboTexFx instead would hand the FX
   // chain a texture it is about to use as its own wet/dry scratch — a read-write
@@ -4229,9 +4985,9 @@ function blendGenOntoBase(baseTex) {
   let accIdx = null;
 
   for (const { gi, pos } of chain) {
-    drawQuad(genProg(gi), vidTex, effParams(genSlotParams[pos], genSlotAudioMod[pos], genSlotLfoMod[pos], genSlotMidiMod[pos]), fbo3, null, genChainSeeds[pos]);
+    drawQuad(genProg(gi), vidTex, effParams(genSlots[pos].params, genSlots[pos].audioMod, genSlots[pos].lfoMod, genSlots[pos].midiMod), fbo3, null, genSlots[pos].seed);
     const nextIdx = accIdx === null ? 0 : 1 - accIdx;
-    drawBlend(acc, fboTex3, genChainAmt[pos] ?? 1.0, fbs[nextIdx], genChainMode[pos] ?? 0);
+    drawBlend(acc, fboTex3, genSlots[pos].amt ?? 1.0, fbs[nextIdx], genSlots[pos].mode ?? 0);
     acc = fbtex[nextIdx];
     accIdx = nextIdx;
   }
@@ -4240,6 +4996,7 @@ function blendGenOntoBase(baseTex) {
 
 function render() {
   const mode = MODES[modeIdx];
+  reapFBOs();
 
   // Every mode works the same way: a base layer at the bottom, the gen chain
   // composited over it with each slot's own blend mode and amount, then the FX
@@ -4265,7 +5022,7 @@ function render() {
   // straight onto black, as before.
   let src = base ? (blendGenOntoBase(base) || base) : renderGenChain();
 
-  if (fxChain.length === 0) { drawQuad(passProg, src, []); return; }
+  if (fxSlots.length === 0) { drawQuad(passProg, src, []); return; }
   if (src === fboTex2 || src === fboTex3 || src === fboTexFx) {
     drawQuad(passProg, src, [], fbo);
     src = fboTex;
@@ -4317,6 +5074,7 @@ function loop(ts) {
     if (vid.paused) vid.play().catch(() => {});
   }
 
+  perfSample(ts);                       // rAF-to-rAF delta, before any work this frame
   hookFramePresented();                 // paces the reverse stepper — see stepPlayhead
   lastFrameTs = ts;
   updateAudioData();
@@ -4369,6 +5127,7 @@ vid.addEventListener('ended', () => {
 // ── HUD ───────────────────────────────────────────────────────────────────────
 
 // Cache element refs
+const hudEl    = document.getElementById('hud');
 const hmEl     = document.getElementById('hm');
 const hsEl     = document.getElementById('hs');
 const hpEl     = document.getElementById('hp');
@@ -4380,7 +5139,15 @@ const hstEl    = document.getElementById('hst');
 let _spiLastMs = 0;
 let _spiForce  = true;   // force one immediate pass after any discrete action
 
-function updateHUD() {
+// #hud is display:none and nothing turns it on, but this ran the full DOM
+// update on those invisible elements every frame — a documented dead cost that
+// has been sitting here for a while. Measured once via offsetParent, not every
+// frame: reading it forces layout, which is the thing being avoided.
+// #hud is display:none and nothing ever turns it on, but the full DOM update ran
+// on those invisible elements every frame — a dead cost documented for a while.
+// Split rather than early-returned: updateHUD() also dispatches updateSPI(), and
+// returning from the top would have taken the whole control panel with it.
+function _paintHud() {
   const mode = MODES[modeIdx];
 
   // Mode. (_setTxt and friends are hoisted function declarations defined with
@@ -4391,11 +5158,11 @@ function updateHUD() {
   // Shader name line
   let shLine = '';
   if (mode === 'SHADER') {
-    shLine = GEN[genChain[genIdx]].name + ' [' + (genIdx+1) + '/' + genChain.length + ']';
-    if (genChain.length > 1) shLine += ' ⊕' + genChain.length;
-    if (fxIdx >= 0) shLine += ' + ' + FX[fxChain[fxIdx]].name;
+    shLine = GEN[genSlots[genIdx].idx].name + ' [' + (genIdx+1) + '/' + genSlots.length + ']';
+    if (genSlots.length > 1) shLine += ' ⊕' + genSlots.length;
+    if (fxIdx >= 0) shLine += ' + ' + FX[fxSlots[fxIdx].idx].name;
   } else if (fxIdx >= 0) {
-    shLine = 'fx: ' + FX[fxChain[fxIdx]].name + ' [' + (fxIdx+1) + '/' + fxChain.length + ']';
+    shLine = 'fx: ' + FX[fxSlots[fxIdx].idx].name + ' [' + (fxIdx+1) + '/' + fxSlots.length + ']';
   } else if (mode === 'SAMPLER') {
     shLine = vid.src ? (paused ? '⏸ ' : '▶ ') + vidName : 'drop video or press O';
   } else {
@@ -4413,11 +5180,11 @@ function updateHUD() {
   let shader = null, pvals = null;
 
   if (showLayer === 'gen' && hasGenParams) {
-    shader = GEN[genChain[genIdx]]; pvals = genSlotParams[genIdx];
+    shader = GEN[genSlots[genIdx].idx]; pvals = genSlots[genIdx].params;
   } else if (showLayer === 'fx' && hasFxParams) {
-    shader = FX[fxChain[fxIdx]]; pvals = fxSlotParams[fxIdx];
+    shader = FX[fxSlots[fxIdx].idx]; pvals = fxSlots[fxIdx].params;
   } else if (mode !== 'SHADER' && hasFxParams) {
-    shader = FX[fxChain[fxIdx]]; pvals = fxSlotParams[fxIdx];
+    shader = FX[fxSlots[fxIdx].idx]; pvals = fxSlots[fxIdx].params;
   }
 
   if (!shader || shader.params.length === 0) {
@@ -4461,6 +5228,16 @@ function updateHUD() {
     if (dur > 0) st.push(cur.toFixed(1) + '/' + dur.toFixed(1));
   }
   _setTxt(hstEl, st.join('  '));
+}
+
+let _hudLive = null;
+function updateHUD() {
+  // Computed display, not offsetParent: offsetParent is null for a position:fixed
+  // element even when it is perfectly visible, so that test would report "hidden"
+  // the moment anyone gave #hud a position. Read once and remembered either way —
+  // both force layout.
+  if (_hudLive === null) _hudLive = !!hudEl && getComputedStyle(hudEl).display !== 'none';
+  if (_hudLive) _paintHud();
 
   // The panel walks 32 grid buttons, both mod arrays and every param row. It is
   // all dirty-checked, but running it once per frame competes with a chain that
@@ -4479,6 +5256,131 @@ function updateHUD() {
 let toastTimer = null;
 const toastEl  = document.getElementById('toast');
 
+// ── Diagnostic overlays ──────────────────────────────────────────────────────
+// There was no timing instrumentation in this file at all, which meant a user
+// reporting "it's slower on Windows" could not be answered with anything but
+// speculation — and the project's own hardest bug took four sessions of theory
+// and one second of counters. These are the counters.
+
+const perfEl = document.getElementById('perf-overlay');
+const diagEl = document.getElementById('diag-overlay');
+let perfOn = false, diagOn = false;
+
+// Rolling one-second window. Mean is what the eye reads; max is what a stutter
+// is, and a mean alone hides a 90 ms hitch every second inside a healthy 16.8.
+const _pf = { t: [], last: 0, acc: 0, fps: 0, mean: 0, max: 0, long: 0, shown: 0 };
+
+function perfSample(ts) {
+  if (!perfOn) return;
+  if (_pf.last) {
+    const dt = ts - _pf.last;
+    _pf.t.push(dt);
+    // A frame over 1.5x the 60Hz budget did not make its deadline. Counted
+    // rather than averaged, because dropped frames are what a set actually
+    // looks like going wrong.
+    if (dt > 25) _pf.long++;
+  }
+  _pf.last = ts;
+  _pf.acc += 1;
+  if (ts - _pf.shown < 500) return;      // repaint twice a second, not 60 times
+  _pf.shown = ts;
+  if (_pf.t.length) {
+    let sum = 0, mx = 0;
+    for (const d of _pf.t) { sum += d; if (d > mx) mx = d; }
+    _pf.mean = sum / _pf.t.length;
+    _pf.max  = mx;
+    _pf.fps  = 1000 / _pf.mean;
+  }
+  _pf.t.length = 0;
+  perfPaint();
+  _pf.long = 0;
+}
+
+function _bufMB() {
+  // Matches the allocation in makeFBO/_lazy/ensureMat: three RGBA8 always, the
+  // four optional ones only when live, plus the RG16F pair.
+  const px = cv.width * cv.height;
+  let bytes = 3 * px * 4;
+  for (const t of [fboTexFx, fboTexHist, fboTexHold, fboTexPrev]) if (t) bytes += px * 4;
+  if (fboTexMat[0]) bytes += 2 * px * 4;
+  if (_vidTexW) bytes += _vidTexW * _vidTexH * 4;   // the uncapped one
+  return bytes / 1048576;
+}
+
+function perfPaint() {
+  if (!perfEl) return;
+  const cls = _pf.mean > 33.3 ? 'pf-bad' : _pf.mean > 16.8 ? 'pf-warn' : '';
+  const gen = genSlots.filter(s => !s.off).length, fx = fxSlots.filter(s => !s.off).length;
+  perfEl.innerHTML =
+    `<span class="${cls}">${_pf.fps.toFixed(1)} fps   ${_pf.mean.toFixed(1)} ms</span>\n` +
+    `peak    ${_pf.max.toFixed(1)} ms\n` +
+    `late    ${_pf.long}/s\n` +
+    `buffer  ${cv.width}\u00d7${cv.height}${_capActive ? ' \u25bc' : ''}\n` +
+    `source  ${_vidTexW ? _vidTexW + '\u00d7' + _vidTexH : '-'}\n` +
+    `vram    ~${_bufMB().toFixed(0)} MB\n` +
+    `chain   ${gen} gen / ${fx} fx`;
+}
+
+function togglePerf() {
+  perfOn = !perfOn;
+  perfEl.classList.toggle('vis', perfOn);
+  _pf.last = 0; _pf.t.length = 0; _pf.long = 0;
+  if (perfOn) perfPaint();
+}
+
+// Everything needed to answer "why is it slower on that machine" without a
+// round trip. mediump precision is the one people never think to check: it is a
+// genuine fp16 on Apple Silicon (fast) and promoted to fp32 through ANGLE on
+// Windows (not), which is a real cross-platform difference in the same shaders.
+function diagReport() {
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  const vendor   = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   : gl.getParameter(gl.VENDOR);
+  const mp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT);
+  const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+  const backend = /ANGLE/i.test(renderer)
+    ? (/Direct3D11|D3D11/i.test(renderer) ? 'ANGLE/D3D11' :
+       /Metal/i.test(renderer) ? 'ANGLE/Metal' :
+       /Vulkan/i.test(renderer) ? 'ANGLE/Vulkan' :
+       /OpenGL/i.test(renderer) ? 'ANGLE/GL' : 'ANGLE')
+    : 'native';
+  const L = [
+    ['build',      BUILD],
+    ['renderer',   renderer],
+    ['vendor',     vendor],
+    ['backend',    backend],
+    ['mediump',    mp ? `${mp.precision} bits  (${mp.precision <= 10 ? 'true fp16 - fast' : 'promoted to fp32'})` : 'n/a'],
+    ['highp',      hp ? hp.precision + ' bits' : 'n/a'],
+    ['max tex',    gl.getParameter(gl.MAX_TEXTURE_SIZE)],
+    ['max rbuf',   gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)],
+    ['float rt',   gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO (feature-dots/advect off)'],
+    ['dpr',        (window.devicePixelRatio || 1) + (Number.isInteger(window.devicePixelRatio) ? '' : '  (fractional - compositor resamples)')],
+    ['screen',     `${screen.width}\u00d7${screen.height}`],
+    ['canvas',     `${cv.width}\u00d7${cv.height}`],
+    ['render cap', pixelCap + (_capActive ? '  (biting)' : '')],
+    ['render scale', renderScale + '\u00d7'],
+    ['source',     vidInfo.w ? describeSource() : 'none loaded'],
+    ['ua',         navigator.userAgent],
+  ];
+  return L.map(([k, v]) => k.padEnd(12) + v).join('\n');
+}
+
+function toggleDiag() {
+  diagOn = !diagOn;
+  diagEl.classList.toggle('vis', diagOn);
+  if (!diagOn) return;
+  const txt = diagReport();
+  diagEl.innerHTML = '<span class="diag-hd">SYSTEM</span>\n' + txt.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const btn = document.createElement('button');
+  btn.id = 'diag-copy';
+  btn.textContent = 'COPY';
+  btn.addEventListener('click', () => {
+    navigator.clipboard?.writeText(txt).then(() => toast('system info copied'),
+                                             () => toast('copy blocked by browser'));
+  });
+  diagEl.appendChild(btn);
+}
+
 function toast(msg) {
   toastEl.textContent = msg.toUpperCase();
   toastEl.classList.add('on');
@@ -4496,35 +5398,20 @@ const STEP = 0.025;
 let inOutState = 0; // 0=next sets IN, 1=next sets OUT, 2=next clears
 
 function syncFxIdx() {
-  if (fxChain.length === 0) { fxIdx = -1; return; }
-  if (fxIdx >= fxChain.length || fxIdx < 0) fxIdx = fxChain.length - 1;
+  if (fxSlots.length === 0) { fxIdx = -1; return; }
+  if (fxIdx >= fxSlots.length || fxIdx < 0) fxIdx = fxSlots.length - 1;
 }
 
 function fxChainToggle(i) {
-  const pos = fxChain.indexOf(i);
+  const pos = fxSlots.findIndex(sl => sl.idx === i);
   if (pos >= 0) {
-    fxChain.splice(pos, 1);
-    fxSlotParams.splice(pos, 1);
-    fxSlotAudioMod.splice(pos, 1);
-    fxSlotLfoMod.splice(pos, 1);
-    fxSlotMidiMod.splice(pos, 1);
-    fxSlotAmt.splice(pos, 1);
-    fxSlotMode.splice(pos, 1);
-    _adjustFxDisabled(pos, -1);
-    fxIdx = Math.min(fxIdx, fxChain.length - 1);
+    chainRemove(fxSlots, pos);
+    fxIdx = Math.min(fxIdx, fxSlots.length - 1);
   } else {
-    if (fxChain.length >= 4) { fxChain.shift(); fxSlotParams.shift(); fxSlotAudioMod.shift(); fxSlotLfoMod.shift(); fxSlotMidiMod.shift(); fxSlotAmt.shift(); fxSlotMode.shift(); _adjustFxDisabled(0, -1); }
-    fxChain.push(i);
-    fxSlotParams.push([...FX[i].def]);
-    fxSlotAudioMod.push(FX[i].params.map(() => ({ band: null, depth: 0.5 })));
-    fxSlotLfoMod.push(FX[i].params.map(() => ({ lfo: null })));
-    fxSlotMidiMod.push(FX[i].params.map(() => ({ cc: null })));
-    fxSlotAmt.push(1.0);
-    fxSlotMode.push(0);
-    fxIdx = fxChain.length - 1;
+    fxIdx = chainInsert(fxSlots, makeFxSlot(i));
   }
   syncFxIdx();
-  layer = fxChain.length > 0 ? 'fx' : 'gen';
+  layer = fxSlots.length > 0 ? 'fx' : 'gen';
   feedbackInit = false;
 }
 
@@ -4532,11 +5419,11 @@ function adjParam(delta) {
   const mode = MODES[modeIdx];
   let arr, shader;
   if (layer === 'gen' && mode === 'SHADER') {
-    arr = genSlotParams[genIdx]; shader = GEN[genChain[genIdx]];
+    arr = genSlots[genIdx].params; shader = GEN[genSlots[genIdx].idx];
   } else if (layer === 'fx' && fxIdx >= 0) {
-    arr = fxSlotParams[fxIdx]; shader = FX[fxChain[fxIdx]];
+    arr = fxSlots[fxIdx].params; shader = FX[fxSlots[fxIdx].idx];
   } else if (mode !== 'SHADER' && fxIdx >= 0) {
-    arr = fxSlotParams[fxIdx]; shader = FX[fxChain[fxIdx]];
+    arr = fxSlots[fxIdx].params; shader = FX[fxSlots[fxIdx].idx];
   } else {
     return;
   }
@@ -4550,8 +5437,8 @@ function adjParam(delta) {
 function cycleParam() {
   const mode = MODES[modeIdx];
   let shader;
-  if (layer === 'gen' && mode === 'SHADER') shader = GEN[genChain[genIdx]];
-  else if (fxIdx >= 0) shader = FX[fxChain[fxIdx]];
+  if (layer === 'gen' && mode === 'SHADER') shader = GEN[genSlots[genIdx].idx];
+  else if (fxIdx >= 0) shader = FX[fxSlots[fxIdx].idx];
   if (!shader || shader.params.length === 0) return;
   const base = selParam < 0 ? -1 : selParam;
   selParam = (base + 1) % shader.params.length;
@@ -4559,22 +5446,21 @@ function cycleParam() {
 }
 
 function prevFX() {
-  const cur = fxChain.length > 0 ? fxChain[fxChain.length - 1] : 0;
+  const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : 0;
   const next = cur <= 0 ? FX.length - 1 : cur - 1;
   fxChainToggle(next);
-  toast(fxChain.length ? fxChain.map(i => FX[i].name).join(' › ') : 'fx: off');
+  toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
 function nextFX() {
-  const cur = fxChain.length > 0 ? fxChain[fxChain.length - 1] : -1;
+  const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : -1;
   const next = (cur + 1) % FX.length;
   fxChainToggle(next);
-  toast(fxChain.length ? fxChain.map(i => FX[i].name).join(' › ') : 'fx: off');
+  toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
 function toggleFX() {
-  fxChain = []; fxSlotParams = []; fxSlotAudioMod = []; fxSlotLfoMod = []; fxSlotMidiMod = []; fxSlotAmt = []; fxSlotMode = [];
-  fxDisabled.clear();
+  fxSlots = [];
   syncFxIdx();
   layer = 'gen';
   toast('fx: off');
@@ -4588,7 +5474,7 @@ function handleSlot(n) {
     if (i < GEN.length) {
       genChainToggle(i);
       selParam = 0;
-      toast(GEN[genChain[genIdx]].name + ' [' + (genIdx+1) + '/' + genChain.length + ']');
+      toast(GEN[genSlots[genIdx].idx].name + ' [' + (genIdx+1) + '/' + genSlots.length + ']');
     }
   }
   // SAMPLER/LIVE: no slot function — silently ignore
@@ -4598,9 +5484,9 @@ function handleZero() {
   const mode = MODES[modeIdx];
   if (mode === 'SHADER') {
     // In SHADER mode: 0 cycles selected gen within chain
-    genIdx = (genIdx + 1) % genChain.length;
+    genIdx = (genIdx + 1) % genSlots.length;
     selParam = 0;
-    toast(GEN[genChain[genIdx]].name + ' [' + (genIdx+1) + '/' + genChain.length + ']');
+    toast(GEN[genSlots[genIdx].idx].name + ' [' + (genIdx+1) + '/' + genSlots.length + ']');
     return;
   }
   // SAMPLER / LIVE: IN → OUT → CLEAR cycle
@@ -4732,6 +5618,12 @@ document.addEventListener('keydown', e => {
       break;
     case 'l': case 'L':
       toggleCamera();
+      break;
+    case 'p': case 'P':
+      togglePerf();
+      break;
+    case 'i': case 'I':
+      toggleDiag();
       break;
     case 'f': case 'F':
       if (!document.fullscreenElement) document.documentElement.requestFullscreen();
@@ -4933,27 +5825,20 @@ function randomiseAll() {
   const gPick = _pickDistinct(GEN.length, 4);
   const fPick = _pickDistinct(FX.length, 4);
 
-  genChain        = gPick.slice();
-  genChainSeeds   = gPick.map(() => Math.random() * 10000);
-  genSlotParams   = gPick.map(gi => _rndParams(GEN[gi]));
-  genSlotAudioMod = gPick.map(gi => GEN[gi].params.map(() => ({ band: null, depth: 0.5 })));
-  genSlotLfoMod   = gPick.map(gi => GEN[gi].params.map(() => ({ lfo: null })));
-  genSlotMidiMod  = gPick.map(gi => GEN[gi].params.map(() => ({ cc: null })));
-  // These two stay length 4 whatever the chain length — genChainToggle keeps
-  // that invariant by splicing and re-pushing, so match it here.
-  genChainMode = [0, 1, 2, 3].map(pos => (pos === 0 || pos >= gPick.length) ? 0 : RND_MODES[_rndI(RND_MODES.length)]);
-  genChainAmt  = [0, 1, 2, 3].map(pos => (pos === 0 || pos >= gPick.length) ? 1.0 : _rnd(0.55, 1.0));
-  genDisabled.clear();
+  // Slot 0 is forced to normal at full amount: it composites onto black, where
+  // any subtractive mode is an immediate blackout regardless of what follows.
+  genSlots = gPick.map((gi, pos) => makeGenSlot(gi, {
+    params: _rndParams(GEN[gi]),
+    mode:   pos === 0 ? 0   : RND_MODES[_rndI(RND_MODES.length)],
+    amt:    pos === 0 ? 1.0 : _rnd(0.55, 1.0),
+  }));
   genIdx = 0;
 
-  fxChain        = fPick.slice();
-  fxSlotParams   = fPick.map(fi => _rndParams(FX[fi]));
-  fxSlotAudioMod = fPick.map(fi => FX[fi].params.map(() => ({ band: null, depth: 0.5 })));
-  fxSlotLfoMod   = fPick.map(fi => FX[fi].params.map(() => ({ lfo: null })));
-  fxSlotMidiMod  = fPick.map(fi => FX[fi].params.map(() => ({ cc: null })));
-  fxSlotMode     = fPick.map(() => RND_MODES[_rndI(RND_MODES.length)]);
-  fxSlotAmt      = fPick.map(() => _rnd(0.5, 1.0));
-  fxDisabled.clear();
+  fxSlots = fPick.map(fi => makeFxSlot(fi, {
+    params: _rndParams(FX[fi]),
+    mode:   RND_MODES[_rndI(RND_MODES.length)],
+    amt:    _rnd(0.5, 1.0),
+  }));
   fxIdx = 0;
 
   // Shape, period and amp only. offset is left alone, and skew/curve stay at
@@ -4973,12 +5858,12 @@ function randomiseAll() {
   // frame is clearly alive, few enough that each shader stays readable. Driving
   // most params at once reads as mush rather than as motion.
   const targets = [];
-  genChain.forEach((gi, pos) => GEN[gi].params.forEach((_, pi) => targets.push([genSlotLfoMod, pos, pi])));
-  fxChain.forEach((fi, pos)  => FX[fi].params.forEach((_, pi)  => targets.push([fxSlotLfoMod,  pos, pi])));
+  genSlots.forEach(sl => GEN[sl.idx].params.forEach((_, pi) => targets.push([sl.lfoMod, pi])));
+  fxSlots.forEach(sl  => FX[sl.idx].params.forEach((_, pi)  => targets.push([sl.lfoMod, pi])));
   const nAssign = Math.min(targets.length, 2 + _rndI(3));   // 2–4
   for (let k = 0; k < nAssign; k++) {
-    const [arr, pos, pi] = targets.splice(_rndI(targets.length), 1)[0];
-    arr[pos][pi].lfo = _rndI(lfos.length);
+    const [arr, pi] = targets.splice(_rndI(targets.length), 1)[0];
+    arr[pi].lfo = _rndI(lfos.length);
   }
 
   syncGenIdx();
@@ -4996,7 +5881,7 @@ function randomiseAll() {
 }
 
 function disableAllGenShaders() {
-  genChain.forEach((_, pos) => genDisabled.add(pos));
+  genSlots.forEach(sl => { sl.off = true; });
 }
 
 // Single entry point for every interactive mode change — the ENTER key, the MODE
@@ -5009,7 +5894,7 @@ function disableAllGenShaders() {
 // hides the thing you just switched to look at. The bypass is positional and the
 // chain is left intact, so the blend button puts it straight back.
 //
-// Deliberately NOT used by applyState(): a preset carries its own genDisabled
+// Deliberately NOT used by applyState(): a preset carries its own bypass set
 // and has to be restored exactly as saved, not overwritten by this policy.
 function setMode(m) {
   const i = MODES.indexOf(m);
@@ -5023,7 +5908,7 @@ function setMode(m) {
     stopCamera();
     if (m === 'SAMPLER') {
       disableAllGenShaders();
-    } else if (genChain.length && genChain.every((_, pos) => genDisabled.has(pos))) {
+    } else if (genSlots.length && genSlots.every(sl => sl.off)) {
       // The mirror of the above, and not optional now that SAMPLER bypasses too.
       // SHADER exists to show the gen stack; arriving with every slot bypassed
       // renders the bare source — or black, with no source — in the one mode
@@ -5031,7 +5916,7 @@ function setMode(m) {
       // that state behind and the ENTER cycle runs SAMPLER -> SHADER, so this is
       // the common path, not an edge case. Only the all-off state is cleared: a
       // partial per-slot bypass set from the flow strip is deliberately kept.
-      genDisabled.clear();
+      genSlots.forEach(sl => { sl.off = false; });
     }
   }
   layer = m === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
@@ -5166,15 +6051,15 @@ function syncAllLfos() {
 
 function currentLfoArr() {
   const mode = MODES[modeIdx];
-  if (layer === 'gen' && mode === 'SHADER') return genSlotLfoMod[genIdx];
-  if (fxIdx >= 0) return fxSlotLfoMod[fxIdx];
+  if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].lfoMod;
+  if (fxIdx >= 0) return fxSlots[fxIdx].lfoMod;
   return null;
 }
 
 function currentMidiArr() {
   const mode = MODES[modeIdx];
-  if (layer === 'gen' && mode === 'SHADER') return genSlotMidiMod[genIdx];
-  if (fxIdx >= 0) return fxSlotMidiMod[fxIdx];
+  if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].midiMod;
+  if (fxIdx >= 0) return fxSlots[fxIdx].midiMod;
   return null;
 }
 
@@ -5270,13 +6155,13 @@ function updateAudioData() {
 
 // Same shape as chainNeedsPrev(): live, non-bypassed slots only.
 function chainNeedsAudioTex() {
-  for (let i = 0; i < genChain.length; i++) {
-    if (genDisabled.has(i)) continue;
-    if (GEN[genChain[i]]?.usesAudioTex) return true;
+  for (let i = 0; i < genSlots.length; i++) {
+    if (genSlots[i].off) continue;
+    if (GEN[genSlots[i].idx]?.usesAudioTex) return true;
   }
-  for (let i = 0; i < fxChain.length; i++) {
-    if (fxDisabled.has(i)) continue;
-    if (FX[fxChain[i]]?.usesAudioTex) return true;
+  for (let i = 0; i < fxSlots.length; i++) {
+    if (fxSlots[i].off) continue;
+    if (FX[fxSlots[i].idx]?.usesAudioTex) return true;
   }
   return false;
 }
@@ -5420,8 +6305,8 @@ function effParams(baseArr, modArr, lfoModArr, midiModArr) {
 
 function currentModArr() {
   const mode = MODES[modeIdx];
-  if (layer === 'gen' && mode === 'SHADER') return genSlotAudioMod[genIdx];
-  if (fxIdx >= 0) return fxSlotAudioMod[fxIdx];
+  if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].audioMod;
+  if (fxIdx >= 0) return fxSlots[fxIdx].audioMod;
   return null;
 }
 
@@ -5451,7 +6336,7 @@ function midiCcPopupCommit() {
   const val = parseInt(_midiCcInp.value);
   if (!isNaN(val) && val >= 0 && val <= 127) {
     const { kind, si, pi } = _midiLearnTarget;
-    const arr = kind === 'gen' ? genSlotMidiMod[si] : fxSlotMidiMod[si];
+    const arr = kind === 'gen' ? genSlots[si].midiMod : fxSlots[si].midiMod;
     arr[pi].cc = val;
   }
   midiCcPopupHide();
@@ -5494,7 +6379,7 @@ document.addEventListener('pointerdown', e => {
     const val = e.data[2] / 127;
     if (_midiLearnTarget) {
       const { kind, si, pi } = _midiLearnTarget;
-      const arr = kind === 'gen' ? genSlotMidiMod[si] : fxSlotMidiMod[si];
+      const arr = kind === 'gen' ? genSlots[si].midiMod : fxSlots[si].midiMod;
       arr[pi].cc = cc;
       if (typeof midiCcPopupHide === 'function') midiCcPopupHide();
       else _midiLearnTarget = null;
@@ -5613,12 +6498,77 @@ async function captureScreen() {
 
 let blobURL = null;
 
-function loadVideo(url, name) {
+// What the file actually is. Nothing used to ask: the only loadedmetadata
+// handler repositioned the in/out thumbs, so an unplayable codec sat on
+// "loading…" forever and an oversized clip rendered black. `fps` is filled in by
+// the rVFC probe below, which is the only way to get it from a <video> element.
+let vidInfo = { w: 0, h: 0, duration: 0, fps: null, live: false, bytes: 0, name: '' };
+
+// Estimated from presentedFrames / mediaTime across the first second of
+// playback, then left alone. Both counters come from rVFC metadata; there is no
+// other route to a source frame rate in the browser.
+let _fpsProbe = null;
+function startFpsProbe() {
+  if (!vid.requestVideoFrameCallback) { vidInfo.fps = null; return; }
+  _fpsProbe = null;
+  const probe = (now, md) => {
+    if (!md || md.mediaTime === undefined || md.presentedFrames === undefined) return;
+    if (!_fpsProbe) { _fpsProbe = { t0: md.mediaTime, f0: md.presentedFrames }; }
+    const dt = md.mediaTime - _fpsProbe.t0;
+    const df = md.presentedFrames - _fpsProbe.f0;
+    if (dt >= 1 && df > 0) { vidInfo.fps = df / dt; return; }   // done, stop re-arming
+    if (dt < 3) vid.requestVideoFrameCallback(probe);
+  };
+  vid.requestVideoFrameCallback(probe);
+}
+
+function describeSource() {
+  const i = vidInfo;
+  const res = i.w && i.h ? i.w + '×' + i.h : 'unknown size';
+  const len = i.live ? 'live/unbounded' : (i.duration ? i.duration.toFixed(1) + 's' : 'unknown length');
+  const fps = i.fps ? i.fps.toFixed(1) + 'fps' : 'fps pending';
+  const mb  = i.bytes ? (i.bytes / 1048576).toFixed(1) + 'MB' : '';
+  return [res, len, fps, mb].filter(Boolean).join(' · ');
+}
+
+function assessSource() {
+  vidInfo.w = vid.videoWidth  || 0;
+  vidInfo.h = vid.videoHeight || 0;
+  vidInfo.duration = Number.isFinite(vid.duration) ? vid.duration : 0;
+  vidInfo.live = !Number.isFinite(vid.duration) || vid.duration === 0;
+
+  // The one hard failure. Above this the upload raises INVALID_VALUE and the
+  // texture silently keeps its last contents, which reads as a broken app.
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  if (vidInfo.w > maxTex || vidInfo.h > maxTex) {
+    toast(`source ${vidInfo.w}×${vidInfo.h} exceeds GPU limit ${maxTex}`);
+    console.warn('recur: source exceeds MAX_TEXTURE_SIZE — the frame will not upload', vidInfo);
+  } else if (vidInfo.w * vidInfo.h > 3840 * 2160) {
+    // Not an error: RENDER CAP bounds the chain buffers, but the source texture
+    // is whatever the file is and is re-uploaded every frame. Warn, do not alter
+    // — silently resampling someone's footage is worse than telling them.
+    const mb = (vidInfo.w * vidInfo.h * 4 / 1048576).toFixed(0);
+    toast(`large source: ${vidInfo.w}×${vidInfo.h} (~${mb}MB/frame)`);
+  }
+  console.info('recur: source — ' + describeSource());
+  startFpsProbe();
+}
+
+function loadVideo(url, name, file) {
   if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   vid.srcObject = null;
   if (blobURL && blobURL !== url) URL.revokeObjectURL(blobURL);
   blobURL = url.startsWith('blob:') ? url : null;
   vidName = (name || 'video').replace(/.*[/\\]/, '').replace(/\.[^.]+$/, '');
+  vidInfo = { w: 0, h: 0, duration: 0, fps: null, live: false, bytes: file?.size || 0, name: vidName };
+  _vidTexErrShown = false;   // a new file deserves its own diagnosis
+  // Asked before the load, not after it fails: canPlayType is the only cheap way
+  // to tell "browser cannot decode this" from "file is broken".
+  if (file?.type && vid.canPlayType(file.type) === '') {
+    toast('cannot play ' + (file.type || 'this format'));
+    console.warn('recur: canPlayType says no for', file.type);
+  }
+  if (file?.size > 2 * 1024 ** 3) toast('very large file (' + (file.size / 1024 ** 3).toFixed(1) + 'GB)');
   modeIdx  = 0;
   paused   = false;
   reversed = false;
@@ -5634,7 +6584,16 @@ function loadVideo(url, name) {
   vid.load();
   vid.playbackRate = vidRate;
   vid.addEventListener('loadedmetadata', () => {
+    assessSource();
     if (window.updateInOutThumbs) window.updateInOutThumbs();
+  }, { once: true });
+  // There was no error handler at all, so an unsupported codec or a truncated
+  // file left the "loading…" toast up and nothing else ever happened.
+  vid.addEventListener('error', () => {
+    const e = vid.error;
+    const why = { 1: 'load aborted', 2: 'network error', 3: 'decode failed', 4: 'format not supported' }[e?.code] || 'load failed';
+    toast(why + ': ' + vidName);
+    console.warn('recur: video error', e?.code, e?.message);
   }, { once: true });
   vid.play().catch(() => {
     vid.addEventListener('canplay', () => vid.play().catch(() => {}), { once: true });
@@ -5644,7 +6603,7 @@ function loadVideo(url, name) {
 
 document.getElementById('fi').addEventListener('change', e => {
   const f = e.target.files[0];
-  if (f) loadVideo(URL.createObjectURL(f), f.name);
+  if (f) loadVideo(URL.createObjectURL(f), f.name, f);
   e.target.value = '';
 });
 
@@ -5669,7 +6628,7 @@ document.addEventListener('drop', e => {
   dzEl.classList.remove('on');
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('video/')) {
-    loadVideo(URL.createObjectURL(f), f.name);
+    loadVideo(URL.createObjectURL(f), f.name, f);
   } else {
     toast('not a video file');
   }
@@ -5864,7 +6823,7 @@ function spiSetCollapsed(sec, on) {
 // Right-click / long-press FX button → select its params without toggling chain
 function fxSelectParams(btn) {
   const fi = parseInt(btn.dataset.fi);
-  const pos = fxChain.indexOf(fi);
+  const pos = fxSlots.findIndex(sl => sl.idx === fi);
   if (pos >= 0) { fxIdx = pos; syncFxIdx(); }
   layer = 'fx';
   selParam = 0;
@@ -5877,7 +6836,7 @@ function fxSelectParams(btn) {
 // the whole params panel. Mirrors fxSelectParams above.
 function genSelectParams(btn) {
   const gi = parseInt(btn.dataset.gi);
-  const pos = genChain.indexOf(gi);
+  const pos = genSlots.findIndex(sl => sl.idx === gi);
   if (pos < 0) { toast(GEN[gi].name + ' not in chain'); return; }
   genIdx = pos;
   syncGenIdx();
@@ -5981,7 +6940,7 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       // the camera/video base entirely, so tapping any gen while in LIVE showed
       // the shader alone with no way to blend it over the source.
       selParam = 0;
-      if (genChain.length > 0) toast(GEN[genChain[genIdx]].name + (genChain.length > 1 ? ' [' + genChain.length + ' layers]' : ''));
+      if (genSlots.length > 0) toast(GEN[genSlots[genIdx].idx].name + (genSlots.length > 1 ? ' [' + genSlots.length + ' layers]' : ''));
       break;
     case 'randomise':
       randomiseAll();
@@ -6003,14 +6962,14 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       break;
     case 'fx-select':
       fxChainToggle(parseInt(btn.dataset.fi));
-      layer = fxChain.length > 0 ? 'fx' : 'gen';
-      toast(fxChain.length ? fxChain.map(i => FX[i].name).join(' › ') : 'fx: off');
+      layer = fxSlots.length > 0 ? 'fx' : 'gen';
+      toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
       break;
     case 'layer-gen':
       layer = 'gen'; toast('params: gen');
       break;
     case 'layer-fx':
-      if (fxChain.length > 0) { layer = 'fx'; toast('params: fx'); }
+      if (fxSlots.length > 0) { layer = 'fx'; toast('params: fx'); }
       break;
     case 'cparam':
       if (btn.dataset.layer) layer = btn.dataset.layer;
@@ -6056,37 +7015,29 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       else document.exitFullscreen();
       break;
     case 'resetparams': {
-      const resetShader = genChain[genIdx] ?? 0;
-      genChain      = [resetShader];
-      genChainSeeds = [0];
-      genChainMode  = [0, 0, 0];
-      genChainAmt   = [0.5, 0.5, 0.5];
-      genDisabled.clear();
-      genIdx        = 0;
-      genSlotParams   = [[...GEN[resetShader].def]];
-      genSlotAudioMod = [GEN[resetShader].params.map(() => ({ band: null, depth: 0.5 }))];
-      genSlotLfoMod   = [GEN[resetShader].params.map(() => ({ lfo: null }))];
-      genSlotMidiMod  = [GEN[resetShader].params.map(() => ({ cc: null }))];
-      fxChain = []; fxSlotParams = []; fxSlotAudioMod = []; fxSlotLfoMod = []; fxSlotMidiMod = []; fxSlotAmt = []; fxSlotMode = [];
-      fxDisabled.clear(); fxIdx = -1;
+      const resetShader = genSlots[genIdx]?.idx ?? 0;
+      genSlots = [makeGenSlot(resetShader, { seed: 0 })];
+      genIdx   = 0;
+      fxSlots  = [];
+      fxIdx    = -1;
       selParam     = 0;
       toast('params reset');
       break;
     }
     case 'defaultstate': {
       modeIdx = 1; layer = 'gen'; selParam = 0;
-      genChain = [0]; genChainSeeds = [0]; genChainMode = [0,0,0]; genChainAmt = [0.5,0.5,0.5];
-      genDisabled.clear(); genIdx = 0;
-      genSlotParams   = [[...GEN[0].def]];
-      genSlotAudioMod = [GEN[0].params.map(() => ({ band: null, depth: 0.5 }))];
-      genSlotLfoMod   = [GEN[0].params.map(() => ({ lfo: null }))];
-      genSlotMidiMod  = [GEN[0].params.map(() => ({ cc: null }))];
-      fxChain = []; fxSlotParams = []; fxSlotAudioMod = []; fxSlotLfoMod = []; fxSlotMidiMod = []; fxSlotAmt = []; fxSlotMode = [];
-      fxDisabled.clear(); fxIdx = -1;
+      genSlots = [makeGenSlot(0, { seed: 0 })]; genIdx = 0;
+      fxSlots  = []; fxIdx = -1;
       blendAmount = 0.5;
       toast('default state');
       break;
     }
+    case 'perf':
+      togglePerf();
+      break;
+    case 'diag':
+      toggleDiag();
+      break;
     case 'help':
       toggleHelp();
       break;
@@ -6108,23 +7059,23 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       break;
     }
     case 'cycle-gen-blend': {
-      genChainMode[genIdx] = (genChainMode[genIdx] + 1) % BLEND_MODES.length;
-      toast('blend: ' + BLEND_MODES[genChainMode[genIdx]]);
+      genSlots[genIdx].mode = (genSlots[genIdx].mode + 1) % BLEND_MODES.length;
+      toast('blend: ' + BLEND_MODES[genSlots[genIdx].mode]);
       break;
     }
     case 'gen-over-all': {
       // All-or-nothing: either the source shows straight through, or the whole
       // gen stack is composited over it. Per-slot control lives in the flow strip.
-      if (!genChain.length) break;
-      const allByp = genChain.every((_, pos) => genDisabled.has(pos));
-      if (allByp) genDisabled.clear(); else disableAllGenShaders();
+      if (!genSlots.length) break;
+      const allByp = genSlots.every(sl => sl.off);
+      if (allByp) genSlots.forEach(sl => { sl.off = false; }); else disableAllGenShaders();
       toast(allByp ? 'shaders over source' : 'source only');
       break;
     }
     case 'cycle-fx-blend': {
-      if (fxIdx < 0 || fxIdx >= fxChain.length) break;
-      fxSlotMode[fxIdx] = ((fxSlotMode[fxIdx] ?? 0) + 1) % BLEND_MODES.length;
-      toast('fx blend: ' + BLEND_MODES[fxSlotMode[fxIdx]]);
+      if (fxIdx < 0 || fxIdx >= fxSlots.length) break;
+      fxSlots[fxIdx].mode = ((fxSlots[fxIdx].mode ?? 0) + 1) % BLEND_MODES.length;
+      toast('fx blend: ' + BLEND_MODES[fxSlots[fxIdx].mode]);
       break;
     }
     case 'mirror':
@@ -6655,6 +7606,9 @@ function updateExportBtn(recording, remaining) {
 
 // ── Flow strip ────────────────────────────────────────────────────────────────
 const _flowStrip = document.getElementById('flow-strip');
+// SRC/CAM lives outside the strip now, so it survives every innerHTML rebuild
+// and keeps its panel-level data-action delegation without being re-bound.
+const _flowCamBtn = document.getElementById('flow-cam-btn');
 const _flowGhost = document.getElementById('flow-ghost');
 let _flowDragging = false;  // set by drag system — skip rebuild during drag
 let _flowLastKey  = '';     // dirty-check: only rebuild when chain changes
@@ -6663,7 +7617,7 @@ const _abbrev = {
   'plasma':'PLM','kaleidoscope':'KLID','tunnel':'TUN','flowing-colours':'FLWC',
   'hypnotic-rings':'HYPR','squarewaves':'SQRW','starfield':'STRF','voronoi':'VOR',
   'waves':'WAV','zoom-clouds':'ZMCL','gamma-ray':'GAMR','oscilloscope':'OSC',
-  'feature-dots':'DOTS',
+  'feature-dots':'DOTS','maze-flight':'MAZE','quaternion':'QUAT',
   'vhs':'VHS','glitch':'GLTCH','feedback':'FBCK','mirror':'MIR','posterize':'POST',
   'invert':'INV','bitcrush':'BTCR','colorizer':'CLR','grain':'GRN',
   'hsv-shift':'HSV','hue-cycle':'HUE','kaleido-warp':'KLWP','rotate-zoom':'RTZM',
@@ -6683,49 +7637,57 @@ function buildFlowStrip() {
   if (_spiFlowDirty) { _flowLastKey = ''; _spiFlowDirty = false; }
   if (_flowDragging) return;  // never replace DOM mid-drag — pointer capture would break
 
+  // Updated before the key check, not inside the rebuild: the button is static
+  // markup now, so it must track the camera even on frames where the chain has
+  // not changed and the strip is skipped entirely.
   const camOn = !!camStream;
-  const key = genChain.join(',') + '|' + genIdx + '|' + fxChain.join(',') + '|' + fxIdx + '|' + [...genDisabled] + '|' + [...fxDisabled] + '|' + camOn;
+  if (_flowCamBtn) {
+    const camLabel = camOn ? '◉CAM' : '○CAM';
+    if (_flowCamBtn.textContent !== camLabel) _flowCamBtn.textContent = camLabel;
+    _flowCamBtn.classList.toggle('fb-cam-active', camOn);
+  }
+
+  const key = genSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + genIdx + '|' +
+              fxSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + fxIdx;
   if (key === _flowLastKey) return;
   _flowLastKey = key;
 
   // ── GEN row: always visible ───────────────────────────────────────────────
   const top = [];
   top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="0"></span>`);
-  genChain.forEach((gi, pos) => {
-    top.push(`<span class="fb fb-gen${pos === genIdx ? ' fb-sel' : ''}${genDisabled.has(pos) ? ' fb-disabled' : ''}" data-fb-type="gen" data-fb-pos="${pos}" data-fb-idx="${gi}" title="${GEN[gi].name}">${_fb_abbr(GEN[gi].name)}</span>`);
-    if (pos < genChain.length - 1) {
+  genSlots.forEach((sl, pos) => {
+    const gi = sl.idx;
+    top.push(`<span class="fb fb-gen${pos === genIdx ? ' fb-sel' : ''}${genSlots[pos].off ? ' fb-disabled' : ''}" data-fb-type="gen" data-fb-pos="${pos}" data-fb-idx="${gi}" title="${GEN[gi].name}">${_fb_abbr(GEN[gi].name)}</span>`);
+    if (pos < genSlots.length - 1) {
       top.push(`<span class="fb-arrow">⊕</span>`);
       top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="${pos + 1}"></span>`);
     }
   });
-  top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="${genChain.length}"></span>`);
+  top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="${genSlots.length}"></span>`);
 
   // ── FX row: always visible ────────────────────────────────────────────────
   const bot = [];
   bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="0"></span>`);
-  if (fxChain.length === 0) {
+  if (fxSlots.length === 0) {
     bot.push(`<span class="fb fb-fx-empty">fx</span>`);
   } else {
-    fxChain.forEach((fi, pos) => {
-      bot.push(`<span class="fb fb-fx${pos === fxIdx ? ' fb-sel' : ''}${fxDisabled.has(pos) ? ' fb-disabled' : ''}" data-fb-type="fx" data-fb-pos="${pos}" data-fb-idx="${fi}" title="${FX[fi].name}">${_fb_abbr(FX[fi].name)}</span>`);
-      if (pos < fxChain.length - 1) {
+    fxSlots.forEach((sl, pos) => {
+      const fi = sl.idx;
+      bot.push(`<span class="fb fb-fx${pos === fxIdx ? ' fb-sel' : ''}${fxSlots[pos].off ? ' fb-disabled' : ''}" data-fb-type="fx" data-fb-pos="${pos}" data-fb-idx="${fi}" title="${FX[fi].name}">${_fb_abbr(FX[fi].name)}</span>`);
+      if (pos < fxSlots.length - 1) {
         bot.push(`<span class="fb-arrow">→</span>`);
         bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${pos + 1}"></span>`);
       }
     });
-    bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${fxChain.length}"></span>`);
+    bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${fxSlots.length}"></span>`);
   }
 
-  // ── CAM row: always visible at bottom ────────────────────────────────────
-  const camLabel = camOn ? '◉CAM' : '○CAM';
-
+  // SRC is no longer part of the strip — see #spi-src-cap-row in the markup.
   _flowStrip.innerHTML =
     `<div class="flow-row-lbl"><span class="fb fb-src">GEN</span></div>` +
     `<div class="flow-row flow-row-gen">${top.join('')}</div>` +
     `<div class="flow-row-lbl"><span class="fb fb-src">FX</span></div>` +
-    `<div class="flow-row flow-row-fx">${bot.join('')}</div>` +
-    `<div class="flow-row-lbl"><span class="fb fb-src">SRC</span></div>` +
-    `<div class="flow-row flow-row-cam"><span class="fb fb-cam${camOn ? ' fb-cam-active' : ''}" data-action="camera" title="camera on/off">${camLabel}</span></div>`;
+    `<div class="flow-row flow-row-fx">${bot.join('')}</div>`;
 }
 
 // ── Source section ───────────────────────────────────────────────────────────
@@ -6781,8 +7743,8 @@ function renderSourceSection() {
 
   const key = camOn + '|' + camFacing + '|' + mode + '|' + vidRot + '|' + vidFlipV + '|' + vidMirrorH +
     '|' + blendSrc + '|' + blendActive +
-    '|' + (genChainMode[0] ?? 0) + '|' + Math.round((genChainAmt[0] ?? 1) * 100) +
-    '|' + genChain.join(',') + '|' + [...genDisabled].join(',') +
+    '|' + (genSlots[0].mode ?? 0) + '|' + Math.round((genSlots[0].amt ?? 1) * 100) +
+    '|' + genSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') +
     '|' + vidRate + '|' + vidLoopOn + '|' + vidPingPong + '|' + paused + '|' + reversed +
     '|' + inPt + '|' + outPt;
   if (key === _srcSectionLastKey) return;
@@ -6796,7 +7758,7 @@ function renderSourceSection() {
   const camRelevant = (mode === 'LIVE') || (mode === 'SHADER' && blendSrc === 'live');
   _tog(document.getElementById('src-transport-group'), 'spi-hidden', !isSampler);
   _tog(document.getElementById('src-cam-group'),       'spi-hidden', !camRelevant);
-  _tog(document.getElementById('src-genover-row'),     'spi-hidden', !(genChain.length && (isSampler || mode === 'LIVE')));
+  _tog(document.getElementById('src-genover-row'),     'spi-hidden', !(genSlots.length && (isSampler || mode === 'LIVE')));
   for (const [id, show] of [['src-speed-row', isSampler], ['src-inout-row', isSampler],
                             ['src-blend-row', mode === 'SHADER']]) {
     const el = document.getElementById(id);
@@ -6858,16 +7820,16 @@ function renderSourceSection() {
   // The base blend is governed by gen slot 0's mode and amount (the BLEND row in
   // params), not by the legacy blendAmount global — which nothing reads. Show the
   // live values so the two controls can't disagree.
-  const baseMode = BLEND_MODES[genChainMode[0] ?? 0] || 'normal';
-  const baseAmt  = Math.round((genChainAmt[0] ?? 1) * 100);
+  const baseMode = BLEND_MODES[genSlots[0].mode ?? 0] || 'normal';
+  const baseAmt  = Math.round((genSlots[0].amt ?? 1) * 100);
   _setTxt(document.getElementById('src-blend-pct'), baseMode + ' ' + baseAmt + '%');
 
   // The discoverability fix: bypassed gen slots are otherwise invisible.
   // One toggle rather than a button per slot: the flow strip already gives
   // per-slot bypass on double-click, so all this answers is "straight source, or
   // the shader stack composited over it".
-  if (genChain.length) {
-    const blended = !genChain.every((_, pos) => genDisabled.has(pos));
+  if (genSlots.length) {
+    const blended = !genSlots.every(sl => sl.off);
     _tog(document.getElementById('src-genover-toggle'), 'on', blended);
   }
 }
@@ -7040,73 +8002,23 @@ function renderSourceSection() {
     if (insEls[slotIdx]) insEls[slotIdx].classList.add('fb-ins-hot');
   }
 
+  // The gen branch used to move six of the eight per-slot arrays and leave the
+  // blend mode and amount at the old position, while the fx branch below moved
+  // all seven of its own. Moving one object cannot express that difference.
   function commitReorder(kind, fromPos, toPos) {
-    if (kind === 'gen') {
-      if (fromPos === toPos || fromPos === toPos - 1) return;
-      const item = genChain.splice(fromPos, 1)[0];
-      const seedItem = genChainSeeds.splice(fromPos, 1)[0];
-      const slotP = genSlotParams.splice(fromPos, 1)[0];
-      const slotA = genSlotAudioMod.splice(fromPos, 1)[0];
-      const slotL = genSlotLfoMod.splice(fromPos, 1)[0];
-      const slotM = genSlotMidiMod.splice(fromPos, 1)[0];
-      const ins = toPos > fromPos ? toPos - 1 : toPos;
-      // remap disabled: item moves from fromPos to ins
-      _adjustGenDisabled(fromPos, -1);
-      _adjustGenDisabled(ins, +1);
-      genChain.splice(ins, 0, item);
-      genChainSeeds.splice(ins, 0, seedItem);
-      genSlotParams.splice(ins, 0, slotP);
-      genSlotAudioMod.splice(ins, 0, slotA);
-      genSlotLfoMod.splice(ins, 0, slotL);
-      genSlotMidiMod.splice(ins, 0, slotM);
-      genIdx = ins; syncGenIdx();
-    } else {
-      if (fromPos === toPos || fromPos === toPos - 1) return;
-      const item = fxChain.splice(fromPos, 1)[0];
-      const fxSlotP = fxSlotParams.splice(fromPos, 1)[0];
-      const fxSlotA = fxSlotAudioMod.splice(fromPos, 1)[0];
-      const fxSlotL = fxSlotLfoMod.splice(fromPos, 1)[0];
-      const fxSlotM = fxSlotMidiMod.splice(fromPos, 1)[0];
-      const fxSlotW = fxSlotAmt.splice(fromPos, 1)[0];
-      const fxSlotB = fxSlotMode.splice(fromPos, 1)[0];
-      const ins = toPos > fromPos ? toPos - 1 : toPos;
-      _adjustFxDisabled(fromPos, -1); _adjustFxDisabled(ins, +1);
-      fxChain.splice(ins, 0, item);
-      fxSlotParams.splice(ins, 0, fxSlotP);
-      fxSlotAudioMod.splice(ins, 0, fxSlotA);
-      fxSlotLfoMod.splice(ins, 0, fxSlotL);
-      fxSlotMidiMod.splice(ins, 0, fxSlotM);
-      fxSlotAmt.splice(ins, 0, fxSlotW);
-      fxSlotMode.splice(ins, 0, fxSlotB);
-      fxIdx = ins; syncFxIdx();
-    }
+    if (fromPos === toPos || fromPos === toPos - 1) return;
+    if (kind === 'gen') { genIdx = chainMove(genSlots, fromPos, toPos); syncGenIdx(); }
+    else                { fxIdx  = chainMove(fxSlots,  fromPos, toPos); syncFxIdx();  }
   }
 
   function commitInsert(kind, shaderIdx, toPos) {
     if (kind === 'gen') {
-      if (genChain.length >= 4) { genChain.shift(); genChainSeeds.shift(); _adjustGenDisabled(0, -1); genChainMode.shift(); genChainMode.push(0); genChainAmt.shift(); genChainAmt.push(0.5); genSlotParams.shift(); genSlotAudioMod.shift(); genSlotLfoMod.shift(); genSlotMidiMod.shift(); }
-      const insPos = Math.min(toPos, genChain.length);
-      _adjustGenDisabled(insPos, +1);
-      genChain.splice(insPos, 0, shaderIdx);
-      genChainSeeds.splice(insPos, 0, Math.random() * 10000);
-      genSlotParams.splice(insPos, 0, [...GEN[shaderIdx].def]);
-      genSlotAudioMod.splice(insPos, 0, GEN[shaderIdx].params.map(() => ({ band: null, depth: 0.5 })));
-      genSlotLfoMod.splice(insPos, 0, GEN[shaderIdx].params.map(() => ({ lfo: null })));
-      genSlotMidiMod.splice(insPos, 0, GEN[shaderIdx].params.map(() => ({ cc: null })));
-      genIdx = insPos; syncGenIdx();
+      genIdx = chainInsert(genSlots, makeGenSlot(shaderIdx), toPos);
+      syncGenIdx();
       modeIdx = MODES.indexOf('SHADER'); layer = 'gen'; selParam = 0;
     } else {
-      if (fxChain.length >= 4) { fxChain.shift(); fxSlotParams.shift(); fxSlotAudioMod.shift(); fxSlotLfoMod.shift(); fxSlotMidiMod.shift(); fxSlotAmt.shift(); fxSlotMode.shift(); _adjustFxDisabled(0, -1); }
-      const insPos = Math.min(toPos, fxChain.length);
-      _adjustFxDisabled(insPos, +1);
-      fxChain.splice(insPos, 0, shaderIdx);
-      fxSlotParams.splice(insPos, 0, [...FX[shaderIdx].def]);
-      fxSlotAudioMod.splice(insPos, 0, FX[shaderIdx].params.map(() => ({ band: null, depth: 0.5 })));
-      fxSlotLfoMod.splice(insPos, 0, FX[shaderIdx].params.map(() => ({ lfo: null })));
-      fxSlotMidiMod.splice(insPos, 0, FX[shaderIdx].params.map(() => ({ cc: null })));
-      fxSlotAmt.splice(insPos, 0, 1.0);
-      fxSlotMode.splice(insPos, 0, 0);
-      fxIdx = insPos; syncFxIdx();
+      fxIdx = chainInsert(fxSlots, makeFxSlot(shaderIdx), toPos);
+      syncFxIdx();
       layer = 'fx'; selParam = 0;
     }
   }
@@ -7134,11 +8046,11 @@ function renderSourceSection() {
     const idx  = parseInt(fb.dataset.fbIdx);
     const pos  = parseInt(fb.dataset.fbPos);
     if (kind === 'gen') {
-      if (genDisabled.has(pos)) genDisabled.delete(pos);
-      else genDisabled.add(pos);
+      if (genSlots[pos].off) (genSlots[pos].off = false);
+      else (genSlots[pos].off = true);
     } else {
-      if (fxDisabled.has(pos)) fxDisabled.delete(pos);
-      else fxDisabled.add(pos);
+      if (fxSlots[pos].off) (fxSlots[pos].off = false);
+      else (fxSlots[pos].off = true);
     }
     _flowLastKey = '';
   });
@@ -7221,28 +8133,13 @@ function renderSourceSection() {
         }
       } else if (_fd.source === 'strip') {
         // dragged off strip — remove from chain
-        if (_fd.kind === 'gen' && genChain.length > 1) {
-          genChain.splice(_fd.pos, 1);
-          genChainSeeds.splice(_fd.pos, 1);
-          genSlotParams.splice(_fd.pos, 1);
-          genSlotAudioMod.splice(_fd.pos, 1);
-          genSlotLfoMod.splice(_fd.pos, 1);
-          genSlotMidiMod.splice(_fd.pos, 1);
-          _adjustGenDisabled(_fd.pos, -1);
-          genChainMode.splice(_fd.pos, 1); genChainMode.push(0);
-          genChainAmt.splice(_fd.pos, 1);  genChainAmt.push(0.5);
-          genIdx = Math.min(genIdx, genChain.length - 1);
+        if (_fd.kind === 'gen' && genSlots.length > 1) {
+          chainRemove(genSlots, _fd.pos);
+          genIdx = Math.min(genIdx, genSlots.length - 1);
           syncGenIdx();
         } else if (_fd.kind === 'fx') {
-          fxChain.splice(_fd.pos, 1);
-          fxSlotParams.splice(_fd.pos, 1);
-          fxSlotAudioMod.splice(_fd.pos, 1);
-          fxSlotLfoMod.splice(_fd.pos, 1);
-          fxSlotMidiMod.splice(_fd.pos, 1);
-          fxSlotAmt.splice(_fd.pos, 1);
-          fxSlotMode.splice(_fd.pos, 1);
-          _adjustFxDisabled(_fd.pos, -1);
-          fxIdx = Math.min(fxIdx, fxChain.length - 1);
+          chainRemove(fxSlots, _fd.pos);
+          fxIdx = Math.min(fxIdx, fxSlots.length - 1);
           syncFxIdx();
         }
       }
@@ -7281,7 +8178,7 @@ function updateSPI() {
     if (audioActive) {
       const BAND_LBL = { bass: 'B', mid: 'M', treble: 'T', vol: 'V' };
       const assigned = [];
-      [...genSlotAudioMod, ...fxSlotAudioMod].forEach(arr =>
+      [...genSlots, ...fxSlots].map(sl => sl.audioMod).forEach(arr =>
         arr.forEach(m => { if (m.band && !assigned.includes(m.band)) assigned.push(m.band); }));
       const bands = assigned.length ? ' [' + assigned.map(b => BAND_LBL[b]).join('') + ']' : '';
       const atxt = '◉ audio: ' + audioSourceMode + bands;
@@ -7295,10 +8192,10 @@ function updateSPI() {
   // Gen shader buttons — chain position badges
   r.genBtns.forEach(btn => {
     const gi = parseInt(btn.dataset.gi);
-    const pos = genChain.indexOf(gi);
+    const pos = genSlots.findIndex(sl => sl.idx === gi);
     const isActive = mode === 'SHADER' && pos >= 0;
     _tog(btn, 'sk-active',   isActive);
-    _tog(btn, 'sk-selected', mode === 'SHADER' && genChain[genIdx] === gi);
+    _tog(btn, 'sk-selected', mode === 'SHADER' && genSlots[genIdx]?.idx === gi);
     let badge = btn.querySelector('.fx-badge');
     if (isActive) {
       if (!badge) { badge = document.createElement('span'); badge.className = 'fx-badge'; btn.appendChild(badge); }
@@ -7311,9 +8208,9 @@ function updateSPI() {
   // FX shader buttons — chain position badges
   r.fxBtns.forEach(btn => {
     const fi = parseInt(btn.dataset.fi);
-    const pos = fxChain.indexOf(fi);
+    const pos = fxSlots.findIndex(sl => sl.idx === fi);
     _tog(btn, 'sk-active', pos >= 0);
-    _tog(btn, 'sk-selected', fxIdx >= 0 && fxChain[fxIdx] === fi);
+    _tog(btn, 'sk-selected', fxIdx >= 0 && fxSlots[fxIdx]?.idx === fi);
     let badge = btn.querySelector('.fx-badge');
     if (pos >= 0) {
       if (!badge) { badge = document.createElement('span'); badge.className = 'fx-badge'; btn.appendChild(badge); }
@@ -7321,7 +8218,7 @@ function updateSPI() {
     } else if (badge) { badge.remove(); }
   });
 
-  _tog(r.togglefx, 'sk-active', fxChain.length > 0);
+  _tog(r.togglefx, 'sk-active', fxSlots.length > 0);
   _tog(r.trail,    'sk-active', isFeedback());
   _tog(r.layerGen, 'sk-active', layer === 'gen');
   _tog(r.layerFx,  'sk-active', layer === 'fx');
@@ -7334,10 +8231,10 @@ function updateSPI() {
 
   // Params section
   let shader = null, pvals = null;
-  if (layer === 'gen' && genIdx >= 0 && genChain.length > 0) {
-    shader = GEN[genChain[genIdx]]; pvals = genSlotParams[genIdx];
-  } else if (layer === 'fx' && fxIdx >= 0 && fxChain.length > 0) {
-    shader = FX[fxChain[fxIdx]]; pvals = fxSlotParams[fxIdx];
+  if (layer === 'gen' && genIdx >= 0 && genSlots.length > 0) {
+    shader = GEN[genSlots[genIdx].idx]; pvals = genSlots[genIdx].params;
+  } else if (layer === 'fx' && fxIdx >= 0 && fxSlots.length > 0) {
+    shader = FX[fxSlots[fxIdx].idx]; pvals = fxSlots[fxIdx].params;
   }
 
   // Show which shader the sliders belong to — the only clue left once the
@@ -7356,9 +8253,9 @@ function updateSPI() {
     const showGenBlend = chainPos >= 0; // always show blend for gen — slot 0 blends onto camera in LIVE/SAMPLER
     const showFxBlend  = layer === 'fx' && fxIdx >= 0;
     const showBlend = showGenBlend || showFxBlend;
-    const gcAmt  = showGenBlend ? (genChainAmt[chainPos]  ?? 1.0) : (showFxBlend ? (fxSlotAmt[fxIdx] ?? 1) : 0);
-    const gcMode = showGenBlend ? (genChainMode[chainPos] ?? 0)
-                 : showFxBlend  ? (fxSlotMode[fxIdx]      ?? 0) : 0;
+    const gcAmt  = showGenBlend ? (genSlots[chainPos].amt  ?? 1.0) : (showFxBlend ? (fxSlots[fxIdx].amt ?? 1) : 0);
+    const gcMode = showGenBlend ? (genSlots[chainPos].mode ?? 0)
+                 : showFxBlend  ? (fxSlots[fxIdx].mode      ?? 0) : 0;
     const key = shader.name + '|' + layer + '|' + chainPos + '|' + mode + '|' + (showFxBlend ? fxIdx : '');
     const blendAction = showGenBlend ? 'cycle-gen-blend' : 'cycle-fx-blend';
     const BAND_LBL = { bass: 'B', mid: 'M', treble: 'T', vol: 'V' };
@@ -7568,20 +8465,20 @@ let _dragPi = -1, _dragX0 = 0, _dragY0 = 0, _dragV0 = 0, _dragIntent = null;
 let _dragRafPending = false, _dragLastX = 0, _touchLastX = 0, _touchLastY = 0;
 
 function _dragArr() {
-  if (layer === 'gen') return genSlotParams[genIdx];
-  if (layer === 'fx' && fxIdx >= 0) return fxSlotParams[fxIdx];
+  if (layer === 'gen') return genSlots[genIdx].params;
+  if (layer === 'fx' && fxIdx >= 0) return fxSlots[fxIdx].params;
   return null;
 }
 
 function _getBlendVal() {
-  if (layer === 'fx') return fxIdx >= 0 ? (fxSlotAmt[fxIdx] ?? 1) : 0;
-  if (layer === 'gen') return genChainAmt[genIdx] ?? 1.0;
+  if (layer === 'fx') return fxIdx >= 0 ? (fxSlots[fxIdx].amt ?? 1) : 0;
+  if (layer === 'gen') return genSlots[genIdx].amt ?? 1.0;
   return 0;
 }
 function _setBlendVal(v) {
   v = Math.max(0, Math.min(1, v));
-  if (layer === 'fx') { if (fxIdx >= 0) fxSlotAmt[fxIdx] = v; }
-  else if (layer === 'gen') { genChainAmt[genIdx] = v; }
+  if (layer === 'fx') { if (fxIdx >= 0) fxSlots[fxIdx].amt = v; }
+  else if (layer === 'gen') { genSlots[genIdx].amt = v; }
 }
 
 function spiParamDragStart(e) {
@@ -7599,7 +8496,7 @@ function spiParamDragStart(e) {
 }
 
 function _snapVal(v, pi) {
-  const sh = layer === 'gen' ? GEN[genChain[genIdx]] : (fxIdx >= 0 ? FX[fxChain[fxIdx]] : null);
+  const sh = layer === 'gen' ? GEN[genSlots[genIdx].idx] : (fxIdx >= 0 ? FX[fxSlots[fxIdx].idx] : null);
   const sv = sh?.snapVals?.[pi];
   if (!sv) return Math.max(0, Math.min(1, v));
   const n = sv.length;
@@ -7681,29 +8578,39 @@ function spiParamTouchEnd() {
 
 const LS_KEY = 'recur-presets';
 
+// Slots out, flat shape in. The JSON preset format and the V5 share URL both
+// predate slot objects and are frozen — an older build must keep reading a
+// newer file — so this is one of exactly two places the two shapes meet.
 function getState() {
   return {
-    modeIdx, genIdx, genChain: [...genChain],
-    genChainSeeds: [...genChainSeeds],
-    genChainMode: [...genChainMode], genChainAmt: [...genChainAmt],
-    fxChain: [...fxChain], fxIdx, layer, selParam,
-    genDisabled: [...genDisabled], fxDisabled: [...fxDisabled],
+    modeIdx, genIdx, genChain: genSlots.map(sl => sl.idx),
+    genChainSeeds: genSlots.map(sl => sl.seed),
+    // Padded back out to 4. The V5 encoder writes these as four fixed nibble
+    // pairs (bytes 14-17) whatever the chain length, and the old fixed-length-4
+    // arrays are what it was written against — emitting a short array here would
+    // change those bytes for slots that do not exist. Decoders ignore the
+    // trailing entries either way; this just keeps the wire output stable.
+    genChainMode: [0, 1, 2, 3].map(i => genSlots[i]?.mode ?? 0),
+    genChainAmt:  [0, 1, 2, 3].map(i => genSlots[i]?.amt  ?? 0.5),
+    fxChain: fxSlots.map(sl => sl.idx), fxIdx, layer, selParam,
+    genDisabled: genSlots.flatMap((sl, i) => sl.off ? [i] : []),
+    fxDisabled:  fxSlots.flatMap((sl, i) => sl.off ? [i] : []),
     blendActive, blendAmount, blendSrc,
     vidRot, vidFlipV, vidMirrorH,
     // Playback + audio envelope are part of the patch. renderScale deliberately
     // is not — it's a per-device performance setting, and a shared preset has no
     // business overriding what the recipient's hardware can manage.
     vidRate, vidLoopOn, vidPingPong, audioHold,
-    genSlotParams:   genSlotParams.map(a => [...a]),
-    genSlotAudioMod: genSlotAudioMod.map(a => a.map(m => ({ ...m }))),
-    genSlotLfoMod:   genSlotLfoMod.map(a => a.map(m => ({ ...m }))),
-    genSlotMidiMod:  genSlotMidiMod.map(a => a.map(m => ({ ...m }))),
-    fxSlotParams:   fxSlotParams.map(a => [...a]),
-    fxSlotAudioMod: fxSlotAudioMod.map(a => a.map(m => ({ ...m }))),
-    fxSlotLfoMod:   fxSlotLfoMod.map(a => a.map(m => ({ ...m }))),
-    fxSlotMidiMod:  fxSlotMidiMod.map(a => a.map(m => ({ ...m }))),
-    fxSlotAmt:      [...fxSlotAmt],
-    fxSlotMode:     [...fxSlotMode],
+    genSlotParams:   genSlots.map(sl => [...sl.params]),
+    genSlotAudioMod: genSlots.map(sl => sl.audioMod.map(m => ({ ...m }))),
+    genSlotLfoMod:   genSlots.map(sl => sl.lfoMod.map(m => ({ ...m }))),
+    genSlotMidiMod:  genSlots.map(sl => sl.midiMod.map(m => ({ ...m }))),
+    fxSlotParams:   fxSlots.map(sl => [...sl.params]),
+    fxSlotAudioMod: fxSlots.map(sl => sl.audioMod.map(m => ({ ...m }))),
+    fxSlotLfoMod:   fxSlots.map(sl => sl.lfoMod.map(m => ({ ...m }))),
+    fxSlotMidiMod:  fxSlots.map(sl => sl.midiMod.map(m => ({ ...m }))),
+    fxSlotAmt:      fxSlots.map(sl => sl.amt),
+    fxSlotMode:     fxSlots.map(sl => sl.mode),
     lfos: lfos.map(l => ({ ...l })),
     globalBpm, lfoUseBpm: [...lfoUseBpm], lfoBeatIdx: [...lfoBeatIdx]
   };
@@ -7748,17 +8655,32 @@ function applyState(s) {
     if (modeIdx === 2 && prev !== 2) startCamera();
     else if (modeIdx !== 2 && prev === 2) stopCamera();
   }
-  if (s.genChain  !== undefined) { genChain = s.genChain.filter(i => i >= 0 && i < GEN.length); if (!genChain.length) genChain = [0]; }
-  else if (s.genIdx !== undefined) genChain = [s.genIdx]; // legacy
-  genChainSeeds = s.genChainSeeds ? [...s.genChainSeeds] : genChain.map(() => Math.random() * 10000);
-  genIdx = (s.genIdx !== undefined && s.genIdx < genChain.length) ? s.genIdx : 0;
-  if (s.genChainMode !== undefined) genChainMode = [...s.genChainMode];
-  if (s.genChainAmt  !== undefined) genChainAmt  = [...s.genChainAmt];
-  syncGenIdx();
-  if (s.fxChain   !== undefined) { fxChain = s.fxChain.filter(i => i >= 0 && i < FX.length); }
-  else if (s.fxIdx !== undefined && s.fxIdx >= 0) { fxChain = [s.fxIdx]; } // legacy
-  fxIdx = (s.fxIdx !== undefined && s.fxIdx < fxChain.length) ? s.fxIdx : (fxChain.length > 0 ? fxChain.length - 1 : -1);
-  syncFxIdx();
+  // Flat shape in, slots out. State arrives as the frozen wire format — a JSON
+  // preset, a V5 share URL, or legacy shader-keyed state from a build that
+  // predates chains — and is assembled into slot objects at the bottom of this
+  // block. Nothing downstream of here sees the flat arrays.
+  //
+  // Anything the incoming state omits has to fall back to what is on screen,
+  // which means capturing it before the slots are replaced.
+  const _prevMode = genSlots.map(sl => sl.mode);
+  const _prevAmt  = genSlots.map(sl => sl.amt);
+  let gChain;
+  // slice(0, CHAIN_MAX) is load-bearing, not tidiness. CHAIN_MAX was only ever
+  // enforced in chainInsert, so a JSON share link or preset carrying a 200,000-
+  // entry chain built 200,000 slot objects here — each with four sub-arrays —
+  // and the render loop then walked all of them every frame.
+  if (s.genChain  !== undefined) { gChain = s.genChain.filter(i => i >= 0 && i < GEN.length).slice(0, CHAIN_MAX); if (!gChain.length) gChain = [0]; }
+  else if (s.genIdx !== undefined) gChain = [s.genIdx]; // legacy
+  else gChain = genSlots.map(sl => sl.idx);
+  const gSeed = s.genChainSeeds ? [...s.genChainSeeds] : gChain.map(() => Math.random() * 10000);
+  const gMode = s.genChainMode !== undefined ? [...s.genChainMode] : _prevMode;
+  const gAmt  = s.genChainAmt  !== undefined ? [...s.genChainAmt]  : _prevAmt;
+  genIdx = (s.genIdx !== undefined && s.genIdx < gChain.length) ? s.genIdx : 0;
+  let fChain;
+  if (s.fxChain   !== undefined) { fChain = s.fxChain.filter(i => i >= 0 && i < FX.length).slice(0, CHAIN_MAX); }
+  else if (s.fxIdx !== undefined && s.fxIdx >= 0) { fChain = [s.fxIdx]; } // legacy
+  else fChain = fxSlots.map(sl => sl.idx);
+  fxIdx = (s.fxIdx !== undefined && s.fxIdx < fChain.length) ? s.fxIdx : (fChain.length > 0 ? fChain.length - 1 : -1);
   if (s.layer     !== undefined) layer         = s.layer;
   if (s.selParam  !== undefined) selParam      = s.selParam;
   // Was hardcoded true, which silently discarded the saved value every time a
@@ -7775,48 +8697,50 @@ function applyState(s) {
   if (s.vidPingPong !== undefined) vidPingPong  = !!s.vidPingPong;
   if (s.audioHold  !== undefined) audioHold     = s.audioHold;
   // Slot state, with migration from pre-slot presets that keyed by shader index.
-  genSlotParams   = _slotsFrom(s.genSlotParams,   s.genParams,   genChain, gi => [...GEN[gi].def]);
-  genSlotAudioMod = _slotsFrom(s.genSlotAudioMod, s.audioGenMod, genChain, gi => GEN[gi].params.map(() => ({ band: null, depth: 0.5 })));
-  genSlotLfoMod   = _slotsFrom(s.genSlotLfoMod,   s.lfoGenMod,   genChain, gi => GEN[gi].params.map(() => ({ lfo: null })));
-  genSlotMidiMod  = _slotsFrom(s.genSlotMidiMod,  s.midiGenMod,  genChain, gi => GEN[gi].params.map(() => ({ cc: null })));
-  fxSlotParams    = _slotsFrom(s.fxSlotParams,    s.fxParams,    fxChain,  fi => [...FX[fi].def]);
-  fxSlotAudioMod  = _slotsFrom(s.fxSlotAudioMod,  s.audioFxMod,  fxChain,  fi => FX[fi].params.map(() => ({ band: null, depth: 0.5 })));
-  fxSlotLfoMod    = _slotsFrom(s.fxSlotLfoMod,    s.lfoFxMod,    fxChain,  fi => FX[fi].params.map(() => ({ lfo: null })));
-  fxSlotMidiMod   = _slotsFrom(s.fxSlotMidiMod,   s.midiFxMod,   fxChain,  fi => FX[fi].params.map(() => ({ cc: null })));
+  let gPar = _slotsFrom(s.genSlotParams,   s.genParams,   gChain, gi => [...GEN[gi].def]);
+  let gAud = _slotsFrom(s.genSlotAudioMod, s.audioGenMod, gChain, gi => GEN[gi].params.map(() => ({ band: null, depth: 0.5 })));
+  let gLfo = _slotsFrom(s.genSlotLfoMod,   s.lfoGenMod,   gChain, gi => GEN[gi].params.map(() => ({ lfo: null })));
+  let gMid = _slotsFrom(s.genSlotMidiMod,  s.midiGenMod,  gChain, gi => GEN[gi].params.map(() => ({ cc: null })));
+  let fPar = _slotsFrom(s.fxSlotParams,    s.fxParams,    fChain, fi => [...FX[fi].def]);
+  let fAud = _slotsFrom(s.fxSlotAudioMod,  s.audioFxMod,  fChain, fi => FX[fi].params.map(() => ({ band: null, depth: 0.5 })));
+  let fLfo = _slotsFrom(s.fxSlotLfoMod,    s.lfoFxMod,    fChain, fi => FX[fi].params.map(() => ({ lfo: null })));
+  let fMid = _slotsFrom(s.fxSlotMidiMod,   s.midiFxMod,   fChain, fi => FX[fi].params.map(() => ({ cc: null })));
   // Whatever the source — JSON preset, share URL, legacy shader-keyed state —
   // every one of these must now match the shader's declared param count exactly.
-  genSlotParams   = _padSlots(genSlotParams,   genChain, GEN, () => 0);
-  genSlotAudioMod = _padSlots(genSlotAudioMod, genChain, GEN, () => ({ band: null, depth: 0.5 }));
-  genSlotLfoMod   = _padSlots(genSlotLfoMod,   genChain, GEN, () => ({ lfo: null }));
-  genSlotMidiMod  = _padSlots(genSlotMidiMod,  genChain, GEN, () => ({ cc: null }));
-  fxSlotParams    = _padSlots(fxSlotParams,    fxChain,  FX,  () => 0);
-  fxSlotAudioMod  = _padSlots(fxSlotAudioMod,  fxChain,  FX,  () => ({ band: null, depth: 0.5 }));
-  fxSlotLfoMod    = _padSlots(fxSlotLfoMod,    fxChain,  FX,  () => ({ lfo: null }));
-  fxSlotMidiMod   = _padSlots(fxSlotMidiMod,   fxChain,  FX,  () => ({ cc: null }));
-  // Rebuilt against fxChain rather than copied wholesale: fxChain has already been
-  // filtered to valid shader indices, so a preset carrying a stale-length array
-  // would otherwise leave these parallel arrays out of step with the chain.
-  fxSlotAmt  = fxChain.map((_, i) => s.fxSlotAmt?.[i]  ?? 1.0);
-  fxSlotMode = fxChain.map((_, i) => s.fxSlotMode?.[i] ?? 0);
+  gPar = _padSlots(gPar, gChain, GEN, () => 0);
+  gAud = _padSlots(gAud, gChain, GEN, () => ({ band: null, depth: 0.5 }));
+  gLfo = _padSlots(gLfo, gChain, GEN, () => ({ lfo: null }));
+  gMid = _padSlots(gMid, gChain, GEN, () => ({ cc: null }));
+  fPar = _padSlots(fPar, fChain, FX,  () => 0);
+  fAud = _padSlots(fAud, fChain, FX,  () => ({ band: null, depth: 0.5 }));
+  fLfo = _padSlots(fLfo, fChain, FX,  () => ({ lfo: null }));
+  fMid = _padSlots(fMid, fChain, FX,  () => ({ cc: null }));
 
-  // Bypassed chain positions. Applied after the chains, since these are
-  // positions rather than shader indices.
-  if (s.genDisabled) {
-    genDisabled.clear();
-    s.genDisabled.forEach(pos => { if (pos >= 0 && pos < genChain.length) genDisabled.add(pos); });
-  } else if (MODES[modeIdx] === 'LIVE') {
-    // Legacy state with no bypass field: mirror what entering LIVE by hand does.
-    genDisabled.clear();
-    disableAllGenShaders();
-  } else {
-    genDisabled.clear();
-  }
-  if (s.fxDisabled) {
-    fxDisabled.clear();
-    s.fxDisabled.forEach(pos => { if (pos >= 0 && pos < fxChain.length) fxDisabled.add(pos); });
-  } else {
-    fxDisabled.clear();
-  }
+  // Assembled against the filtered chain, so a preset carrying a stale-length
+  // array cannot leave a slot half-populated. Bypass is a slot field now rather
+  // than a set of positions, so it needs no separate remapping pass — but it is
+  // still positional on the wire, and still applied after the chain is known.
+  const gOff = new Set(s.genDisabled || []), fOff = new Set(s.fxDisabled || []);
+  genSlots = gChain.map((idx, i) => ({
+    idx,
+    params: gPar[i], audioMod: gAud[i], lfoMod: gLfo[i], midiMod: gMid[i],
+    seed: gSeed[i] ?? Math.random() * 10000,
+    mode: gMode[i] ?? 0,
+    amt:  gAmt[i]  ?? 0.5,
+    off:  gOff.has(i),
+  }));
+  fxSlots = fChain.map((idx, i) => ({
+    idx,
+    params: fPar[i], audioMod: fAud[i], lfoMod: fLfo[i], midiMod: fMid[i],
+    seed: 0,
+    mode: s.fxSlotMode?.[i] ?? 0,
+    amt:  s.fxSlotAmt?.[i]  ?? 1.0,
+    off:  fOff.has(i),
+  }));
+  syncGenIdx();
+  syncFxIdx();
+  // Legacy state with no bypass field: mirror what entering LIVE by hand does.
+  if (!s.genDisabled && MODES[modeIdx] === 'LIVE') disableAllGenShaders();
   if (s.lfos) s.lfos.forEach((l, i) => {
     if (lfos[i]) {
       // Wholesale replace, so anything the incoming state omits has to be
@@ -7850,7 +8774,20 @@ function loadPresets() {
 }
 
 function savePresets(list) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list));
+  // loadPresets has always been guarded; this was not. localStorage is ~5 MB and
+  // a preset carries per-slot params plus three mod tables for up to eight slots,
+  // so a heavy user reaches the quota — and Safari in private browsing throws on
+  // the first write. The throw landed uncaught in the save-button handler.
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    console.warn('recur: preset save failed', e);
+    toast(e && e.name === 'QuotaExceededError'
+      ? 'preset storage full - delete some'
+      : 'could not save preset');
+    return false;
+  }
 }
 
 const N_P = 12;
@@ -8161,13 +9098,40 @@ async function stateToB64(s) {
   return _urlB64Enc(compressed);
 }
 
+// The largest legitimate V5 payload is 541 bytes (4 gen + 4 fx slots, 12 params
+// each, plus header and trailing blocks). The JSON fallback is the only branch
+// that runs meaningfully longer. gzip amplifies about 1000:1, so reading the
+// stream with Response.arrayBuffer() — which is what this did — let a 512 KB
+// share URL allocate ~386 MB before anything inspected it, and a 1.5 MB one over
+// a gigabyte. Read it incrementally and give up at the ceiling instead.
+const MAX_SHARE_B64   = 256 * 1024;   // encoded, before base64 decode
+const MAX_SHARE_BYTES =  64 * 1024;   // decompressed: ~120x the real maximum
+
+async function _readCapped(stream, cap) {
+  const reader = stream.getReader();
+  const parts = [];
+  let total = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > cap) { await reader.cancel(); throw new Error('share payload exceeds ' + cap + ' bytes'); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
 async function b64ToState(str) {
+  if (str.length > MAX_SHARE_B64) throw new Error('share link too long');
   const raw = _urlB64Dec(str);
   if (raw[0] === 0x1f && raw[1] === 0x8b) {
     const ds = new DecompressionStream('gzip');
     const w  = ds.writable.getWriter();
     w.write(raw); w.close();
-    const buf = new Uint8Array(await new Response(ds.readable).arrayBuffer());
+    const buf = await _readCapped(ds.readable, MAX_SHARE_BYTES);
     if (buf[0] === 5)    return _bufToStateV5(buf);  // v5 binary (current)
     if (buf[0] === 4)    return _bufToStateV4(buf);  // v4 binary (legacy)
     if (buf[0] === 0x7b) return JSON.parse(new TextDecoder().decode(buf)); // JSON fallback
@@ -8650,15 +9614,28 @@ function castBroadcast() {
 
   // No manual deep-cloning: postMessage structured-clones the graph for us.
   const state = {
-    modeIdx, genIdx, genChain, genChainSeeds, genChainMode, genChainAmt,
-    fxChain, fxIdx, layer, selParam,
+    modeIdx, genIdx,
+    genChain:      genSlots.map(sl => sl.idx),
+    genChainSeeds: genSlots.map(sl => sl.seed),
+    genChainMode:  genSlots.map(sl => sl.mode),
+    genChainAmt:   genSlots.map(sl => sl.amt),
+    fxChain: fxSlots.map(sl => sl.idx), fxIdx, layer, selParam,
     // Without these the receiver's applyState() clears every bypass (and in LIVE
     // re-bypasses everything), so double-click bypass never reached the projection.
-    genDisabled: [...genDisabled], fxDisabled: [...fxDisabled],
+    genDisabled: genSlots.flatMap((sl, i) => sl.off ? [i] : []),
+    fxDisabled:  fxSlots.flatMap((sl, i) => sl.off ? [i] : []),
     blendActive, blendAmount, blendSrc,
     vidRot, vidFlipV, vidMirrorH,
-    genSlotParams, genSlotAudioMod, genSlotLfoMod, genSlotMidiMod,
-    fxSlotParams, fxSlotAudioMod, fxSlotLfoMod, fxSlotMidiMod, fxSlotAmt, fxSlotMode,
+    genSlotParams:   genSlots.map(sl => sl.params),
+    genSlotAudioMod: genSlots.map(sl => sl.audioMod),
+    genSlotLfoMod:   genSlots.map(sl => sl.lfoMod),
+    genSlotMidiMod:  genSlots.map(sl => sl.midiMod),
+    fxSlotParams:    fxSlots.map(sl => sl.params),
+    fxSlotAudioMod:  fxSlots.map(sl => sl.audioMod),
+    fxSlotLfoMod:    fxSlots.map(sl => sl.lfoMod),
+    fxSlotMidiMod:   fxSlots.map(sl => sl.midiMod),
+    fxSlotAmt:       fxSlots.map(sl => sl.amt),
+    fxSlotMode:      fxSlots.map(sl => sl.mode),
     lfos, globalBpm, lfoUseBpm, lfoBeatIdx,
   };
 
@@ -8695,7 +9672,35 @@ function castBroadcast() {
     setRenderScale(v);
     resBtns.forEach(o => o.classList.toggle('res-on', o === b));
     toast('render scale ' + v + '×');
+    showResVal();
   }));
+
+  // CAP — an absolute pixel ceiling, persisted per device. Deliberately not part
+  // of preset or share state, for the same reason renderScale is not: what this
+  // machine can hold is none of a shared patch's business.
+  const capBtns = [...document.querySelectorAll('[data-px]')];
+  function syncCapBtns() { capBtns.forEach(b => b.classList.toggle('res-on', b.dataset.px === pixelCap)); }
+  capBtns.forEach(b => b.addEventListener('click', () => {
+    setPixelCap(b.dataset.px);
+    syncCapBtns();
+    toast(pixelCap === 'off' ? 'cap off — full display resolution' : 'cap ' + b.textContent);
+    showResVal();
+  }));
+  syncCapBtns();
+
+  // A cap that silently downgrades the picture is worse than no cap, so show the
+  // buffer size that is actually in use and mark it when the ceiling is biting.
+  const resVal = document.getElementById('spi-res-val');
+  function showResVal() {
+    if (!resVal) return;
+    // The SRC row has the width for the full figure. ▼ marks the cap biting.
+    const txt = cv.width + '×' + cv.height + (_capActive ? ' ▼' : '');
+    if (resVal.textContent !== txt) resVal.textContent = txt;
+    const full = cv.width + '×' + cv.height + ' internal buffer' + (_capActive ? ' (capped by RENDER CAP)' : '');
+    if (resVal.title !== full) resVal.title = full;
+  }
+  window.addEventListener('resize', () => setTimeout(showResVal, 160));
+  showResVal();
 })();
 
 document.getElementById('btn-save').addEventListener('click', () => {
@@ -8708,9 +9713,11 @@ document.getElementById('save-ok').addEventListener('click', () => {
   const name = document.getElementById('save-name').value.trim() || 'preset';
   const list = loadPresets();
   list.unshift({ name, date: new Date().toLocaleString(), state: getState() });
-  savePresets(list);
+  // savePresets reports its own failure — claiming "saved" over the top of a
+  // quota warning is how you lose a set you thought was on disk.
+  const ok = savePresets(list);
   saveOverlay.classList.remove('vis');
-  toast('saved: ' + name);
+  if (ok) toast('saved: ' + name);
 });
 
 // ── Load modal ────────────────────────────────────────────────────────────────
