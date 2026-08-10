@@ -7,7 +7,7 @@ Feed it a video file, a camera, or a screen capture, stack up to four generative
 shaders and four effects over it, and drive any parameter from audio, an LFO, or
 MIDI. Record the output or cast it to a second screen.
 
-**[dirgemedia.com/recurweb](https://dirgemedia.com/recurweb)** · no install, no account.
+**[dirgemedia.com/recur](https://dirgemedia.com/recur)** · no install, no account.
 
 ---
 
@@ -62,6 +62,7 @@ BPM clock.
 | `−` `+` | previous / next FX |
 | `/` | clear the FX chain |
 | `1` `2` `3` | next param · decrease · increase |
+| `[` `]` | previous / next preset |
 | `BKSP` | switch param layer, gen ↔ fx |
 | `P` `I` | perf meter · system info |
 | `?` | help |
@@ -70,9 +71,26 @@ Everything is also on the control panel — tap the tab at the bottom of the scr
 
 ## Save and share
 
-**SAVE / LOAD** keep presets in browser storage. **SHARE** encodes the entire
-patch into a URL — every parameter, chain order, blend mode and modulation
-binding, a few hundred bytes, no server. The video file itself is not included.
+**SAVE / LOAD** keep presets in browser storage. Saved presets appear as blocks
+on the **BANK** row of the flow strip — click one to jump straight to it, or step
+through with `[` and `]`. A jump restores everything the preset captured,
+including the mode, so a preset saved in LIVE will start the camera.
+
+A preset saved in SAMPLER also records **which clip it was built on** — filename,
+size and length — along with its in/out points. Load one whose clip isn't open
+and a bar names the missing file with a LOCATE button; the shaders load instantly
+either way, and locating a file once satisfies every preset that uses it for the
+rest of the session. The clip itself is never stored.
+
+Browser storage belongs to the browser profile, not to `index.html`, so presets
+do **not** travel with the file. **EXPORT BANK** writes them all to one `.json`
+you can carry alongside it; **IMPORT BANK** reads one back, or just drag the
+`.json` onto the window. Importing merges — it never overwrites what you already
+have.
+
+**SHARE** encodes the entire patch into a URL — every parameter, chain order,
+blend mode and modulation binding, a few hundred bytes, no server. Video files
+are not included in either.
 
 Share URLs are forward-compatible: an older build will still open a link made by
 a newer one.
@@ -94,18 +112,8 @@ is not otherwise visible.
 
 ## Development
 
-The single-file structure is deliberate. Keep it.
-
-For shader work there is an opt-in hot-reload path that leaves the shipped file
-untouched:
-
-```
-node tools/extract-shaders.js     # index.html -> shaders/
-python3 serve.py                  # then open /?dev
-node tools/inline-shaders.js      # fold edits back into index.html
-```
-
-Without `?dev` that code path returns immediately and issues no requests.
+The single-file structure is deliberate. Everything — CSS, JS, GLSL — is inline
+in `index.html`, and there is no build step. Keep it that way.
 
 Validate before committing: extract the `<script>` and run `node --check`, and
 check element balance on any markup change.

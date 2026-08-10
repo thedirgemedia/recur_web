@@ -178,9 +178,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   padding:4px 10px 3px;
   border-bottom:1px solid #0a0;
   flex-shrink:0;
-  /* Was a flat 200px, which on a 40vh panel left almost nothing for the body.
-     Now it takes at most a quarter of the viewport, so it shrinks with the
-     screen instead of squeezing everything below it off the bottom. */
+  /* Capped at a quarter of the viewport so it scales with the screen. */
   max-height:min(160px, 25vh);
   overflow-y:scroll;
   scrollbar-width:thin; scrollbar-color:#0a0 transparent;
@@ -271,9 +269,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   white-space:nowrap; min-width:32px; font-weight:bold;
 }
 .lfo-shapes { display:flex; gap:3px; }
-/* Shape icons are inline SVG rather than glyphs: the old set (∧ ⊿ ⊓) renders as
-   tofu on some platforms, and vector paths scale to a real tap target without
-   depending on a font having the character. */
+/* Inline SVG, not glyphs: ∧ ⊿ ⊓ have no glyph in Courier New on mobile. */
 .lfo-shape-btn {
   width:32px; height:24px; padding:0;
   display:flex; align-items:center; justify-content:center;
@@ -289,8 +285,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 }
 .lfo-shape-btn:hover { color:#0f0; border-color:#0f0; }
 .lfo-shape-btn.active { color:#0f0; border-color:#0f0; background:rgba(0,60,0,.8); }
-/* Fixed width, not flex:1 — the preview used to swallow the whole remaining row.
-   Right-aligned so the wider shape buttons keep the left edge. */
+/* Fixed width, right-aligned; the shape buttons keep the left edge. */
 .lfo-viz {
   flex:0 0 76px; width:76px; height:18px; margin-left:auto;
   border:1px solid #0a0; border-radius:2px;
@@ -381,8 +376,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 }
 
 /* ── Section labels ── */
-/* Also the collapse toggle for everything under them. Padding is a bit generous
-   for a 9px label because it has to be a finger target on a phone. */
+/* Collapse toggle for the section below. Padding sized as a touch target. */
 .spi-section {
   font-size:9px; color:#0a0; letter-spacing:2px;
   text-transform:uppercase; margin:10px 0 4px;
@@ -395,10 +389,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   -webkit-tap-highlight-color:rgba(0,255,0,.15);
 }
 #spi-body .spi-section:active, #spi-params-hdr:active, #spi-view-hdr:active { color:#0f0; background:rgba(0,60,0,.35); }
-/* Drawn with borders rather than a glyph. The obvious choice is U+25BE/U+25B8,
-   but those are the SMALL triangle variants and Courier New has no glyph for
-   them on iOS or Android — the arrows simply did not render on a phone. A border
-   triangle has no font dependency at all. */
+/* CSS border triangles: U+25BE/25B8 have no glyph in Courier New on mobile. */
 #spi-body .spi-section::after, #spi-params-hdr::after, #spi-view-hdr::after {
   content:''; margin-left:auto; flex-shrink:0;
   width:0; height:0; opacity:.8;
@@ -416,19 +407,15 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 #spi-body .spi-section:hover, #spi-params-hdr:hover, #spi-view-hdr:hover { color:#0f0; }
 #spi-body .spi-section:hover::after, #spi-params-hdr:hover::after, #spi-view-hdr:hover::after { opacity:1; }
 #spi-body .spi-section.collapsed, #spi-params-hdr.collapsed, #spi-view-hdr.collapsed { border-bottom-color:#060; }
-/* Sits between the header and the body, so it needs its own side padding to
-   line up with the sliders underneath it rather than the body's grid. */
+/* Between header and body, so it carries its own side padding. */
 #spi-params-hdr { margin:0; padding:7px 12px 6px; border-bottom:1px solid #0a0; }
 #spi-view-hdr { margin:2px 0 0; padding:7px 0 6px; }
 #spi-params-lbl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #spi-params-hdr .sp-hdr-shader { color:#0f0; margin-left:6px; text-transform:none; letter-spacing:0; }
-/* Own class rather than an inline style, so an element's own show/hide logic
-   takes over again cleanly when the section is reopened. */
+/* A class, not an inline style, so each element's own display logic resumes. */
 .spi-hidden { display:none !important; }
 .spi-section:first-child { margin-top:0; }
-/* The MODE grid sits in the header now. Its margins are tuned for #spi-body's
-   scrolling layout; the header is a flex column with its own 4px gap, so the
-   defaults would double up. */
+/* In the header, which is a flex column with its own gap — reset the margins. */
 #spi-header .spi-section { margin-top:2px; }
 #spi-header .spi-grid { margin-bottom:0; }
 
@@ -496,9 +483,19 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 
 /* ── Help overlay ── */
 /* ── Diagnostic overlays ─────────────────────────────────────────────────────
-   Two of them, both corner-anchored and pointer-transparent so they never eat a
-   click meant for the canvas. The perf one is meant to be left running during a
-   set; the platform one is a static report you screenshot and send. */
+   Corner-anchored and pointer-transparent so they never intercept canvas clicks. */
+/* Missing-source prompt. Non-modal: a preset jump must never wait on it. */
+#src-locate {
+  display:none; position:fixed; left:50%; bottom:38px; transform:translateX(-50%);
+  z-index:260; align-items:center; gap:8px;
+  font-family:'Courier New',monospace; font-size:10px; color:#fc0;
+  background:rgba(20,14,0,.96); border:1px solid #a60; border-radius:4px;
+  padding:6px 10px; max-width:92vw;
+}
+#src-locate.vis { display:flex; }
+#src-locate-msg { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#src-locate .sls-btn { flex-shrink:0; }
+
 #perf-overlay, #diag-overlay {
   display:none; position:fixed; z-index:250;
   font-family:'Courier New',monospace; font-size:10px; line-height:1.45;
@@ -522,8 +519,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   border-radius:3px; padding:3px 7px; cursor:pointer;
 }
 #diag-copy:hover { color:#fff; border-color:#0ff; }
-/* Amber at 2x the frame budget, red at 4x — absolute thresholds, because the
-   question is always "is this holding 60" and never "is this fast for me". */
+/* Absolute thresholds: amber over 16.8ms, red over 33.3ms. */
 #perf-overlay .pf-warn { color:#fc0; }
 #perf-overlay .pf-bad  { color:#f44; }
 
@@ -600,14 +596,10 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   display:flex; align-items:center; gap:6px;
 }
 #spi-header-top #spi-mode { flex:1; }
-/* Deliberately dim and tiny: it exists so a cached or stale deploy can be spotted
-   without opening anything, not to be read all the time. */
+/* Dim and small: it exists to spot a stale deploy at a glance. */
 #spi-build { font-size:8px; color:#062; letter-spacing:0; white-space:nowrap;
   align-self:flex-end; padding-bottom:2px; }
-/* RND, ZOOM and RES only. The render cap used to live here too and squeezed the
-   row until the buttons were unreadable — it now sits on the SRC line below,
-   which has room to spare. flex-wrap stays as a backstop so a future addition
-   grows a second line instead of silently clipping controls off the end. */
+/* RND, ZOOM and RES. flex-wrap so an overflow grows a line instead of clipping. */
 #spi-zoom-row {
   display:flex; align-items:center; gap:6px;
   padding:2px 0; flex-wrap:wrap;
@@ -617,9 +609,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   white-space:nowrap; flex-shrink:0;
 }
 #spi-zoom-slider {
-  /* min-width is not cosmetic: a range input's default min-width:auto is the UA
-     intrinsic width (~129px in Chrome), so flex:1 alone cannot shrink it and
-     anything after it gets pushed out of the panel. */
+  /* min-width is required: a range input's min-width:auto (~129px) blocks flex
+     shrinking and pushes later controls out of the panel. */
   flex:1 1 90px; min-width:60px;
   height:3px; cursor:ew-resize;
   accent-color:#0f0;
@@ -644,9 +635,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .spi-hbtn:hover { background:rgba(0,80,0,.95); border-color:#0f0; color:#fff; }
 .spi-hbtn.c-share { border-color:#066; color:#0cc; }
 .spi-hbtn.c-share:hover { border-color:#0ff; color:#fff; background:rgba(0,40,60,.95); }
-/* Pinned at the far left of the zoom row and deliberately the loudest button
-   there — it replaces both chains wholesale, so it should not look like the
-   1:1 and RES buttons sitting beside it. */
+/* Loudest button in the row: it replaces both chains wholesale. */
 .spi-hbtn.c-rnd { border-color:#a60; color:#fc0; flex-shrink:0; font-weight:bold; }
 .spi-hbtn.c-rnd:hover { border-color:#fc0; color:#fff; background:rgba(90,60,0,.95); }
 .spi-hbtn.c-cast { border-color:#060; color:#0a0; }
@@ -730,10 +719,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .audio-m-fill { height:100%; background:#0f0; width:0%; }
 
 /* ── Flow strip ───────────────────────────────────────────────────────────── */
-/* SRC lifted out of the flow strip and onto its own row above it: the camera is
-   the input to the stack, so it reads top-down as source -> gen -> fx. It also
-   frees the right-hand half of that line for the render cap, which has nothing
-   to do with the chain but everything to do with what the chain runs at. */
+/* SRC + render cap. Above the strip so it reads source → gen → fx. */
 #spi-src-cap-row {
   display:flex; align-items:center; gap:4px;
   padding:2px 0 1px; flex-wrap:wrap;
@@ -745,7 +731,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 #flow-strip {
   display:grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   gap:2px 0;
   padding:2px 0 1px;
 }
@@ -780,18 +766,14 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   display:none; flex-direction:column; gap:2px;
   padding:4px 0 2px; margin-top:2px; border-top:1px solid #063;
 }
-/* Left-aligned against a fixed label gutter. Centring each row independently is
-   what made this look scattered: CAM, XFORM, BLEND and GEN are all different
-   lengths, so no two rows ever shared an edge. */
+/* Left-aligned against a fixed label gutter so every row shares an edge. */
 .spi-source-row { display:flex; align-items:center; justify-content:flex-start; gap:5px; flex-wrap:wrap; padding:1px 0; }
 .spi-source-row > .spi-zoom-lbl:first-child { width:44px; text-align:right; flex-shrink:0; }
-/* The blend row's label carries a small venn mark to signal compositing, so it
-   lays out as a row rather than plain right-aligned text. */
+/* Carries a venn mark, so it lays out as a row rather than plain text. */
 .src-lbl-ico { display:inline-flex; align-items:center; justify-content:flex-end; gap:3px; }
 .src-lbl-ico svg { width:11px; height:11px; flex-shrink:0; }
 .src-lbl-ico svg path { fill:none; stroke:currentColor; stroke-width:1.4; }
-/* Icon buttons drawn as SVG rather than glyphs — the arrow characters tried for
-   the fold headers had no glyph in Courier New on mobile and did not draw. */
+/* Inline SVG rather than glyphs — see the fold arrows above. */
 .src-ico {
   display:inline-flex; align-items:center; justify-content:center; gap:2px;
   width:30px; height:26px; padding:0;
@@ -810,23 +792,18 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .src-ico-txt { width:22px; font-size:10px; }
 .src-ico-lbl { font-size:8px; line-height:1; }
 .src-ico-wide { width:34px; }
-/* Unavailable, not absent: dimmed and inert so the layout never reflows and you
-   can still see the control exists. */
+/* Unavailable, not absent: dimmed and inert, layout unchanged. */
 .src-ico.na { opacity:.3; pointer-events:none; }
 .src-ico.na:hover { color:#0a0; border-color:#0a0; }
-/* Dimming is for something unavailable on this hardware — front/rear on a
-   desktop, which no amount of tapping will fix. A whole column belonging to
-   another mode is different: you switch modes constantly and deliberately, so
-   leaving it greyed is just dead weight across the panel. Hide it and let the
-   source column take the full width. */
+/* DIM = unavailable on this hardware (front/rear on desktop).
+   HIDE = belongs to another mode; modes change constantly, so reclaim the space. */
 .src-col-lbl {
   display:flex; align-items:center; gap:3px;
   font-size:8px; letter-spacing:1px; color:#096; white-space:nowrap;
 }
 .src-col-lbl svg { width:11px; height:11px; flex-shrink:0; }
 .src-col-lbl svg path { fill:none; stroke:currentColor; stroke-width:1.4; }
-/* Icon over its caption. The wrap, not the button, is the flex item, so
-   space-between distributes the captions evenly rather than the buttons. */
+/* Icon over caption. The wrap is the flex item, so captions distribute evenly. */
 .src-ico-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:30px; }
 .src-ico-cap {
   font-size:7px; letter-spacing:0; color:#074; white-space:nowrap;
@@ -837,9 +814,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 /* Pinned right, and it is the only item that may grow away from the group. */
 .src-gen-wrap { margin-left:auto; padding-left:8px; }
 /* Transport row uses the same spread as the source row. */
-/* Grouped items sit tight; the gap between GROUPS is what carries the meaning.
-   Spreading everything edge to edge made unrelated controls look equally
-   related, which is what read as disorganised. */
+/* 2px within a group, 12px between groups — the gap carries the grouping. */
 .src-grp { display:flex; gap:2px; align-items:flex-start; }
 .src-grp + .src-grp { margin-left:12px; }
 .spi-source-row { align-items:flex-start; }
@@ -847,21 +822,16 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 /* In/out needs the full width to be usable, so its label goes above the track. */
 .src-inout-block { display:flex; flex-direction:column; gap:2px; padding:2px 0 1px; }
 .src-inout-line { display:flex; align-items:center; gap:5px; }
-/* .inout-track sets max-width:220px further down, which is why this looked
-   half-width no matter what flex said. Override it here rather than changing the
-   base rule, which the flow-strip popup also uses. */
+/* Overrides .inout-track's max-width:220px, set further down and shared with
+   the flow-strip popup. Must be overridden per context. */
 .src-inout-line .inout-track { flex:1; min-width:0; max-width:none; }
-/* play/pause is one button showing one of two glyphs, picked by the .on class,
-   so the JS only has to toggle a class rather than swap markup. */
+/* One button, two glyphs, switched by the .on class. */
 .src-ico .pp-pause { display:none; }
 .src-ico.on .pp-play { display:none; }
 .src-ico.on .pp-pause { display:block; }
-/* Speed values are values, not actions — text pills, but the same height as the
-   icon buttons so the rows line up. */
+/* Text pills at icon-button height so the rows line up. */
 .src-pill { width:auto; min-width:28px; padding:0 4px; font-size:9px; letter-spacing:0; }
-/* Speed is genuinely continuous — video.playbackRate takes any float — so this
-   is a real slider rather than six presets. Log-mapped so 1x sits dead centre
-   and each halving/doubling covers the same distance. */
+/* Continuous, log-mapped: 1× dead centre, each halving/doubling equidistant. */
 #src-speed-row { display:flex; align-items:center; gap:6px; }
 #src-blend-row { display:flex; align-items:center; gap:6px; }
 #src-rate-slider {
@@ -871,9 +841,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
              rgba(0,255,0,.15) calc((var(--sp,50))*1%),rgba(0,255,0,.15) 100%);
 }
 .src-rate-val { font-size:9px; color:#0f0; letter-spacing:1px; width:38px; text-align:right; flex-shrink:0; }
-/* Six 30px icons plus five 3px gaps is 195px, which fits the 200px half when the
-   blend column is present. Outside SHADER that column is gone and this one has
-   the full width, so there is room to spare. */
+/* Six 30px icons + five 3px gaps = 195px, fits the 200px half-width column. */
 .src-blend-amt { font-size:9px; letter-spacing:1px; color:#0a0; white-space:nowrap; }
 .spi-hbtn.on { background:rgba(0,120,0,.95); border-color:#0f0; color:#fff; }
 .spi-hbtn.byp { color:#633; border-color:#533; text-decoration:line-through; }
@@ -902,6 +870,10 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .fb-cam { color:#0a0; border-color:#0a0; cursor:pointer; touch-action:manipulation; }
 .fb-cam.fb-cam-active { color:#0f0; border-color:#0f0; background:rgba(0,35,0,.9); box-shadow:0 0 5px rgba(0,255,0,.25); }
 .fb-cam:hover { color:#0f0; border-color:#0f0; }
+.fb-bank { color:#c6c; border-color:#527; background:rgba(20,8,25,.9); max-width:64px; }
+.fb-bank:hover, .fb-bank.fb-sel { color:#f9f; border-color:#f0f; background:rgba(38,12,45,.9); }
+.fb-bank.fb-sel { box-shadow:0 0 6px rgba(255,0,255,.3); }
+.fb-bank-empty { color:#404; border-color:#404; border-style:dashed; cursor:default; pointer-events:none; letter-spacing:2px; padding:2px 10px; }
 .fb-fx-empty { color:#040; border-color:#040; border-style:dashed; cursor:default; pointer-events:none; letter-spacing:2px; padding:2px 10px; }
 /* Allow pointer-drag from grid buttons without browser scroll hijack */
 #gen-grid .sk, #fx-grid .sk { touch-action:pan-y; }
@@ -931,6 +903,13 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 </head>
 <body>
 <canvas id="c"></canvas>
+
+<div id="src-locate">
+  <span id="src-locate-msg"></span>
+  <button class="sls-btn" id="src-locate-btn">LOCATE</button>
+  <button class="sls-btn c-cancel" id="src-locate-skip">SKIP</button>
+  <input type="file" id="src-locate-file" accept="video/*" style="display:none">
+</div>
 
 <div id="perf-overlay"></div>
 <div id="diag-overlay"></div>
@@ -1353,6 +1332,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">drag to reorder</span><span class="hk-desc">Drag blocks within either row to reorder the chain — a green slot highlights the drop position</span></div>
     <div class="hk-row"><span class="hk-key">drag from grid</span><span class="hk-desc">Drag a GEN or FX button from the grid below and drop it onto the flow strip to insert it at that position — dragging the same GEN shader multiple times adds duplicate instances, each with a unique random seed so procedural patterns differ</span></div>
     <div class="hk-row"><span class="hk-key">double-click</span><span class="hk-desc">Double-click a block to bypass (disable) it — shown dimmed with strikethrough. Double-click again to re-enable. The shader stays in the chain but is skipped during rendering</span></div>
+    <div class="hk-row"><span class="hk-key">BANK row</span><span class="hk-desc">The bottom row of the strip: one block per saved preset, the loaded one lit. Click any block to jump straight to it &mdash; no dialog, no confirmation. <em>[</em> and <em>]</em> step backwards and forwards through the bank, which is the fastest way to work through a set</span></div>
+    <div class="hk-row"><span class="hk-key">what a jump restores</span><span class="hk-desc">Everything the preset captured, exactly as saved &mdash; including the mode. A preset saved in LIVE will start the camera when you jump to it, and one saved in SAMPLER will drop you back to the loaded clip. Worth knowing before jumping mid-set</span></div>
     <div class="hk-row"><span class="hk-key">drag off strip</span><span class="hk-desc">Drag a block out of the strip area and release to remove it from the chain entirely — including the last GEN shader (SHADER mode will output black with an empty chain)</span></div>
 
     <div class="hk-section">Modes</div>
@@ -1503,6 +1484,12 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">SHARE</span><span class="hk-desc">Generate a compact URL with all settings encoded — all per-slot parameters, FX blend modes and mix amounts, chain order, LFO/audio/MIDI modulation are preserved. Bookmark or share to reload exact state on any device (video file not included). A real link is a few hundred bytes; anything claiming to be far larger is refused rather than opened, so a malformed or hostile link fails with a message instead of locking up the tab</span></div>
     <div class="hk-row"><span class="hk-key">unplayable files</span><span class="hk-desc">A file the browser cannot decode now says why &mdash; format unsupported, decode failed, network error or aborted &mdash; instead of leaving <em>loading&hellip;</em> up forever. Codec support is checked before the load starts, not after it fails</span></div>
     <div class="hk-row"><span class="hk-key">RST</span><span class="hk-desc">Reset all shader and FX parameters to defaults, keeping the current chain</span></div>
+    <div class="hk-row"><span class="hk-key">EXPORT BANK</span><span class="hk-desc">In the LOAD dialog. Writes every saved preset to a single <em>.json</em> you can copy onto a flash drive next to index.html, mail to someone, or keep in version control. The video files themselves are not included</span></div>
+    <div class="hk-row"><span class="hk-key">IMPORT BANK</span><span class="hk-desc">Loads a bank file back &mdash; or just drag the .json onto the window. It <em>merges</em>: presets already here are kept, and re-importing the same file adds nothing. Nothing a bank file can contain will overwrite what you already have</span></div>
+    <div class="hk-row"><span class="hk-key">presets and footage</span><span class="hk-desc">A preset saved in SAMPLER records which clip it was built on &mdash; filename, size and length &mdash; and its in / out points, but not the file itself. Load one whose clip is not open and a bar appears naming the file, with LOCATE to point at it. The shaders load instantly either way; the bar never blocks a jump</span></div>
+    <div class="hk-row"><span class="hk-key">locate once</span><span class="hk-desc">A located file is remembered for the rest of the session, so a bank of presets built on the same clip only ever asks once. SKIP silences that particular file until you reload &mdash; stepping through presets for footage you did not bring stays quiet</span></div>
+    <div class="hk-row"><span class="hk-key">in / out points</span><span class="hk-desc">Saved with the preset and restored once the clip is bound, clamped to its actual length. A preset with no clip attached leaves your loop points alone</span></div>
+    <div class="hk-row"><span class="hk-key">why presets don't travel</span><span class="hk-desc">Saved presets live in browser storage, which belongs to the browser profile, not to index.html. Copying the file to a flash drive copies none of them, and opening it from the drive may find a different set entirely. The bank file is how they move</span></div>
     <div class="hk-row"><span class="hk-key">preset storage</span><span class="hk-desc">Presets live in browser storage, which is capped at a few megabytes. If it fills, saving says so rather than failing quietly &mdash; and no longer claims to have saved. Delete a few from the LOAD list to make room. Private-browsing windows may refuse to store anything at all</span></div>
     <div class="hk-row"><span class="hk-key">DEF</span><span class="hk-desc">Revert to initial state — clears the FX chain, resets the GEN chain to a single shader with default params, and clears all blend and mod settings</span></div>
 
@@ -1520,6 +1507,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">*</span><span class="hk-desc">Toggle next FX slot — same binding as +</span></div>
     <div class="hk-row"><span class="hk-key">.</span><span class="hk-desc">Toggle feedback trail</span></div>
     <div class="hk-row"><span class="hk-key">1 / 2 / 3</span><span class="hk-desc">Next param · decrease · increase</span></div>
+    <div class="hk-row"><span class="hk-key">[ &nbsp;]</span><span class="hk-desc">Previous / next preset in the bank</span></div>
     <div class="hk-row"><span class="hk-key">BKSP</span><span class="hk-desc">Switch param layer: gen ↔ fx</span></div>
     <div class="hk-row"><span class="hk-key">?</span><span class="hk-desc">Show / hide this help screen</span></div>
 
@@ -1590,8 +1578,11 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <h3>Load Preset</h3>
     <div class="sls-list" id="load-list"></div>
     <div class="sls-row">
+      <button class="sls-btn" id="bank-export" title="download every preset as one .json you can carry">EXPORT BANK</button>
+      <button class="sls-btn" id="bank-import" title="load a bank file — adds to what is already here, never replaces it">IMPORT BANK</button>
       <button class="sls-btn c-cancel" id="load-close">CLOSE</button>
     </div>
+    <input type="file" id="bank-file" accept="application/json,.json" style="display:none">
   </div>
 </div>
 
@@ -1611,10 +1602,48 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 <script>
 'use strict';
 
+// ═════════════════════════════════════════════════════════════════════════════
+//  recur_web — browser-based live video effects and generative shaders (WebGL2)
+//
+//  Single self-contained file: CSS, JS and GLSL are all inline and there is no
+//  build step. Keep it that way.
+//
+//  LAYOUT, top to bottom
+//    GLSL sources        VERT, the shared header H, and shared helper snippets
+//    GEN[] / FX[]        the shader tables — one entry per shader, append only
+//    WebGL init          context, program cache, framebuffers, pixel budget
+//    App state           modes, chain slots, playback, transport
+//    Render              uniforms, draw, gen chain, FX chain, main loop
+//    HUD / overlays      toast, perf meter (P), system info (I)
+//    Keyboard            one handler, one entry point per action
+//    Camera / audio      getUserMedia, FFT, GPU audio texture, LFOs, MIDI
+//    File loading        clip loading, source assessment, source binding
+//    SPI control panel   sections, flow strip, source section, param sliders
+//    Export              MediaRecorder plus container-duration repair
+//    State               getState / applyState, presets, bank, V5 share URLs
+//    Cast                BroadcastChannel output window
+//
+//  CORE CONCEPTS
+//    Chain slots   GEN and FX are each an array of up to 4 slot objects. Every
+//                  property of a link lives on its slot. See "Chain slots".
+//    Modes         SAMPLER (video), SHADER (generative), LIVE (camera). One
+//                  render path serves all three: base -> gen chain -> FX.
+//    Wire format   getState / applyState are the ONLY places the flat preset and
+//                  share-URL shape meets the live slot objects. It is frozen —
+//                  an older build must keep reading a newer file.
+//
+//  RULES
+//    - One entry point per user action: togglePlay, toggleReverse, setMode.
+//    - Mutate chains only via chainInsert / chainRemove / chainMove.
+//    - 0 is the neutral value for every appended shader param. Prove it.
+//    - Bump BUILD on every handover.
+//    - Nothing here is ever GPU-verified. Say so when shipping shader work.
+// ═════════════════════════════════════════════════════════════════════════════
+
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-11h · docs';
+const BUILD = '2026-08-11l · comments2';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -1663,26 +1692,21 @@ const GEN = [
   {
     name: 'plasma',
     params: ['speed','scale','warp','palette','style','detail','contrast','fold','drift'],
-    // First four match the original (order + meaning) so existing presets keep
-    // working. The five new params only exist on fresh instances, and every one
-    // of them is neutral at 0 — style 0 is the original interference field and
-    // detail is ignored there — so a preset written before they existed renders
-    // byte-identically.
+    // First four keep their original order and meaning; the five appended ones
+    // are neutral at 0, so older presets render byte-identically.
     def: [.5,.5,.5,.5, .0, .45,.0, .0,.0],
     // style is a discrete selector, so snap the slider to its 8 positions
     // instead of leaving it a continuous drag that lands between types.
     snapVals: [null,null,null,null,[0,1,2,3,4,5,6,7],null,null,null,null],
     src: H+PAL+`
-// The original interference field, factored out so the fractal styles stack
-// octaves of the same basis rather than importing a different noise. Keeps every
-// style recognisably plasma instead of turning half of them into value noise.
+// The base interference field, factored out so every style stacks octaves of the
+// same basis and stays recognisably plasma.
 float pf(vec2 p,float sc,highp float t){
   return (sin(p.x*sc+t)+sin(p.y*sc+t)
          +sin((p.x+p.y)*sc*.7+t)+sin(length(p)*sc+t))*.25;
 }
-// Fractal stack. Octaves are phase-offset rather than time-scaled: t already
-// grows without bound (uFrame/60), and multiplying it by the octave frequency
-// would push it out of mediump range far sooner.
+// Fractal stack. Octaves are phase-offset, not time-scaled — t is unbounded, and
+// scaling it by octave frequency leaves mediump range far sooner.
 float fbmP(vec2 p,float sc,highp float t,int oct,float rough){
   float v=0.,a=.5,f=1.,n=0.;
   for(int i=0;i<5;i++){
@@ -1705,13 +1729,9 @@ float turbP(vec2 p,float sc,highp float t,int oct,float rough){
 }
 void main(){
   vec2 asp=uRes/uRes.y, uv=(vU-.5)*asp*2.;
-  // uFrame is unbounded, so this must be highp. At mediump — which is fp16 on
-// mobile GPUs — float(uFrame) stops resolving single frames past ~2048 (about
-// 34s at 60fps), and worse, adding a large t to a small spatial term quantises
-// the spatial term away: at t=1200 a 1080px row collapses to ~91 distinct sin()
-// arguments, which is exactly the flat tiling that creeps in over time. highp is
-// mandatory in GLSL ES 3.00 fragment shaders, costs a few scalar ops, and is
-// mathematically identical — nothing about the look changes.
+  // highp is required: uFrame is unbounded, and at mediump (fp16 on mobile) it
+// stops resolving single frames past ~2048, then quantises small spatial terms
+// away when added to a large t. Costs a few scalar ops, changes nothing else.
   highp float t=(float(uFrame)+uSeed)/60.*mix(.1,2.5,uP1);
   float sc=mix(2.,14.,uP2);
   int st=int(uP5*7.99);
@@ -1753,13 +1773,10 @@ void main(){
   }else if(st==5){
     v=sin(length(uv)*sc*1.5-t*2.+fbmP(uv,sc,t,oct,rough)*2.); // ripples
   }else if(st==6){
-    // Julia orbit trap — a real escape-time fractal, animated by walking c
-    // around a small circle. Colouring by closest approach to the origin rather
-    // than escape count is what keeps it reading as plasma instead of a
-    // hard-edged set.
-    // scale sets the zoom. The window matters: too tight and the frame sits in
-    // the smooth interior with no fractal detail at all, too wide and the
-    // filigree aliases into moire. This range keeps the boundary on screen.
+    // Julia orbit trap, animated by walking c around a small circle. Coloured by
+    // closest approach rather than escape count, which keeps it reading as plasma.
+    // The zoom window is narrow on purpose: too tight is smooth interior, too
+    // wide aliases into moire. This range keeps the boundary on screen.
     vec2 z=uv*mix(.55,1.2,uP2);
     vec2 c=vec2(cos(t*.21),sin(t*.17))*.42+vec2(-.35,.05);
     float trap=1e3;
@@ -1823,16 +1840,13 @@ void main(){
   {
     name: 'flowing-colours',
     params: ['speed','detail','warp','hue','zoom','style','layers','contrast','fold','steady','vivid'],
-    // First five match the original (order + meaning) so existing presets keep
-    // working. Every new param is neutral at 0 — style 0 is the original field
-    // and layers is ignored there, steady 0 keeps the original pulse — so a
-    // preset written before they existed renders byte-identically.
+    // First five keep their original order and meaning; the appended ones are
+    // neutral at 0, so older presets render byte-identically.
     def: [.5,.5,.5,.5,.5, .0, .4,.0,.0,.0,.0],
     snapVals: [null,null,null,null,null,[0,1,2,3,4,5,6,7],null,null,null,null,null],
     src: H+HUESHIFT+`
-// The original flowing field, factored out so the layered styles can stack
-// octaves of the same basis. The mismatched time divisors (t/5 through t/35) are
-// what make it breathe instead of scroll, so they are kept exactly as they were.
+// The base flowing field. The mismatched time divisors (t/5 to t/35) are what
+// make it breathe rather than scroll — do not regularise them.
 float ff(vec2 p,float det,float w,highp float t){
   float v=0.;
   v+=sin(p.x*cos(t/15.)*det)+cos(p.y*cos(t/15.)*det*.3)*w;
@@ -1840,11 +1854,9 @@ float ff(vec2 p,float det,float w,highp float t){
   v+=sin(p.x*sin(t/5.)*det*.4)+sin(p.y*sin(t/35.)*det*2.5)*w;
   return v;
 }
-// Octave stack, normalised by total weight so the amplitude the colour map sees
-// stays in the same range whatever the layer count. Octaves are phase-offset
-// rather than time-scaled: t grows without bound here, and multiplying it by the
-// octave frequency would leave mediump range far sooner. Capped at 3 — each
-// octave is six sines, so this gets expensive faster than a hash-noise fbm.
+// Octave stack, normalised by total weight so amplitude is layer-count
+// independent. Phase-offset, not time-scaled. Capped at 3: each octave is six
+// sines, so this costs more than a hash-noise fbm.
 float ffbm(vec2 p,float det,float w,highp float t,int oct,float rough){
   float v=0.,a=1.,f=1.,n=0.;
   for(int i=0;i<3;i++){
@@ -1856,13 +1868,9 @@ float ffbm(vec2 p,float det,float w,highp float t,int oct,float rough){
 void main(){
   vec2 asp=uRes/uRes.y;
   vec2 uv=(vU-.5)*asp*2.*mix(1.7,.3,uP5);
-  // uFrame is unbounded, so this must be highp. At mediump — which is fp16 on
-// mobile GPUs — float(uFrame) stops resolving single frames past ~2048 (about
-// 34s at 60fps), and worse, adding a large t to a small spatial term quantises
-// the spatial term away: at t=1200 a 1080px row collapses to ~91 distinct sin()
-// arguments, which is exactly the flat tiling that creeps in over time. highp is
-// mandatory in GLSL ES 3.00 fragment shaders, costs a few scalar ops, and is
-// mathematically identical — nothing about the look changes.
+  // highp is required: uFrame is unbounded, and at mediump (fp16 on mobile) it
+// stops resolving single frames past ~2048, then quantises small spatial terms
+// away when added to a large t. Costs a few scalar ops, changes nothing else.
   highp float t=(float(uFrame)+uSeed)/60.*mix(.3,3.,uP1);
   float det=mix(4.,24.,uP2), w=mix(.3,2.,uP3);
   int st=int(uP6*7.99);
@@ -1917,9 +1925,8 @@ void main(){
   // which widens the flat saturated regions and hardens the edges between them.
   if(uP8>.001) v=clamp(v*(1.+uP8*2.),-9.,9.);
 
-  // steady (uP10): the original multiplies everything by sin(t/10), so the whole
-  // frame periodically washes out to flat. Neutral at 0 keeps that; at 1 the
-  // amplitude holds constant, which is usually what you want playing live.
+  // steady (uP10): at 0 the frame pulses via sin(t/10) and periodically washes
+  // out flat; at 1 amplitude holds constant. Neutral at 0.
   v*=mix(sin(t/10.)*.8,.8,uP10);
 
   vec3 col=vec3(v,v*.5*sin(.02*t),sin(v+t/3.)*.75)*.5+.5;
@@ -1967,9 +1974,8 @@ void main(){
   {
     name: 'squarewaves',
     params: ['amplitude','wavetype','frequency','hue','zoom','softness','rotation','detail','warp','fold','relief','audio'],
-    // First seven match the original (order + meaning); the five new params only
-    // exist on fresh instances, so pre-existing presets load them as 0 and render
-    // close to the classic look (single octave, no warp/fold/relief/audio).
+    // First seven keep their original order and meaning; appended params load as
+    // 0 on older presets (single octave, no warp/fold/relief/audio).
     def: [.5,.5,.5,.5,.5,.0,.5, .45,.25,.0,.35,.0],
     src: H+HUESHIFT+`
 uniform sampler2D uAudio;
@@ -2103,9 +2109,8 @@ void main(){
   {
     name: 'voronoi',
     params: ['density','speed','edge','palette','mode','size','glow','swarm','warp'],
-    // First four match the original (order + meaning) so existing presets keep
-    // working; the five new params only exist on fresh instances, so old presets
-    // load them as 0 (mode 0 = classic cells, no dots/glow/swarm/warp).
+    // First four keep their original order and meaning; appended params load as
+    // 0 on older presets (mode 0 = classic cells).
     def: [.6,.45,.5,.5, .0, .3,.45,.5, .1],
     src: H+PAL+`
 vec2 hash2(vec2 p){
@@ -2187,10 +2192,8 @@ void main(){
   {
     name: 'zoom-clouds',
     params: ['speed','detail','warp','hue','zoom','style','contrast','rough','relief','drift','palette'],
-    // First five match the original (order + meaning) so existing presets keep
-    // working. Every new param is neutral at 0 — style 0 is the original
-    // evaluation, rough 0 gives the original 0.5 octave falloff — so a preset
-    // written before they existed renders byte-identically.
+    // First five keep their original order and meaning; appended params are
+    // neutral at 0 (rough 0 = the original 0.5 octave falloff).
     def: [.5,.5,.5,.5,.5, .0,.0,.0,.0,.0,.0],
     snapVals: [null,null,null,null,null,[0,1,2,3,4,5,6,7],null,null,null,null,null],
     src: H+PAL+HUESHIFT+`
@@ -2200,11 +2203,9 @@ float sn(vec2 p){
   f=f*f*(3.-2.*f);
   return mix(mix(rn(i),rn(i+vec2(1,0)),f.x),
              mix(rn(i+vec2(0,1)),rn(i+vec2(1,1)),f.x),f.y);}
-// Octave falloff is a parameter now. The sum is renormalised to the weight it
-// would have had at g=0.5 (0.96875) rather than to 1: that leaves g=0.5 returning
-// the original value untouched — so style 0 and every old preset are unchanged —
-// while a higher falloff adds roughness instead of just scaling the whole field
-// up and clipping the colour ramp.
+// Octave falloff as a parameter. Renormalised to the weight at g=0.5 (0.96875),
+// not to 1, so g=0.5 returns the original value untouched and a higher falloff
+// adds roughness instead of scaling the field up into the colour ramp.
 const float FBM_W0 = 0.96875;
 float fbmG(vec2 p,float g){
   float v=0.,a=.5,n=0.;
@@ -2255,17 +2256,11 @@ void main(){
   // converts to a per-uv-unit gradient, which is resolution-independent.
   if(uP9>.001) f+=clamp((dFdx(f)*uRes.x+dFdy(f)*uRes.y)*mix(0.,.045,uP9),-.45,.45);
 
-  // contrast (uP7). The original ramp multiplies f by 2, which drives roughly
-  // 47% of a typical frame hard into the cream end — so an S-curve around the
-  // midpoint has almost nothing left to separate, and only makes the clipping
-  // worse. Instead the ramp gain is pulled back as contrast rises, recovering
-  // those blown highlights, while the curve steepens at the same time: more
-  // tonal range AND more definition rather than a trade between the two.
-  // Algebraically exactly the original at 0, where gain is 2 and the curve is
-  // flat: (f*2 - .5)*1 + .5 == f*2.
-  // Short-circuited at 0 rather than relying on the algebra collapsing: the
-  // reformulated expression is mathematically identical but differs by a float
-  // ULP, and preset-identical should mean identical.
+  // contrast (uP7). The base ramp multiplies f by 2, blowing ~47% of a frame to
+  // flat cream — so raising contrast pulls the ramp GAIN back while steepening
+  // the curve, recovering highlights and adding definition together.
+  // Exactly the base ramp at 0: (f*2 - .5)*1 + .5 == f*2. Short-circuited there
+  // rather than trusting the algebra, which differs by a float ULP.
   float c;
   if(uP7>.001){
     float gain=2.-1.05*uP7;
@@ -2292,10 +2287,8 @@ void main(){
   highp float t=float(uFrame)+uSeed;
   // pixel size: 1 = single pixel, higher = larger dots
   float sz=max(1.,floor(mix(1.,6.,uP3)));
-  // Deliberately left corner-anchored. Re-anchoring this lattice to the frame
-  // centre measured at exactly 1.0x — no improvement — because sz is a 6-step
-  // integer and, more to the point, the cell value below is re-randomised every
-  // frame, so where the lattice sits is invisible under the flicker.
+  // Deliberately corner-anchored: measured at exactly 1.0x from re-anchoring.
+  // The cell value is re-randomised every frame, so lattice position is invisible.
   vec2 cell=floor(uv/sz);
   // new random position each frame — true flicker
   float r=hash3(vec3(cell,t));
@@ -2386,29 +2379,21 @@ void main(){
   },
   {
     name: 'maze-flight',
-    // Endless flythrough of an infinite fractal maze: a solid universe with
-    // corridors carved at three nested scales, so every wall is itself a
-    // smaller maze. Ported from "Can't Find My Way Out" by ksin on glslop
-    // (CC0-1.0, id gstbkfmm). The ISF original is GLSL ES 1.00 and assumes an
-    // unbounded fp32 TIME; four things had to change for it to survive here —
-    // see the comments in the source. Defaults reproduce the original's look.
+    // Endless flythrough of an infinite fractal maze: corridors carved at three
+    // nested scales, so every wall is itself a smaller maze. Ported from
+    // "Can't Find My Way Out" by ksin on glslop (CC0-1.0, id gstbkfmm).
+    // The ISF original is GLSL ES 1.00 and assumes an unbounded fp32 TIME.
     params: ['speed','fov','turns','width','density','detail','glow','circuits','windows','hue','saturation','fog'],
-    // Mostly the original's published parameter set, mapped onto 0..1 sliders
-    // against the ISF MIN/MAX. Two are deliberately calmer than the ISF ships.
-    // detail 0.6 leaves the THIRD carve scale off: its corridors are under 0.1
-    // units wide, and at arm's length from the camera they sweep past faster
-    // than a frame, which measures as most of the remaining instability (3.8% of
-    // the frame changing hard per frame with it off, 5.6% with it on). Push
-    // detail past 0.75 to get it back. speed 0.25 is 0.75x the ISF default —
-    // every motion artefact scales linearly with it, and 3.2 units/sec through a
-    // corridor one cell wide is quick. Both are one slider away from the original.
+    // The ISF parameter set mapped onto 0..1 sliders. Two are calmer than shipped:
+    // detail 0.6 leaves the third carve scale off (corridors under 0.1 units wide
+    // sweep past faster than a frame — 3.8% hard frame change against 5.6% with
+    // it on; push past 0.75 for it), and speed 0.25 is 0.75x the ISF default.
     def: [.25,.619,.815,.456,1.,.6,.04,.668,.944,.58,.77,.4],
     src: H+`
-// Everything here is position-and-time math on an unbounded world coordinate,
-// which is exactly what the shared mediump header cannot carry: this is a
-// forward flythrough, so the camera's z IS the clock. A precision statement may
-// be re-issued at global scope and applies to every declaration after it, so
-// this promotes the whole shader without touching H or any other entry.
+// The camera's z IS the clock here, so every value is position-and-time math on
+// an unbounded coordinate — which the shared mediump header cannot carry.
+// A global precision statement applies to everything after it, so this promotes
+// the whole shader without touching H or any other entry.
 precision highp float;
 precision highp int;
 
@@ -2426,22 +2411,18 @@ const float LGHT = 1.0;     // ISF "headlight", fixed
 // from a uniform, so these are declared bare and assigned at the top of main().
 float mzTurn, mzWide, mzDens, mzDetl, mzGlow, mzStrp, mzWinL, mzSatu, mzFogA;
 
-// Rebasing state. The world is sampled at p + vec3(0,0,gK*CELL); everything the
-// march actually touches is the LOCAL p, which stays within a march length of
-// the origin no matter how long the shader has been running. gK carries the
-// displacement as an exact integer instead.
+// Rebasing state. The world is sampled at p + vec3(0,0,gK*CELL), so the march
+// only ever touches a LOCAL p near the origin. gK carries the displacement as an
+// exact integer, however long the shader has run.
 int   gK;    // camera cell index along z
 float gZc;   // float(gK), the path-noise coordinate base
 float gHz;   // depth-hue offset for the rebase, pre-wrapped into 0..1
 float gTa, gTb, gTc;  // wrapped animation phases
 
 // ── hashing ──────────────────────────────────────────────────────────────────
-// The original hashes with fract(sin(x)*43758.5453) on unbounded coordinates.
-// That is fine for a 512x512 poster and wrong for a tool that runs for hours:
-// by the time the path coordinate reaches a few hundred, the sine argument is
-// in the tens of thousands and fp32 has shed most of the mantissa that made the
-// hash a hash. WebGL2 has integer ops, so the cell id can be hashed exactly at
-// any magnitude — cheaper than the sine version as well as stable.
+// Integer hash, not fract(sin(x)*43758). On unbounded coordinates the sine
+// argument reaches the tens of thousands and fp32 sheds the mantissa the hash
+// depends on. Integer ops are exact at any magnitude, and cheaper.
 uint mzMix(uint x){
   x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x;
 }
@@ -2464,21 +2445,13 @@ float mzVN(float x){
 float mzStairs(float x){
   return floor(x)+smoothstep(.5-HW,.5+HW,fract(x));
 }
-// The ISF version cross-fades a sine path against a noise path on "randomness",
-// which ships at 1.0 — the sine half is dead weight at the published setting, so
-// fixing randomness buys back four sin() calls from a function that runs on
-// every march step, every AO tap and every normal tap. Easily the largest single
-// saving in the port.
+// randomness is fixed at the ISF's shipped 1.0, which drops the unused sine path
+// and four sin() calls from a function that runs on every march, AO and normal
+// tap — the largest single saving in the port.
 //
-// PSTR stretches the whole path along z. As published, stairs() carries the
-// camera a full cell sideways in about a quarter of a second, so it slews
-// LATERALLY up to 4.1x faster than it flies forward — measured on a CPU port of
-// this field. Inside a corridor barely one cell wide that whips the near walls
-// across the frame and geometry appears to pop into existence just ahead of the
-// camera. Stretching by 3 brings the worst lateral rate to 0.74x forward and
-// cuts hard frame-to-frame changes in hit distance from 14.6% of the frame to
-// 5.6%; the path still changes cell roughly every ten units, so it reads as the
-// same wandering flythrough, just not a slalom.
+// PSTR stretches the path along z. Unstretched, the camera slews laterally up to
+// 4.1x faster than it flies forward, which whips the near walls across a
+// one-cell corridor. Stretching by 3 brings that to 0.74x.
 vec2 mzPath(float zLocal){
   float zc=(zLocal/CELL+gZc)/PSTR;
   float gx=((mzVN(zc/3.5 +3.)-.5)+.5*(mzVN(zc/1.575+9.) -.5))*1.60*mzTurn;
@@ -2487,12 +2460,11 @@ vec2 mzPath(float zLocal){
 }
 
 // ── the maze ─────────────────────────────────────────────────────────────────
-// Corridors reach through any cell face whose hash rolls open. The key is keyed
-// to the FACE, not the cell: on a doubled lattice the +x face of cell i and the
-// -x face of cell i+1 are both 2i+(1,0,0), so adjacent cells describe identical
-// geometry at the seam and the field stays continuous. kz is the rebase offset
-// for this scale — an exact integer, so the local fractional geometry below is
-// computed entirely from small numbers and never loses resolution.
+// Corridors reach through any cell face whose hash rolls open. Keyed to the FACE,
+// not the cell: on a doubled lattice the +x face of cell i and the -x face of
+// cell i+1 are both 2i+(1,0,0), so the field stays continuous at the seam.
+// kz is this scale's rebase offset — an exact integer, so the local geometry
+// below is computed entirely from small numbers.
 float mzCarve(vec3 p,float s,float prob,float w,uint salt,int kz){
   vec3 idf=floor(p/s);
   ivec3 id=ivec3(idf)*2; id.z+=kz*2;
@@ -2519,14 +2491,11 @@ float mzMap(vec3 p){
   float w0=.34*CELL*mzWide;
   float carve=mzCarve(p,CELL,.58*mzDens,w0,0x9e37u,gK);
 
-  // Guaranteed corridor along the camera path, so the flythrough never walls
-  // itself in. The Chebyshev distance to a centre that moves with z is not a
-  // true SDF, so it is scaled down to stay Lipschitz-safe: overstep here and the
-  // march punches blade-shaped shards through the walls. Scaling an SDF by a
-  // positive constant does not move its zero crossing, so this only costs steps.
-  // The ISF uses 0.2; 43,200 probe rays across 600 camera positions found zero
-  // overshoot events at 0.8, and the gentler path above makes it safer still, so
-  // 0.5 is taken as the conservative middle — worth ~20% of the march budget.
+  // Guaranteed corridor along the camera path so the flythrough never walls
+  // itself in. Chebyshev distance to a moving centre is not a true SDF, so it is
+  // scaled down to stay Lipschitz-safe — overstep and the march punches shards
+  // through the walls. Scaling an SDF by a positive constant only costs steps.
+  // 0.5 against the ISF's 0.2: measured zero overshoot at 0.8 over 43,200 rays.
   vec2 pc=mzPath(p.z);
   carve=min(carve,(max(abs(p.x-pc.x),abs(p.y-pc.y))-w0)*.5);
 
@@ -2574,9 +2543,8 @@ vec3 mzShade(vec3 ro,vec3 rd,float t,float zl,float hue0){
   vec3 n=mzNormal(p);
   float ao=mzAO(p,n);
   vec3 an=abs(n);
-  // gHz folds the rebase into the depth-driven hue. mzPal has period 1, so
-  // adding the wrapped offset is exact — without it the hue would step every
-  // time the world rebases, about once a second at the default speed.
+  // gHz folds the rebase into the depth-driven hue. mzPal has period 1, so the
+  // wrapped offset is exact — without it the hue steps on every rebase.
   float hue=hue0+gHz+p.z*.012*ZHUE;
   float dfade=exp(-t*.06);
 
@@ -2645,10 +2613,9 @@ void main(){
   vec2 uv=(vU-.5)*2.*vec2(uRes.x/uRes.y,1.);
 
   float t=(float(uFrame)+uSeed)/60.;
-  // mod() on the seed rather than the raw value: uSeed runs to 10000 and would
-  // otherwise start the flythrough tens of thousands of units downrange, giving
-  // away resolution before the first frame. This is only here so two slots
-  // carrying maze-flight land in different parts of the maze.
+  // mod() the seed: uSeed runs to 10000 and would start the flythrough tens of
+  // thousands of units downrange, losing resolution before the first frame.
+  // Only here so two slots of maze-flight land in different parts of the maze.
   float zt=t*3.2*mix(0.,3.,uP1)+.4+mod(uSeed,997.)*3.;
 
   // Rebase. gK is exact; zl is what the march sees, and it never leaves [0,3).
@@ -2673,10 +2640,8 @@ void main(){
 
   float hue0=fract(uP10+t*HCYC);
 
-  // Step budget rides on detail: the two nested carve scales switch in at .25
-  // and .75, and each one triples the cost of every map() evaluation, so the
-  // march that resolves them has to be paid for out of the same slider. At
-  // detail 0 this is a third of the map cost and a third fewer steps.
+  // Step budget rides on detail: the nested carve scales switch in at .25 and
+  // .75 and each triples map() cost, so the march is paid from the same slider.
   const float TMAX=48.;
   int steps=int(mix(56.,150.,mzDetl));
   float tt=0., d=0.;
@@ -2694,10 +2659,8 @@ void main(){
     col=mix(col,fogc,1.-exp(-tt*tt*.0014*mzFogA));
   }
 
-  // Saturation above 1 pushes channels below the luma pivot NEGATIVE, and the
-  // original then feeds that straight to pow(col,0.4545) — undefined for a
-  // negative base, which returns NaN and blacks the pixel. It ships at 1.54, so
-  // this fires on any strongly tinted surface. Clamping is the whole fix.
+  // Clamp before the gamma: saturation above 1 drives channels negative, and
+  // pow(negative, 0.4545) is undefined — NaN, which blacks the pixel.
   float lum=dot(col,vec3(.299,.587,.114));
   col=max(mix(vec3(lum),col,mzSatu),0.);
   col=pow(1.-exp(-col*1.7),vec3(.4545));
@@ -2709,35 +2672,26 @@ void main(){
     name: 'quaternion',
     // A 4D Julia set (q -> q^2 + c) raymarched with Inigo Quilez's analytic
     // distance estimate, orbit-trap colour and a hot rim light. Ported from
-    // "Gilded Quaternion" by ufffd on glslop (CC0-1.0, id gxmhgi4r). The ISF
-    // exposes six knobs on a fixed 16s loop; this trades the loop for a free
-    // camera and splits form and colour across twelve. Every range below was
-    // measured on a CPU port of the distance estimate rather than guessed --
-    // see the comments for what each measurement was.
+    // "Gilded Quaternion" by ufffd on glslop (CC0-1.0, id gxmhgi4r).
+    // The ISF's fixed 16s loop is traded for a free camera, and its six knobs
+    // split across twelve. Every range below was measured on a CPU port.
     params: ['speed','spin','tilt','zoom','form','slice','morph','detail','hue','palette','glow','shade'],
-    // speed/morph/glow reproduce the ISF defaults; the rest are new. zoom is
-    // closer than the ISF's 2.7, which was framed for a square 512 poster: on a
-    // 16:9 canvas the wider horizontal field shrinks the object to 14% of the
-    // frame, and 2.45 brings it back to about 19% while still clearing the top
-    // and bottom edges (visible half-height 1.44 against a 1.37 radius).
+    // speed/morph/glow reproduce the ISF defaults. zoom is 2.45 against the
+    // ISF's 2.7, which was framed for a square poster — on 16:9 that leaves the
+    // object at 14% of the frame; 2.45 gives ~19% and still clears the edges.
     def: [.333,.62,.62,.153,0.,.5,.417,.75,0.,0.,.333,.5],
     src: H+`
-// The running derivative md2 reaches ~1e10 over the exposed parameter space.
-// That is 28 decades inside the fp32 ceiling, so it never needs clamping -- but
-// it is five orders of magnitude beyond what fp16 can hold, so at the shared
-// header's mediump this shader would return d=0 everywhere and paint a solid
-// block. Promoting here is not an optimisation, it is the difference between an
-// image and a flat colour.
+// highp is mandatory: the running derivative md2 reaches ~1e10, which is fine in
+// fp32 but five orders past fp16. At the shared header's mediump this returns
+// d=0 everywhere and paints a solid block.
 precision highp float;
 precision highp int;
 
 #define TAU 6.28318530718
 const float PERIOD = 16.0;
 const int   MAXI   = 14;
-// Bounding sphere. The bailout at |z|^2 > 6 puts the set inside |p| < 2.45, but
-// the surface never actually reached past 1.546 across 900k sampled points
-// spanning every form, slice and morph phase this shader can reach, so 1.8 is
-// both safe and tighter than the analytic bound. Rays that miss it cost nothing.
+// Bounding sphere. The analytic bound is 2.45; measured across 900k samples the
+// surface never passed 1.546, so 1.8 is safe and tighter. Misses cost nothing.
 const float BR     = 1.8;
 
 // Resolved once in main(): GLSL forbids initialising a global from a uniform.
@@ -2749,11 +2703,9 @@ mat2  qRt;
 mat2 rot2(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
 vec3 qPal(float t){ return .5+.5*cos(TAU*(t+vec3(.55,.40,.18))); }
 
-// The "form" slider walks a smoothstepped path through five seed quaternions
-// known to give well-formed sets. Every position along it was rendered on the
-// CPU: the object covers between 18% and 40% of the frame across the whole
-// range and never once collapses to nothing or floods the view, so the slider
-// has no dead spots to hunt past.
+// form walks a smoothstepped path through five seed quaternions that give
+// well-formed sets. Measured: the object holds 18-40% of the frame across the
+// whole range, so there are no dead spots.
 vec4 qSeed(float f){
   vec4 S0=vec4(-.450, .550, .360, .1800);
   vec4 S1=vec4(-.125,-.256, .847, .0895);
@@ -2773,10 +2725,9 @@ vec4 qSeed(float f){
 // Quaternion Julia distance estimate. trap carries the orbit trap out for colour.
 float qMap(vec3 p, out vec4 trap){
   p.xz=qRt*p.xz;
-  // The 4th component is the SLICE: this is a 3D cross-section of a 4D object,
-  // and moving w cuts a different section rather than deforming the same one.
-  // The set thins as |w| grows and is empty past about 0.85, so the slider stops
-  // at 0.75 -- measured, and the reason it cannot be dialled into a blank frame.
+  // The 4th component is the SLICE: a 3D cross-section of a 4D object, so moving
+  // w cuts a different section rather than deforming one. The set is empty past
+  // |w| ~0.85, so the slider stops at 0.75 and cannot reach a blank frame.
   vec4 z=vec4(p,qSlice);
   float md2=1., mz2=dot(z,z);
   trap=vec4(abs(z.xyz),mz2);
@@ -2788,9 +2739,8 @@ float qMap(vec3 p, out vec4 trap){
     mz2=dot(z,z);
     if(mz2>6.) break;
   }
-  // Guards, not clamps: mz2 can reach 0 on the attractor, where log(0) and a
-  // 0/0 ratio would poison the pixel. Neither was observed in 900k samples, but
-  // they cost nothing and the failure would be a permanent black speck.
+  // Guards, not clamps: mz2 can reach 0 on the attractor, where log(0) and a 0/0
+  // ratio would leave a permanent black speck.
   mz2=max(mz2,1e-9);
   return .25*sqrt(mz2/max(md2,1e-30))*log(mz2);
 }
@@ -2799,9 +2749,8 @@ void main(){
   vec2 uv=(vU-.5)*2.*vec2(uRes.x/uRes.y,1.);
 
   highp float t=(float(uFrame)+uSeed)/60.;
-  // Unlike the maze this shader has no unbounded world coordinate -- the object
-  // sits at the origin and time only enters through fract(), so once these two
-  // phases are wrapped every downstream value is bounded for good.
+  // No unbounded world coordinate here: the object sits at the origin and time
+  // only enters through fract(), so wrapping these two phases bounds everything.
   float ph =fract(t*mix(0.,3.,uP1)/PERIOD+fract(uSeed*.0137));
   float yaw=TAU*fract(t*(uP2-.5)*.5+fract(uSeed*.0091));
   float th =TAU*ph;
@@ -2810,10 +2759,9 @@ void main(){
   qC=qSeed(uP5)+mix(0.,1.2,uP7)*.12*vec4(cos(th),sin(th),cos(2.*th),sin(2.*th));
   qSlice=mix(-.75,.75,uP6);
   qRt=rot2(th*.5);
-  // detail buys iterations AND march steps together. Iteration count barely
-  // moves the silhouette (hit area held at 26.4-26.9% from 5 iterations to 14)
-  // but it triples the work, so it is a surface-detail and cost control, not a
-  // shape control -- drop it first if the frame rate suffers.
+  // detail buys iterations and march steps together. It is a surface-detail and
+  // cost control, not a shape control — silhouette held at 26.4-26.9% from 5 to
+  // 14 iterations. Drop it first if the frame rate suffers.
   qIter=5+int(uP8*9.99);
   int steps=70+int(uP8*60.99);
 
@@ -2844,12 +2792,10 @@ void main(){
       tt+=d*.85;
       if(tt>tcap) break;
     }
-    // Rays that grazed the surface creep without ever satisfying that epsilon
-    // and fall out of the loop as misses, punching black speckle along the
-    // silhouette -- 0.35% of the frame at these defaults and 1.4% at detail 0.
-    // Accepting a near-miss still inside the bounding sphere recovers about
-    // two thirds of them; the rest end with d as large as 0.4 and are genuine
-    // misses that would paint false surface if they were let through.
+    // Grazing rays creep without satisfying the epsilon and leave black speckle
+    // along the silhouette (0.35% of the frame, 1.4% at detail 0). Accepting a
+    // near-miss inside the bounding sphere recovers about two thirds; the rest
+    // are genuine misses that would paint false surface.
     if(!hit && d<.01 && tt<tcap) hit=true;
     if(hit){ te=tt; trHit=tr; }
 
@@ -2861,13 +2807,10 @@ void main(){
       vec3 n=normalize(k.xyy*qMap(p+k.xyy*e,dm)+k.yyx*qMap(p+k.yyx*e,dm)+
                        k.yxy*qMap(p+k.yxy*e,dm)+k.xxx*qMap(p+k.xxx*e,dm));
 
-      // palette picks WHICH orbit trap drives the hue, crossfading across four
-      // sources on a triangular basis. The gains are the reciprocals of each
-      // channel's measured 5th-95th percentile spread over the exposed space
-      // (|z.x| 0.157, |z.y| 0.343, |z| squared 0.947), so whichever one is
-      // selected sweeps roughly a full turn of the wheel. Without that scaling
-      // the narrow channels park the whole object on a single hue -- the usual
-      // way an orbit-trap palette comes out as one flat colour.
+      // palette picks WHICH orbit trap drives the hue, crossfading four sources
+      // on a triangular basis. Gains are the reciprocals of each channel's
+      // measured 5th-95th spread (0.157 / 0.343 / 0.947) so any selection sweeps
+      // a full turn — unscaled, the narrow channels give one flat hue.
       float pw=uP10*3.;
       float a0=max(1.-abs(pw    ),0.), a1=max(1.-abs(pw-1.),0.);
       float a2=max(1.-abs(pw-2.),0.), a3=max(1.-abs(pw-3.),0.);
@@ -2880,9 +2823,8 @@ void main(){
       float ao=clamp(.5+.5*n.y,.3,1.);
       float g=mix(0.,3.,uP11);
 
-      // shade balances flat-and-electric against modelled-and-solid. A steep
-      // fresnel alone piles all the colour into a thin rim and leaves the face
-      // unlit, so the ambient floor rises as the diffuse term falls.
+      // shade balances flat-and-electric against modelled-and-solid: the ambient
+      // floor rises as the diffuse term falls, so the face never goes unlit.
       col += base*mix(.18,.06,uP12)*ao;
       col += base*dif*mix(.10,.55,uP12)*ao;
       col += base*fres*3.*g;
@@ -2902,23 +2844,17 @@ void main(){
 // ASCII atlas — measure pixel density of each candidate char and sort light→dark
 const ASCII_CW = 10, ASCII_CH = 14;
 const ASCII_FAMILY = '"Courier New","MS Gothic","Hiragino Kaku Gothic Pro",monospace';
-// Drawing at ASCII_CH px with textBaseline 'top' overflows the cell. A monospace
-// face needs roughly 1.21x its em size for ascent+descent (Courier New measures
-// 12+5 at 14px), so a 14px glyph wants 17px of vertical room in a 14px canvas —
-// | j y p q Q were having their descenders sliced off by the canvas edge, and
-// because the density sort measures the same clipped bitmap they were also being
-// ranked lighter than they really are. Draw smaller and place the baseline so
-// the whole glyph lands inside the cell.
+// A monospace face needs ~1.21x its em size for ascent+descent, so drawing at
+// full cell size clips descenders (j y p q Q) — and the density sort then ranks
+// those glyphs too light. Draw smaller and place the baseline inside the cell.
 const ASCII_ASC = 0.857, ASCII_DESC = 0.357;        // fraction of em, measured
 const ASCII_FONT_PX = Math.max(6, Math.round(ASCII_CH * 0.78));
 const ASCII_BASE = (ASCII_CH - ASCII_FONT_PX * (ASCII_ASC + ASCII_DESC)) / 2
                  + ASCII_FONT_PX * ASCII_ASC;
 const ASCII_FONT = `bold ${ASCII_FONT_PX}px ${ASCII_FAMILY}`;
-// Character blocks. Each is density-sorted on its own and laid into the atlas as
-// a contiguous run, so the shader can pick a block and index within it. Blocks
-// overlap in content (ascii appears in three of them) — they are stored
-// separately rather than as sub-ranges because a sub-range of a globally sorted
-// list is not itself a correct density ramp.
+// Character blocks, each density-sorted on its own and laid into the atlas as a
+// contiguous run. Stored separately even where content overlaps: a sub-range of
+// a globally sorted list is not itself a correct density ramp.
 const ASCII_SETS = (() => {
   // Full printable ASCII: the old set carried 54 of these 95, missing most of
   // the uppercase alphabet, a/e/g/h/m/n, five digits, and $()*?[]{}.
@@ -2936,9 +2872,8 @@ const ASCII_SETS = (() => {
   ];
 })();
 
-// Rasterise each candidate once to rank it by ink coverage; the shader maps
-// brightness onto this ordering, so it has to describe the glyphs as actually
-// drawn (same font and baseline as the atlas below).
+// Ranks each glyph by ink coverage. Must use the same font and baseline as the
+// atlas below, since the shader maps brightness onto this ordering.
 const _asciiDensity = (() => {
   const mc = document.createElement('canvas');
   mc.width = ASCII_CW; mc.height = ASCII_CH;
@@ -3003,26 +2938,21 @@ void main(){
   {
     name: 'glitch',
     params: ['intensity','rate','channel','slices','variation','blocks','noise','crush','wave'],
-    // First five match the original glitch exactly (order + meaning) so existing
-    // presets keep working; the new features default punchy for a strong look,
-    // but old presets only carry 5 params so their new uniforms arrive as 0 (off).
+    // First five keep their original order and meaning; appended params arrive
+    // as 0 (off) on older presets.
     def: [.55,.45,.4,.5,.14, .32,.14,.0,.18],
     src: H+`
 // Magnitude-safe hash: pre-wraps inputs into [0,1) so large slice indices
 // (up to per-pixel) and long-running uTime can't overflow mediump float.
 float rn(vec2 c){c=fract(c*vec2(0.1031,0.1030));c+=dot(c,c.yx+19.19);return fract((c.x+c.y)*c.x);}
 // ── macroblock damage ────────────────────────────────────────────────────────
-// Codec corruption is organised, not scattered. One bad motion vector gets
-// reused by a RUN of consecutive macroblocks along the raster scan, so damage
-// arrives as streaks of blocks sharing a displacement, at whatever sizes that
-// slice happened to use. An independent random per cell — what this did before —
-// spreads damage evenly at one fixed size, and that evenness is what reads as
-// confetti rather than glitch. KinoGlitch bakes the same run structure into its
-// noise texture with a hold-until-random-reset raster scan; walking back to the
-// run start is the stateless equivalent.
-//
-// Capped at 8 steps: with a 0.12 break chance the mean run is ~8 cells, so the
-// cap only clips the tail while keeping the per-pixel cost bounded on mobile.
+// Codec corruption is organised, not scattered: one bad motion vector is reused
+// by a RUN of consecutive macroblocks, so damage arrives as streaks sharing a
+// displacement. An independent random per cell spreads it evenly, which reads as
+// confetti. Walking back to the run start is the stateless equivalent of
+// KinoGlitch's hold-until-reset raster scan.
+// Capped at 8 steps: at a 0.12 break chance the mean run is ~8 cells, so the cap
+// clips only the tail and bounds per-pixel cost on mobile.
 float runId(vec2 cell,float ts){
   float x=cell.x;
   for(int k=0;k<8;k++){
@@ -3037,15 +2967,13 @@ vec2 mbGlitch(vec2 uv,float amt,float mbpx,float ts,out float hit){
   vec2 cell=floor(uv*uRes/mbpx);
   float rid=runId(cell,ts);
   float rr=rn(vec2(rid*1.31,cell.y*2.17)+ts);
-  // pow() ahead of the threshold biases hard toward "undamaged", concentrating
-  // corruption in a few places instead of sprinkling it evenly — the
-  // step(thresh,pow(rand,2.5)) shaping out of KinoGlitch's digital glitch.
+  // pow() before the threshold biases toward undamaged, concentrating corruption
+  // rather than sprinkling it. KinoGlitch's step(thresh, pow(rand, 2.5)).
   hit=step(1.001-amt*1.001,pow(rr,2.5));
   if(hit<0.5) return vec2(0.);
-  // Whole-macroblock displacement, snapped to the lattice the way a decoder
-  // applies an integer motion vector. Unsnapped offsets smear; snapped ones
-  // tile, and the tiling is what reads as block damage. Horizontal bias because
-  // raster-order damage propagates sideways.
+  // Whole-macroblock displacement snapped to the lattice, as a decoder applies an
+  // integer motion vector — unsnapped offsets smear instead of tiling.
+  // Horizontally biased because raster-order damage propagates sideways.
   float reach=mix(2.,14.,rn(vec2(rid,ts)))*amt;
   vec2 mv=vec2(rn(vec2(rid,cell.y)+ts),rn(vec2(rid+7.,cell.y)+ts))-0.5;
   mv.x*=3.;
@@ -3056,11 +2984,8 @@ void main(){
   vec2 uv=vU;
   float t=floor(uTime*mix(2.,30.,uP2));
   float sd=uSeed;
-  // Folded copies of t and the seed for the block stages below. mediump only
-  // represents integers exactly to ~2048, and t crosses that inside ten minutes
-  // at a high rate, so adding raw t (or a uSeed in the thousands) to a cell
-  // index quantises the index away and the field goes flat. Wrapping keeps the
-  // cell coordinate alive through the addition.
+  // Folded copies of t and the seed. mediump is exact to ~2048, so adding raw t
+  // or a uSeed in the thousands to a cell index quantises the index away.
   float tw=mod(t,600.);
   float sw=mod(sd,300.);
 
@@ -3086,10 +3011,8 @@ void main(){
     uv.x+=(rn(vec2(slot,t))-.5)*uP1*.6;
 
   // ── macroblock corruption (uP6) ──
-  // Two octaves at different block sizes and different refresh rates, so damage
-  // lands at mixed scales with mixed lifetimes instead of one grid strobing in
-  // lockstep. The coarse octave carries the big torn chunks, the fine one the
-  // ragged edges that sell them.
+  // Two octaves at different block sizes and refresh rates: the coarse one
+  // carries torn chunks, the fine one the ragged edges.
   float blkHit=0.;
   if(uP6>.001){
     float h1=0.,h2=0.;
@@ -3113,23 +3036,19 @@ void main(){
   }
 
   // ── digital dropout (uP7) ──
-  // The failure modes a damaged MPEG/JPEG frame actually shows, in place of
-  // per-pixel snow: a DC-only block (detail gone, flat average colour), a
-  // scrambled-AC block (a DCT basis function showing through as a directional
-  // ripple — the basis-noise trick is KinoDatamosh's), chroma desync, and a
-  // channel roll. Same run structure as the blocks above so dropouts arrive in
-  // bursts, and biased toward already-displaced blocks so the two stages read as
-  // one fault instead of two unrelated noises — the correlation Kino gets by
-  // driving its colour and displacement glitches off a single random channel.
+  // Real MPEG/JPEG failure modes rather than per-pixel snow: DC-only blocks
+  // (flat average colour), scrambled-AC blocks (a DCT basis showing through as a
+  // directional ripple), chroma desync and channel roll. Same run structure as
+  // above, and biased toward already-displaced blocks so the two stages read as
+  // one fault rather than two unrelated noises.
   if(uP7>.001){
     float mbpx=mix(30.,10.,uP7);
     vec2 cell=floor(uv*res/mbpx);
     float ts=floor(tw*0.6)+sw*3.1;
     float rid=runId(cell,ts);
     float dr=rn(vec2(rid*2.7,cell.y*1.9)+ts);
-    // Kept independent of dr: the trigger only fires when dr is near 1, so
-    // deriving the ripple's amplitude from it too would collapse every ripple to
-    // nothing at exactly the moment it became visible.
+    // Independent of dr: the trigger fires when dr is near 1, so deriving
+    // amplitude from it too would collapse every ripple as it became visible.
     float ar=rn(vec2(rid*5.1,cell.y*3.3)+ts);
     if(step(1.001-min(1.,uP7*(1.+blkHit*0.6))*1.001,pow(dr,2.0))>0.5){
       float m=rn(vec2(rid*3.7,cell.y)+ts+11.);
@@ -3263,9 +3182,8 @@ vec3 hue2rgb(float h){
 void main(){
   float block=mix(1.,64.,uP1*uP1);
   vec2 bsz=vec2(block)/uRes;
-  // Block lattice measured from the frame CENTRE. block is a continuous size, so
-  // it never divides the frame evenly — anchored at the corner, animating
-  // block-size marched the whole grid up and to the right.
+  // Lattice measured from the frame CENTRE. block is continuous and never divides
+  // the frame evenly, so a corner anchor makes animating it march the grid.
   vec2 bq=(vU-.5)/bsz;
   vec2 buv=(floor(bq)+.5)*bsz+.5;
   vec3 raw=texture(uTex,buv).rgb;
@@ -3412,12 +3330,10 @@ void main(){
     // as 0 and keeps the mixed look it was saved with. New instances default to
     // block 1, the full 95-character printable ASCII set.
     snapVals: [null,[0,1],null,null,[0,1,2,3,4],null],
-    // variation defaults to 0.45, not 0.2. The charset is sorted by ink coverage
-    // and the glyph index comes straight from brightness, so a flat region of the
-    // image puts every one of its cells on the same character — measured, a flat
-    // patch at variation 0 renders exactly one distinct glyph, and at 0.2 only
-    // ten. 0.45 gives about twenty-two while the shape variety is already at its
-    // ceiling, so pushing further only costs tonal accuracy.
+    // variation defaults to 0.45. The charset is density-sorted and the index
+    // comes from brightness, so a flat region puts every cell on one glyph:
+    // measured, 1 distinct glyph at 0, 10 at 0.2, 22 at 0.45. Past that only
+    // tonal accuracy is lost.
     def: [.3,0.,0.,.45,.25,0.],
     src: H+`uniform sampler2D uAtlas;
 const float N=${ASCII_N}.0, CW=${ASCII_CW}.0, CH=${ASCII_CH}.0;
@@ -3427,10 +3343,8 @@ ${ASCII_BLOCK_GLSL}
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   vec2 cellSz=vec2(mix(4.,96.,uP1)*vec2(CW/CH,1.));
-  // Character cells counted out from the frame CENTRE. cellSz is continuous and
-  // almost never divides uRes evenly, so anchoring the lattice at the corner
-  // made every change of char-size slide the whole grid diagonally — very
-  // obvious under an LFO, where the text crawled instead of resizing in place.
+  // Cells counted from the frame CENTRE. cellSz is continuous and rarely divides
+  // uRes evenly, so a corner anchor slides the grid diagonally as size changes.
   vec2 aCtr=uRes*.5;
   vec2 aQ=(vU*uRes-aCtr)/cellSz;
   vec2 cellId=floor(aQ);
@@ -3439,44 +3353,29 @@ void main(){
   float luma=dot(col,vec3(.299,.587,.114));
   // invert (uP2) picks which end of the density-sorted charset maps to bright.
   float lv=uP2>.5?luma:1.-luma;
-  // variation (uP4) jitters the luma BEFORE it is quantised. The previous form,
-  // idx=mix(lumaIdx,randIdx,uP4), produced a FRACTIONAL glyph index — and since
-  // the atlas lookup below is (idx+pos.x)/N, a fractional index slides the
-  // sampling window off the cell boundary, so each cell drew the right-hand
-  // columns of one glyph beside the left-hand columns of the next. A cell only
-  // came out clean when (randIdx-lumaIdx)*uP4 happened to land on a whole
-  // number, which at the default variation of 0.2 is one cell in five: 80% of
-  // the frame was glyph fragments. Jittering the luma first keeps the index
-  // integral by construction, and keeps glyph density tied to the image so the
-  // picture still reads when variation is high.
-  // rate (uP6): how often each cell is allowed to re-pick its character. At 0
-  // the per-cell randomness is fixed, so a cell only changes glyph when the
-  // image under it changes — the original behaviour. Above 0 the randomness
-  // re-rolls on a time grid, so the character lattice ticks over at a set speed
-  // while the colour keeps being sampled from the video every frame: hold it
-  // slow and a cell sits on one character while its colour drifts with the
-  // footage. Folded with mod() because uTime is unbounded and this lands in a
-  // hash next to a cell index — at mediump a raw uTime would swallow it whole.
+  // variation (uP4) jitters the luma BEFORE quantising, which keeps the glyph
+  // index integral by construction. Mixing two indices instead gives a
+  // FRACTIONAL index, and the atlas lookup (idx+pos.x)/N then straddles two
+  // cells — 80% of the frame drew glyph fragments at the default variation.
+  // rate (uP6): how often a cell may re-pick its character. At 0 the per-cell
+  // randomness is fixed, so a glyph changes only when the image does. Above 0 it
+  // re-rolls on a time grid while colour keeps sampling every frame.
+  // Folded with mod(): uTime is unbounded and lands in a hash beside a cell
+  // index, which mediump would swallow whole.
   float tq=uP6>.001?mod(floor(uTime*mix(0.4,14.,uP6)),512.):0.;
-  // Depth is ADDITIVE, not max(). With max() the rate term was inert whenever
-  // variation was at or above 0.12 — at the default 0.2 the slider changed only
-  // the tick frequency, and between a few hertz and a dozen the eye can barely
-  // tell. It also has to be big enough to matter: the charset is sorted by ink
-  // coverage, so a cell that moves three positions lands on a glyph of nearly
-  // identical weight and the churn reads as a shimmer rather than as characters
-  // changing. 0.6 puts a typical re-roll about ten glyphs along the ramp, which
-  // is far enough to be a different character but near enough that the density
-  // still tracks the image. Exactly the old depth when rate is 0.
+  // Depth is ADDITIVE, not max() — under max() the rate term is inert whenever
+  // variation is at or above 0.12. It also has to be large: the charset is
+  // density-sorted, so a re-roll of three positions lands on a near-identical
+  // glyph and reads as shimmer. 0.6 moves a typical re-roll about ten glyphs.
   float jit=uP6>.001?min(1.,uP4+uP6*0.6):uP4;
   lv=clamp(lv+(hash(cellId+tq)-.5)*jit*.5,0.,1.);
   // charset (uP5) selects a block; the glyph index is an offset within it.
   float bs,bn; blockOf(int(uP5*4.99),bs,bn);
   float idx=bs+clamp(floor(lv*(bn-.01)),0.,bn-1.);
   vec2 pos=fract(aQ);
-  // 2D atlas. highp because the address is a texel index reconstructed from a
-  // normalised coordinate: at the mediump minimum, u carries about 0.4 texels of
-  // error against a 640-texel row, which is close enough to half a texel to
-  // sample the neighbouring glyph's column on a strict mobile GPU.
+  // 2D atlas. highp: the address is a texel index rebuilt from a normalised
+  // coordinate, and mediump carries ~0.4 texels of error against a 640-texel
+  // row — enough to sample the neighbouring glyph's column.
   highp float acol=mod(idx,ACOLS), arow=floor(idx/ACOLS);
   highp vec2 auv=vec2((acol+pos.x)/ACOLS,(arow+pos.y)/AROWS);
   float glyph=texture(uAtlas,auv).r;
@@ -3492,10 +3391,9 @@ void main(){
 vec2 rot2(vec2 p,float a){return vec2(cos(a)*p.x-sin(a)*p.y,sin(a)*p.x+cos(a)*p.y);}
 void main(){
   vec3 col=texture(uTex,vU).rgb;
-  // Screen coordinates relative to the frame CENTRE. This re-anchors two things
-  // at once: the dot lattice, and — more visibly — the rotation pivot, because
-  // rot2() turns about the origin. With raw vU*uRes the angle params swung the
-  // entire screen around the bottom-left corner instead of spinning in place.
+  // Screen coordinates relative to the frame CENTRE, which anchors both the dot
+  // lattice and the rotation pivot — rot2() turns about the origin, so raw
+  // vU*uRes swings the whole screen around the bottom-left corner.
   vec2 hCtr=uRes*.5;
   vec2 p=vU*uRes-hCtr;
   float rSz=mix(2.,28.,uP1*uP1),rA=uP2*3.14159;
@@ -3539,17 +3437,13 @@ void main(){
     def: [0.3],
   },
   {
-    // Stipples the frame with dots that cluster on visual features. The
-    // cornerness measure is Shi-Tomasi -- the smaller eigenvalue of the
-    // structure tensor -- evaluated densely rather than at selected points.
-    // The jittered lattice supplies the minimum-separation property that
-    // goodFeaturesToTrack() gets from its rejection step: one candidate site
-    // per cell, so dots cannot clump, and cell pitch is the density control.
-    //
-    // What this is NOT: the dots do not track. Sparse feature tracking is
-    // stateful and sequential, and a fragment shader has neither per-feature
-    // storage nor access to the previous frame. Chain 'feedback' before this
-    // one for trails that read as motion.
+    // Stipples the frame with dots that cluster on visual features. Cornerness is
+    // Shi-Tomasi (the smaller eigenvalue of the structure tensor), evaluated
+    // densely rather than at selected points. The jittered lattice gives the
+    // minimum-separation that goodFeaturesToTrack() gets from rejection: one
+    // candidate per cell, so dots cannot clump and cell pitch sets density.
+    // The dots do NOT track — a fragment shader has no per-feature storage.
+    // Chain feedback before this one for trails that read as motion.
     name: 'feature-dots',
     usesPrev: true,
     params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','track','settle'],
@@ -3561,12 +3455,11 @@ float fdHash(vec2 p){
   p+=dot(p,p+45.32);
   return fract(p.x*p.y);
 }
-// Lucas-Kanade, dense rather than sparse. The normal equations are
+// Lucas-Kanade, dense rather than sparse:
 //   [Jxx Jxy; Jxy Jyy] [u;v] = -[Jxt; Jyt]
-// and the tensor on the left is the same one cornerness already needs, so the
-// flow solve is nearly free once the previous frame is available. Returns
-// pixels of displacement, clamped: near an edge the tensor is singular along
-// the edge direction (the aperture problem) and the solve blows up.
+// The tensor is the one cornerness already needs, so the solve is nearly free.
+// Returns pixels of displacement, clamped — near an edge the tensor is singular
+// along the edge direction (the aperture problem) and the solve blows up.
 vec2 fdFlow(vec2 p, vec2 px){
   highp float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
   for (int j=-1;j<=1;j++){
@@ -3587,11 +3480,10 @@ vec2 fdFlow(vec2 p, vec2 px){
   return clamp(vec2(float(u),float(v)),-6.,6.);
 }
 
-// A single point gives a rank-1 tensor whose smaller eigenvalue is always
-// zero, so gradients are summed over a 3x3 window taken by forward
-// differences from a 4x4 patch. 16 taps. highp is not optional here: the
-// gradient products land around 1e-2 to 1e-4, which mediump quantises badly
-// enough to band the response into visible steps.
+// A single point gives a rank-1 tensor whose smaller eigenvalue is always zero,
+// so gradients are summed over a 3x3 window from a 4x4 patch — 16 taps.
+// highp is required: the gradient products land at 1e-2 to 1e-4, which mediump
+// bands into visible steps.
 float fdCorner(vec2 p, vec2 px){
   highp float L[16];
   for (int j=0;j<4;j++)
@@ -3620,17 +3512,15 @@ void main(){
   float track  =uP8;
 
   // Flow is spatially smooth over a cell, so it is solved once per fragment
-  // rather than once per candidate site: 4x36 taps becomes 36, which is the
-  // difference between this effect being usable and not.
-  // Lay the lattice out in material space, not screen space. mv is where the
-  // material under this fragment started, so a cell is bound to the stuff it
-  // marked and travels with it -- the dot slides instead of the grid blinking.
+  // rather than per candidate site: 4x36 taps becomes 36.
+  // The lattice is laid out in MATERIAL space, not screen space — mv is where
+  // the material under this fragment started, so a dot slides with what it
+  // marked instead of the grid blinking as features cross it.
   vec2 mv=(track>0.)?texture(uMat,vU).xy:vU;
   if (mv.x==0.&&mv.y==0.) mv=vU;            // field not seeded yet
 
-  // Dot lattice counted out from the frame CENTRE. spacing is continuous, so
-  // anchored at the corner every change of it dragged the whole dot field
-  // diagonally rather than letting the dots spread in place.
+  // Lattice counted from the frame CENTRE: spacing is continuous, so a corner
+  // anchor drags the whole dot field diagonally as it changes.
   vec2 shCtr=uRes*.5;
   vec2 gp=(mv*uRes-shCtr)/spacing;
   vec2 base=floor(gp);
@@ -3639,13 +3529,10 @@ void main(){
   float cov=0.;
   float reach=dotR+.15;
 
-  // 5x5 sweep around the fragment's own cell. Each site that survives the
-  // distance reject costs a 16-tap tensor, so this is the expensive loop --
-  // drop RES to 1/2 if it will not hold framerate.
-  // The +-2 window is also what bounds jitter: a site displaced by more than
-  // ~2 cells could not be found by the fragments it now covers. jit maxes at
-  // 2.0, i.e. +-1.0 cell of offset, which stays inside the window with room for
-  // the dot radius on top.
+  // 5x5 sweep around the fragment's cell. Each surviving site costs a 16-tap
+  // tensor, so this is the expensive loop — drop RES to 1/2 if it will not hold.
+  // The +-2 window also bounds jitter: a site displaced more than ~2 cells could
+  // not be found by the fragments it covers. jit maxes at 2.0 (+-1.0 cell).
   for (int oy=-2;oy<=2;oy++){
   for (int ox=-2;ox<=2;ox++){
     vec2 c=base+vec2(float(ox),float(oy));
@@ -3682,9 +3569,9 @@ void main(){
     snapVals: [null,null,null,null,null,[0,1,2,3,4],null],
     def: [.35,.35,.0,.55,.2,.0,.0],
     src: H+`
-// Magnitude-safe hash: pre-wraps its input into [0,1) so a large cell index or a
-// folded time step can't overflow mediump. The sin(dot())*43758 form used
-// elsewhere in this file produces ~2e6, which is past fp16's ceiling.
+// Magnitude-safe hash: pre-wraps input into [0,1) so a large cell index or folded
+// time step cannot overflow mediump. The sin(dot())*43758 form used elsewhere in
+// this file produces ~2e6, past fp16's ceiling.
 vec2 hash2(vec2 p){
   p=fract(p*vec2(.1031,.1030));
   p+=dot(p,p.yx+33.33);
@@ -3699,8 +3586,8 @@ void main(){
   vec2 g=vU*cells, cid=floor(g), f=fract(g);
 
   // rate: how often the arrangement re-rolls; 0 holds it still. highp because
-  // uTime is unbounded, then folded because this lands next to a cell index
-  // inside a hash and a big number there would swallow the index whole.
+  // uTime is unbounded, then folded because it lands beside a cell index in a
+  // hash, where a large value swallows the index.
   highp float tt=uTime*mix(.25,8.,uP5);
   float ts=uP5>.001?mod(floor(tt),256.):0.;
 
@@ -3714,9 +3601,8 @@ void main(){
   if(md==0){
     if(on) src=cid+floor((hash2(cid+ts)-.5)*2.*reach);        // scatter
   }else if(md==1){
-    // swap — a true involution, so the frame stays a permutation of itself and
-    // nothing is duplicated or lost. Pair each cell with its neighbour and let
-    // one shared random decide whether that pair trades places.
+    // swap is a true involution — the frame stays a permutation, nothing
+    // duplicated or lost. One shared random decides whether a pair trades.
     vec2 pair=floor(cid*.5);
     if(hash1(pair+ts)<uP4)      src.x=cid.x+(mod(cid.x,2.)<1.?1.:-1.);
     if(hash1(pair+ts+7.)<uP4*.6) src.y=cid.y+(mod(cid.y,2.)<1.?1.:-1.);
@@ -3747,9 +3633,8 @@ void main(){
 
   vec3 col=texture(uTex,clamp((src+ff)/cells,0.,1.)).rgb;
 
-  // seam: darken a border inside each cell so the grid reads as laid tiles.
-  // Uses f, not ff, so the seam follows the on-screen grid rather than the
-  // shuffled contents.
+  // seam darkens a border inside each cell so the grid reads as laid tiles.
+  // Uses f, not ff, so it follows the screen grid, not the shuffled contents.
   if(uP7>.001){
     vec2 e=min(f,1.-f);
     col*=smoothstep(0.,uP7*.25,min(e.x,e.y));
@@ -3760,13 +3645,10 @@ void main(){
 
 const PASS_SRC = H+`void main(){ FC=texture(uTex,vU); }`;
 
-// Advects a material-coordinate field. Each texel stores the uv the material
-// now at this position started from. Dots are then laid out on a lattice in
-// THAT space rather than in screen space, so a dot stays attached to whatever
-// it marked and slides with it -- instead of the cell lighting up and going
-// dark as features cross a fixed grid, which reads as jumping.
-//
-// uP1 flow gain, uP2 relax rate. Relaxation is essential: without it the field
+// Advects a material-coordinate field: each texel stores the uv the material now
+// at this position started from. Dots are laid out on a lattice in THAT space,
+// so a dot stays attached to what it marked.
+// uP1 flow gain, uP2 relax rate. Relaxation is essential — without it the field
 // shears without bound and the lattice tears itself apart within seconds.
 const ADVECT_SRC = H+`
 uniform sampler2D uMat;
@@ -3834,9 +3716,8 @@ void main(){
   if(uP3>.5) uv.x=1.-uv.x;
   FC=texture(uTex,clamp(uv,0.,1.));}`;
 
-// Which shaders actually sample the audio textures. uAudioLvl is a plain float
-// and does not require the per-frame texture upload, so it is excluded.
-// Recomputed by the ?dev reloader when a source is swapped.
+// Which shaders sample the audio textures, so the per-frame upload can be gated.
+// uAudioLvl is a plain float and is excluded. Recomputed by the ?dev reloader.
 function markAudioUse(s) { s.usesAudioTex = /uAudio(?!Lvl)/.test(s.src || ''); return s; }
 GEN.forEach(markAudioUse);
 FX.forEach(markAudioUse);
@@ -3844,10 +3725,8 @@ FX.forEach(markAudioUse);
 // ── WebGL init ────────────────────────────────────────────────────────────────
 
 const cv = document.getElementById('c');
-// captureStream() reads composited frames, so preserveDrawingBuffer is not
-// required for export on Chrome/Safari - and leaving it on costs real time on
-// tile-based GPUs (Apple Silicon included) because the backbuffer can't be
-// discarded. If video export ever comes out black, flip this back to true.
+// captureStream() reads composited frames, so this is not needed for export,
+// and it costs real time on tile-based GPUs. Flip to true if export is black.
 const PRESERVE_DRAWING_BUFFER = false;
 const gl = cv.getContext('webgl2', { antialias:false, powerPreference:'high-performance', preserveDrawingBuffer:PRESERVE_DRAWING_BUFFER });
 
@@ -3856,6 +3735,7 @@ if (!gl) {
   throw new Error('no webgl2');
 }
 
+// Compiles one shader stage; logs an annotated source listing on failure.
 function compileShader(src, type) {
   const s = gl.createShader(type);
   gl.shaderSource(s, src);
@@ -3869,6 +3749,7 @@ function compileShader(src, type) {
   return s;
 }
 
+// Links a vertex+fragment pair and caches every uniform location on the program.
 function makeProgram(fragSrc) {
   const vs = compileShader(VERT, gl.VERTEX_SHADER);
   const fs = compileShader(fragSrc, gl.FRAGMENT_SHADER);
@@ -3902,6 +3783,7 @@ function genProg(i) {
   if (genProgs[i] === undefined) genProgs[i] = GEN[i]?.src ? makeProgram(GEN[i].src) : null;
   return genProgs[i];
 }
+// Lazily compiled program for FX[i]; null if the shader failed to build.
 function fxProg(i) {
   if (fxProgs[i] === undefined) fxProgs[i] = FX[i]?.src ? makeProgram(FX[i].src) : null;
   return fxProgs[i];
@@ -3934,6 +3816,7 @@ for (let i = 0; i < ASCII_N; i++) {
   _atlasCtx.restore();
 }
 
+// An RGBA texture with clamped edges and linear filtering.
 function makeTex() {
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
@@ -3944,19 +3827,17 @@ function makeTex() {
   return t;
 }
 
-// Every GPU-side object, in one place, so a lost context can be rebuilt.
-// The ASCII atlas is re-uploaded from the existing 2D canvas rather than
-// re-rasterised - the glyph measurement work does not need repeating.
-// Source-texture bookkeeping. Declared up here because buildGLResources() below
-// resets it and runs immediately — a `let` further down the file would be in TDZ.
+// Every GPU-side object in one place, so a lost context can be rebuilt.
+// The ASCII atlas is re-uploaded from its 2D canvas, not re-rasterised.
+// Source-texture size cache. Declared here because buildGLResources() resets it
+// and runs immediately; a `let` further down would be in TDZ.
 const USE_TEXSUBIMAGE = true;
 let _vidTexW = 0, _vidTexH = 0, _vidTexErrShown = false;
 
+// (Re)creates every GPU object. Also runs on context restore.
 function buildGLResources() {
-  // Compiled on first use, not up front. Eagerly building all 32 programs blocked
-  // the main thread before the first frame — and again on every context restore —
-  // for a set most sessions never fully touch. A hole means "not tried yet";
-  // null means "tried and failed", so a broken shader isn't retried every frame.
+  // Compiled on first use. A hole means "not tried yet", null means "tried and
+  // failed" — so a broken shader is not recompiled every frame.
   genProgs = new Array(GEN.length);
   fxProgs  = new Array(FX.length);
 
@@ -4016,12 +3897,8 @@ let fboTexHold = null, fboHold = null;  // sample-and-hold frozen frame
 // the right size long after makeFBO() ran.
 let _fbW = 0, _fbH = 0;
 
-// Returns [fb, tex], or null if the driver would not give us the memory.
-//
-// This used to return the pair unconditionally without checking anything, so a
-// failed allocation on a large display produced a framebuffer that silently
-// rendered black — no error, no message, nothing to diagnose from a stage.
-// ensureMat() had checked its status since it was written; this path never did.
+// Returns [fb, tex], or null if the driver refused the allocation.
+// Checked because an unchecked failure renders black with no diagnostic.
 function _makeAttached() {
   while (gl.getError() !== gl.NO_ERROR) {}   // clear stale errors first
   const tex = makeTex();
@@ -4036,6 +3913,7 @@ function _makeAttached() {
   return [fb, tex];
 }
 let _allocWarned = false;
+// Logs an allocation failure and toasts once per session.
 function _allocFail(what) {
   console.warn(`recur: framebuffer allocation failed (${what}) at ${_fbW}x${_fbH}`);
   if (_allocWarned) return;
@@ -4043,40 +3921,29 @@ function _allocFail(what) {
   try { toast('GPU out of memory - lower RES or CAP'); } catch (e) {}
 }
 
+// Deletes a framebuffer and its attached texture together.
 function _dropFBO(fb, tex) {
   if (fb)  gl.deleteFramebuffer(fb);
   if (tex) gl.deleteTexture(tex);
 }
 
-// Only fbo/fbo2/fbo3 are needed by every path. The other four RGBA8 buffers and
-// the RG16F pair each serve one specific effect, and allocating all of them up
-// front cost well over 200MB of texture at Retina resolution whether or not the
-// chain used any of them — enough for iOS Safari to discard the tab. They are
-// created the first time their effect actually runs, and kept until the next
-// resize or context restore (toggling an effect on and off should not thrash
-// the allocator).
-// Callers already null-check the buffer, so a failed allocation degrades to
-// "that effect does nothing" rather than to a black frame.
+// fbo/fbo2/fbo3 are needed by every path. The other four RGBA8 buffers and the
+// RG16F pair each serve one effect and are allocated on first use — allocating
+// all of them costs 200MB+ at Retina, enough for iOS Safari to drop the tab.
+// Callers null-check, so a failed allocation disables that effect, not the frame.
 function _lazy(cur, what) { if (cur) return null; const p = _makeAttached(); if (!p) _allocFail(what); return p; }
 function ensureFx()   { const p = _lazy(fboFx,   'fx');   if (p) [fboFx,   fboTexFx]   = p; }
 function ensureHist() { const p = _lazy(fboHist, 'hist'); if (p) [fboHist, fboTexHist] = p; }
 function ensureHold() { const p = _lazy(fboHold, 'hold'); if (p) [fboHold, fboTexHold] = p; }
 function ensurePrev() { const p = _lazy(fboPrev, 'prev'); if (p) [fboPrev, fboTexPrev] = p; }
 
-// ── D: give the optional buffers back ────────────────────────────────────────
-// fboFx / fboHist / fboHold / fboPrev are allocated the first time the chain
-// wants them and used to live until the next resize, so one pass through a
-// feedback patch left a full-canvas buffer resident for the rest of the session.
-// At 5K that is 169 MB of stickiness. Reclaim them the frame after the chain
-// stops asking. The scans are over at most four slots, so this is free next to
-// a single GPU pass and needs no dirty flag to stay correct.
-// Held for REAP_FRAMES before freeing. Double-clicking a slot to bypass it is a
-// performance gesture, and reaping on the first frame the condition goes false
-// would throw away the feedback history — the thing you are bypassing to hear
-// come back — every time. Two seconds of grace costs nothing and makes a tap
-// non-destructive.
+// Frees fboFx / fboHist / fboHold / fboPrev once the chain stops needing them.
+// Scans at most four slots, so it runs every frame and needs no dirty flag.
+// Two seconds of grace before freeing, so a momentary bypass tap does not
+// destroy feedback history.
 const REAP_FRAMES = 120;
 let _reapHist = 0, _reapPrev = 0, _reapHold = 0;
+// Frees optional buffers the chain has stopped needing.
 function reapFBOs() {
   _reapHist = (fboHist && !isFeedback())      ? _reapHist + 1 : 0;
   _reapPrev = (fboPrev && !chainNeedsPrev())  ? _reapPrev + 1 : 0;
@@ -4096,6 +3963,7 @@ function reapFBOs() {
     _reapHold = 0;
   }
 }
+// True if any live FX slot is sample-hold.
 function chainNeedsHold() {
   for (let i = 0; i < fxSlots.length; i++) {
     if (fxSlots[i].off) continue;
@@ -4129,6 +3997,7 @@ function ensureMat() {
   return matOK;
 }
 
+// Reallocates the three core buffers at w x h. Returns false if the driver refused.
 function makeFBO(w, h) {
   _dropFBO(fbo,     fboTex);     fbo     = fboTex     = null;
   _dropFBO(fbo2,    fboTex2);    fbo2    = fboTex2    = null;
@@ -4189,29 +4058,21 @@ cv.addEventListener('webglcontextrestored', () => {
 // 0.75 often looks *better* for this aesthetic - softer, less aliased.
 let renderScale = 1;
 
-// Phones report devicePixelRatio 3 (iPhone) to 4 (some Android flagships).
-// Six framebuffers at native density is tens of megabytes of texture, with
-// several megapixels going through up to seven passes per frame - enough for
-// iOS Safari to discard the tab and for Android to throttle hard. Capping at 2
-// quarters the pixel count on a 4x device and is near-indistinguishable at
-// phone viewing distance.
+// Phones report dPR 3-4. Capping at 2 quarters the pixel count on a 4x device
+// and is indistinguishable at phone viewing distance.
 const MAX_DPR_TOUCH = 2;
 
 // ── Pixel budget ─────────────────────────────────────────────────────────────
-// The canvas used to be sized purely from CSS size x devicePixelRatio, with no
-// ceiling on desktop. Three RGBA8 buffers are always resident and four more plus
-// an RG16F pair are allocated on demand, so a 5K display meant 169 MB resident
-// and 506 MB worst case; a Pro Display XDR, 233 MB and 699 MB. This caps the
-// internal buffer independently of how big the screen is.
-//
-// Separate from RES (renderScale), which is a fraction the user picks. This is
-// an absolute ceiling: below it nothing changes at all, above it both axes are
-// scaled by sqrt(budget / pixels) so the aspect ratio is preserved.
+// Absolute ceiling on the internal buffer, independent of display size. Distinct
+// from RES (renderScale), which is a fraction of the display. Below the ceiling
+// nothing changes; above it both axes scale by sqrt(budget/px), keeping aspect.
+// Bounds GPU memory: uncapped, a 5K display costs 169 MB resident, 506 MB peak.
 const PIXEL_CAPS = { off: 0, '1080p': 1920 * 1080, '4k': 3840 * 2160 };
 let pixelCap = '4k';
 try { const v = localStorage.getItem('recur.pixelCap'); if (v && v in PIXEL_CAPS) pixelCap = v; } catch (e) {}
 let _capActive = false;   // true when the budget is actually biting, for the readout
 
+// Applies the pixel budget and MAX_TEXTURE_SIZE, preserving aspect ratio.
 function capDims(w, h) {
   const budget = PIXEL_CAPS[pixelCap] || 0;
   // MAX_TEXTURE_SIZE is a hard driver limit, not a preference — always applied.
@@ -4223,6 +4084,7 @@ function capDims(w, h) {
   if (!_capActive) return [w, h];
   return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))];
 }
+// Sets the render cap and persists it per device.
 function setPixelCap(v) {
   if (!(v in PIXEL_CAPS)) return;
   pixelCap = v;
@@ -4232,11 +4094,13 @@ function setPixelCap(v) {
 const isCoarsePointer = window.matchMedia
   ? window.matchMedia('(pointer: coarse)').matches : false;
 
+// Device pixel ratio after the touch clamp and render scale.
 function effectiveDpr() {
   const raw = window.devicePixelRatio || 1;
   return (isCoarsePointer ? Math.min(raw, MAX_DPR_TOUCH) : raw) * renderScale;
 }
 
+// Resizes canvas and buffers, halving and retrying if allocation fails.
 function onResize(force) {
   const dpr  = effectiveDpr();
   const rect = cv.getBoundingClientRect();
@@ -4259,6 +4123,7 @@ function onResize(force) {
 // Dragging a window edge fires resize continuously; each event would otherwise
 // tear down and rebuild six textures and six framebuffers.
 let _resizeTimer = null;
+// Debounced onResize for window resize events.
 function scheduleResize() {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(onResize, 120);
@@ -4266,6 +4131,7 @@ function scheduleResize() {
 window.addEventListener('resize', scheduleResize);
 onResize();
 
+// Sets RES, the fraction of display resolution the chain runs at.
 function setRenderScale(v) {
   renderScale = v;
   onResize();
@@ -4276,33 +4142,23 @@ function setRenderScale(v) {
 const MODES = ['SAMPLER', 'SHADER', 'LIVE'];
 let modeIdx   = 1;
 // ── Chain slots ──────────────────────────────────────────────────────────────
-// A chain is an array of SLOT OBJECTS. Everything belonging to one link — which
-// shader, its params, its three modulation tables, its seed, its blend onto the
-// layer below, and whether it is bypassed — lives on the same object, so an
-// insert, a delete or a reorder moves all of it or none of it.
+// A chain is an array of slot objects. Everything belonging to one link lives on
+// the same object, so insert, delete and reorder move all of it or none of it.
 //
-// This replaced 13 parallel arrays plus two Sets of bypassed POSITIONS. Every
-// structural mutation had to touch all fifteen in lockstep, and each of the ten
-// mutation sites wrote that sequence out by hand. They had already drifted:
-// commitReorder's gen branch moved six arrays and left genChainMode and
-// genChainAmt behind, so dragging a GEN slot in the flow strip carried its
-// params, mods and seed to the new position and dropped its blend — while the
-// FX branch six lines below moved all seven. genChainToggle's delete path
-// treated blend as slot-owned, commitReorder treated it as position-owned, and
-// both could not be right. That whole class of bug is gone by construction:
-// there is one array to splice.
+//   idx        index into GEN[] / FX[]. Duplicates allowed within a chain.
+//   params[]   parameter values, one per declared param
+//   audioMod[] / lfoMod[] / midiMod[]   modulation bindings, one per param
+//   seed       per-slot random seed (GEN only; the FX path passes none)
+//   mode       blend onto the layer below — index into BLEND_MODES
+//   amt        blend amount (GEN) or wet/dry (FX, 1 = full effect)
+//   off        bypassed
 //
-// Slot: { idx, params[], audioMod[], lfoMod[], midiMod[], seed, mode, amt, off }
-//   idx   index into GEN[] / FX[]. Duplicates in a chain are allowed.
-//   mode  blend of this slot onto the layer below — index into BLEND_MODES.
-//   amt   blend amount (GEN) or wet/dry (FX, 1 = full effect).
-//   off   bypassed. Was a Set of positions that every splice had to remap.
-//
-// The wire format still speaks the old flat shape — see getState/applyState.
-// Nothing between those two functions sees anything but slots.
+// Mutate only via chainInsert / chainRemove / chainMove.
+// The wire format still speaks a flat shape — see getState / applyState.
 
 const CHAIN_MAX = 4;
 
+// Builds one chain slot from a shader table entry.
 function makeSlot(table, idx, opts = {}) {
   const sh = table[idx];
   return {
@@ -4325,18 +4181,18 @@ function makeSlot(table, idx, opts = {}) {
 const makeGenSlot = (i, o) => makeSlot(GEN, i, o);
 const makeFxSlot  = (i, o) => makeSlot(FX,  i, o);
 
-// The only three places a chain changes shape. Every caller used to inline the
-// cap-and-shift sequence; two of the four copies ordered it differently, which
-// is how nobody noticed the reorder paths had diverged.
+// The only three places a chain changes shape. Nothing else may splice a chain.
 function chainInsert(slots, slot, pos) {
   if (slots.length >= CHAIN_MAX) slots.shift();
   const at = Math.min(Math.max(pos ?? slots.length, 0), slots.length);
   slots.splice(at, 0, slot);
   return at;
 }
+// Removes the slot at pos.
 function chainRemove(slots, pos) {
   slots.splice(pos, 1);
 }
+// Moves a slot to a new position; returns where it landed.
 function chainMove(slots, fromPos, toPos) {
   const [slot] = slots.splice(fromPos, 1);
   const at = toPos > fromPos ? toPos - 1 : toPos;
@@ -4365,30 +4221,20 @@ let vidRate     = 1;      // playbackRate multiplier
 let vidLoopOn   = true;   // restart at the loop boundary when true; pause when false
 let vidPingPong = false;  // bounce direction at the boundary instead of restarting
 const PLAY_EPS  = 0.08;   // keep turnarounds a hair short of the true out/end (EOF stalls MP4)
-// True while an in/out handle is being dragged. The sampler stepper below writes
-// currentTime every frame in ping-pong and reverse, and native playback runs
-// past a seek in forward — so without this the preview seek is overwritten
-// before it can ever be seen.
+// True while an in/out handle is dragged. All three stepping branches and the
+// timeupdate watcher must yield to it, or the preview seek is overwritten.
 let inOutScrubbing = false;
-// Virtual playhead for the seek-driven modes (reverse, ping-pong). Reading
-// vid.currentTime each frame and subtracting a frame's worth looks right but
-// isn't: while a seek is in flight currentTime has not moved, so every frame
-// re-targets from the same stale position and the browser throws the
-// intermediate targets away. At H.264 seek latencies that runs playback at a
-// fraction of the requested rate. This advances at the true rate regardless of
-// how long seeks take, and is only pushed to the element once the last one has
-// landed — you lose displayed frames, which is unavoidable, but not speed.
+// Virtual playhead for the seek-driven modes (reverse, ping-pong). Advances at
+// the true rate regardless of seek latency, and is pushed to the element only
+// once the previous seek lands. Do NOT derive it from vid.currentTime: during an
+// in-flight seek that value has not moved, so every frame retargets from a stale
+// position and the browser discards the intermediates.
 let _stepT = null;
 
-// One seek in flight at a time. Cleared when the decoder actually presents a
-// frame (requestVideoFrameCallback), NOT when the seek algorithm finishes —
-// 'seeked' fires before the picture is composited, so clearing on it would let
-// the seek storm straight back in. Only used as a fallback where rVFC is absent.
-//
-// The watchdog is not optional. A previous divergence-resync guard deadlocked
-// this same code path and had to be reverted, so this one can never wedge: if a
-// frame never arrives the gate reopens after SEEK_WATCHDOG_MS and stepping
-// continues at a floor of ~7 seeks/sec instead of stopping dead.
+// One seek in flight at a time. Cleared when a frame is PRESENTED (rVFC), not on
+// 'seeked' — that fires before compositing and would let the seek storm back in.
+// The watchdog is required: if a frame never arrives the gate reopens after
+// SEEK_WATCHDOG_MS rather than wedging.
 let _seekPending  = false;
 let _seekIssuedMs = 0;
 const SEEK_WATCHDOG_MS = 150;
@@ -4404,6 +4250,7 @@ let _vidTexFresh = false;
 // _seekPending here is what paces the reverse stepper. Registered once from
 // loop(), which always runs, so it survives a clip being loaded later.
 let _framePresentHooked = false;
+// Installs the rVFC upload hook. Idempotent.
 function hookFramePresented() {
   if (_framePresentHooked) return;
   _framePresentHooked = true;
@@ -4411,10 +4258,8 @@ function hookFramePresented() {
     const tick = () => {
       _seekPending = false;
       _vidHasFrame = true;
-      // Upload HERE, which is the one instant a fresh frame is guaranteed to
-      // exist. Uploading only from render() meant every upload landed in the
-      // middle of the next seek, with readyState knocked down to 1 — which is
-      // how 116 presented frames a second reached the texture zero times.
+      // Upload here: the one instant a fresh frame is guaranteed to exist.
+      // From render() alone, every upload lands mid-seek with readyState at 1.
       if (!contextLost && uploadVideoFrame(vid)) _vidTexFresh = true;
       vid.requestVideoFrameCallback(tick);
     };
@@ -4427,27 +4272,22 @@ function hookFramePresented() {
   }
 }
 
+// Advances the virtual playhead and issues a paced seek. Returns boundary hits.
 function stepPlayhead(dt, lo, hi, back) {
-  // Only adopt currentTime when starting fresh. An earlier version also resynced
-  // whenever the two diverged by more than 0.75s, which deadlocked: on slow seeks
-  // the virtual head legitimately runs ahead, got snapped back onto the stale
-  // currentTime every frame, and the picture never moved at all. Anything that
-  // genuinely relocates the clip sets _stepT = null instead.
+  // Adopt currentTime only when starting fresh. Do NOT add a divergence-resync
+  // guard: on slow seeks the virtual head legitimately runs ahead and snapping it
+  // back deadlocks playback. Anything that relocates the clip sets _stepT = null.
   if (_stepT === null) _stepT = vid.currentTime;
   _stepT += back ? -dt : dt;
   let hitHi = false, hitLo = false;
   if (_stepT >= hi) { _stepT = hi; hitHi = true; }
   else if (_stepT <= lo) { _stepT = lo; hitLo = true; }
-  // Issue the next seek only once the previous one has actually PRESENTED a
-  // frame. Firing one per rAF is what froze the picture: each assignment
-  // superseded the one before it, so the decoder never got to present anything.
-  // That is exactly why pausing snapped to the right frame — pausing ends the
-  // storm, and the last seek finally lands. _stepT keeps advancing at the true
-  // rate either way, so this costs displayed frames, never speed.
-  // The watchdog deliberately overrides vid.seeking too. Gating it behind
-  // !vid.seeking would make it unable to fire in the one case it exists for — a
-  // seek that never retires leaves seeking stuck true forever, and the stepper
-  // would stop dead. Re-assigning currentTime mid-seek is legal; it retargets.
+  // Seek only once the previous seek has PRESENTED a frame. One per rAF freezes
+  // the picture: each assignment supersedes the last and nothing is ever
+  // presented. Costs displayed frames, never speed — _stepT advances regardless.
+  // The watchdog overrides vid.seeking on purpose: a seek that never retires
+  // leaves seeking stuck true, which is the exact case it exists for.
+  // Reassigning currentTime mid-seek is legal — it retargets.
   const stalled = _seekPending && (performance.now() - _seekIssuedMs > SEEK_WATCHDOG_MS);
   if (stalled || (!_seekPending && !vid.seeking)) {
     vid.currentTime = _stepT;
@@ -4457,28 +4297,21 @@ function stepPlayhead(dt, lo, hi, back) {
   return { hitHi, hitLo };
 }
 
-// Reverse as a real transport button, mirroring play: press to run backwards,
-// press again to PAUSE. It used to toggle direction instead, which gave the
-// button no distinct engaged state — same glyph either way, so the only feedback
-// was #0a0 going to #0f0 and it read as not responding at all.
-// Direction is still exclusive: the play button forces reversed = false, so the
-// two lamps can never be lit together. Both the R key and the panel button come
-// through here so they cannot drift apart.
+// Reverse is a transport button mirroring play: press to run backwards, press
+// again to pause. Direction is exclusive — play forces reversed = false.
+// The R key and the panel button both route here so they cannot drift.
 function togglePlay() {
   if (MODES[modeIdx] !== 'SAMPLER' || !vid.src) return;
   if (!paused && !reversed) {
     paused = true;
     vid.pause();
   } else {
-    // Play always means FORWARD. This used to be a blind `paused = !paused`,
-    // which meant pressing play while reversing set paused = true and stopped
-    // the clip instead of handing it back to forward playback.
+    // Play always means FORWARD: pressing it while reversing hands playback
+    // back to the forward direction rather than pausing.
     paused   = false;
     reversed = false;
-    // Resuming with the playhead outside the active range is what made play look
-    // dead: parked on the out-point — where dragging the out handle leaves it —
-    // it would run for PLAY_EPS, hit the boundary and stop again. Snap to the
-    // in-point in that case; otherwise carry on from where it sits.
+    // Snap off the boundary before starting, or playback runs for PLAY_EPS,
+    // hits the end and stops again — which reads as a dead button.
     const lo = inPt ?? 0;
     const hi = (outPt ?? vid.duration);
     const t  = vid.currentTime;
@@ -4490,6 +4323,7 @@ function togglePlay() {
   toast(paused ? 'pause' : 'play');
 }
 
+// Run backwards, or pause if already reversing.
 function toggleReverse() {
   if (MODES[modeIdx] !== 'SAMPLER' || !vid.src) return;
   if (reversed && !paused) {
@@ -4499,10 +4333,8 @@ function toggleReverse() {
     reversed = true;
     paused   = false;
     vid.pause();                  // the stepper drives the clip, not native playback
-    // The same trap the play button hit from the other end: resuming with the
-    // playhead parked on the boundary you are heading towards runs for PLAY_EPS,
-    // hits it and stops again, which reads as dead. Going backwards that dead end
-    // is the bottom of the range, so snap to the top.
+    // Same as play, from the other end: snap to the top of the range so
+    // reverse does not immediately hit the bottom and stop.
     const lo = inPt ?? 0;
     const hi = (outPt ?? vid.duration);
     const t  = vid.currentTime;
@@ -4536,6 +4368,7 @@ const cam = document.getElementById('cam');
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
+// Uploads every declared uniform for one draw.
 function setUniforms(prog, tex, params, tex2, seed) {
   const u  = prog.u;
   gl.useProgram(prog);
@@ -4587,16 +4420,11 @@ function setUniforms(prog, tex, params, tex2, seed) {
   gl.uniform1i(u.uFrame, frameCounter);
   gl.uniform1f(u.uTime, (performance.now() - startTime) / 1000);
   if (u.uSeed !== null) gl.uniform1f(u.uSeed, seed != null ? seed : 0);
-  // Every declared param uniform is written every time, padding with 0 for any
-  // the slot does not carry. Uploading only params.length was a real bug: GL
-  // uniforms are per-PROGRAM state and the program is shared by every chain slot
-  // using that shader, so a param a slot never wrote kept whatever the last slot
-  // (or the last preset) left there. Once plasma gained style/detail/contrast/
-  // fold/drift, a preset saved with only the original four params stopped
-  // re-writing uP5-uP9 — so after touching the style slider once, that preset
-  // rendered with a stale style and hard contrast baked in. Since 0 is the
-  // neutral value for every appended param by convention, padding with 0 is what
-  // makes "appending params is preset-safe" actually true rather than assumed.
+  // Writes EVERY declared param uniform, padding with 0. Required: GL uniforms
+  // are per-PROGRAM state and the program is shared by every slot using that
+  // shader, so any uniform a slot skips inherits the previous slot's value.
+  // 0 is the neutral value for appended params, which is what makes appending
+  // a param preset-safe.
   const upl = prog.uParams; const n = params ? params.length : 0;
   for (let i = 0; i < upl.length; i++) {
     if (upl[i] === null || upl[i] === undefined) continue;
@@ -4604,6 +4432,7 @@ function setUniforms(prog, tex, params, tex2, seed) {
   }
 }
 
+// Renders one fullscreen pass of a program into an FBO (or the canvas).
 function drawQuad(prog, tex, params, targetFBO, tex2, seed) {
   if (!prog) return;
   gl.bindFramebuffer(gl.FRAMEBUFFER, targetFBO || null);
@@ -4614,30 +4443,24 @@ function drawQuad(prog, tex, params, targetFBO, tex2, seed) {
   gl.bindVertexArray(null);
 }
 
-// A vertical flip on its own can be done for free by the unpacker, and vidFlipV
-// defaults to true — so without this every session paid a fullscreen pass, every
-// frame, forever. Rotation and horizontal mirror still need the shader: the
-// transform applies rotation *before* the flip, and flipping at upload time would
-// reverse that order and change the result for 90°/270°.
+// A lone vertical flip is free via UNPACK_FLIP_Y_WEBGL, and vidFlipV defaults on.
+// Rotation and mirror still need the shader: the transform rotates before it
+// flips, and flipping at upload would reverse that order at 90°/270°.
 function needsTransformPass() { return vidRot !== 0 || vidMirrorH; }
 
+// Uploads the current frame of a video element into vidTex.
 function uploadVideoFrame(el) {
-  // MEASURED on device, reversing: up0 bail120 with vfc116 and rs1. The decoder
-  // was presenting 116 frames a second and not one of them reached the texture,
-  // because a seek in flight knocks readyState down to HAVE_METADATA (1) and
-  // this guard skipped every upload. The element still holds the frame it last
-  // presented, so readyState >= 2 is the wrong question — "is there a frame to
-  // read" is the right one. Once one has been presented, there always is.
+  // Never gate on readyState alone: an in-flight seek drops it to 1, and the
+  // reverse stepper seeks every frame, so every upload would be skipped.
+  // The right question is whether a frame has been presented.
   const ready = el.readyState >= 2 ||
                 (el === vid && _vidHasFrame && el.videoWidth > 0);
   if (!ready) return false;
   if (el === vid && el.readyState >= 2) _vidHasFrame = true;
-  // The source texture is the one allocation RENDER CAP does not bound: it is
-  // whatever the file is. 1080p costs 8 MB, 4K 33 MB, 8K 132 MB — and this runs
-  // every frame. texImage2D REALLOCATES storage on each call; texSubImage2D
-  // reuses it once the dimensions are known, which matters most on ANGLE/D3D11.
-  // Set USE_TEXSUBIMAGE false if a device dislikes the sub-image path — the
-  // texImage2D branch below is the original behaviour, unchanged.
+  // RENDER CAP does not bound this — the source texture is whatever the file is
+  // (1080p 8 MB, 4K 33 MB, 8K 132 MB) and it uploads every frame. texImage2D
+  // reallocates storage each call; texSubImage2D reuses it once dimensions are
+  // known. Set USE_TEXSUBIMAGE false to fall back to the texImage2D path.
   const vw = el.videoWidth || 0, vh = el.videoHeight || 0;
   gl.bindTexture(gl.TEXTURE_2D, vidTex);
   const flipAtUpload = !needsTransformPass() && vidFlipV;
@@ -4660,11 +4483,9 @@ function uploadVideoFrame(el) {
     // and swap its spectrum and waveform rows.
     if (flipAtUpload) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   }
-  // A source wider than MAX_TEXTURE_SIZE fails here with INVALID_VALUE and the
-  // texture keeps whatever it held — black — with nothing said. There was no
-  // getError anywhere in this path, so an 8K clip on a 4096-limit GPU looked
-  // like a broken app rather than an unsupported file. Reported once: this runs
-  // sixty times a second and getError is a pipeline flush.
+  // A source wider than MAX_TEXTURE_SIZE fails with INVALID_VALUE and the
+  // texture silently keeps its last contents. Reported once only — getError is
+  // a pipeline flush and this runs 60x a second.
   if (!_vidTexErrShown) {
     const err = gl.getError();
     if (err !== gl.NO_ERROR) {
@@ -4695,6 +4516,7 @@ function setBlendSrc(src) {
   toast('blend source: ' + (blendSrc === 'live' ? 'camera' : 'video'));
 }
 
+// The source texture the SHADER blend reads, transformed if needed.
 function getBlendTex() {
   if (blendSrc === 'live') {
     if (!camStream) return null;
@@ -4733,16 +4555,16 @@ function drawBlend(src1, src2, amount, targetFBO, modeOverride) {
   gl.activeTexture(gl.TEXTURE0);
 }
 
+// Clamps genIdx into range after a chain change.
 function syncGenIdx() {
   if (genIdx >= genSlots.length || genIdx < 0) genIdx = genSlots.length - 1;
 }
 
+// Tap on a GEN button: un-bypass, remove, or append.
 function genChainToggle(i) {
   const pos = genSlots.findIndex(sl => sl.idx === i);
-  // SAMPLER/LIVE start with every slot bypassed so the source shows through. A
-  // tap on a bypassed slot means "put this back over the video" — previously it
-  // fell through to the remove branch, which silently did nothing for a
-  // single-entry chain, so gens looked unreachable in those modes.
+  // SAMPLER/LIVE start fully bypassed, so a tap on a bypassed slot means
+  // "put this back over the video" rather than "remove it".
   if (pos >= 0 && genSlots[pos].off) {
     (genSlots[pos].off = false);
     genIdx = pos;
@@ -4793,9 +4615,11 @@ function renderGenChain() {
   return fbtex[accIdx];
 }
 
+// True if the feedback effect is anywhere in the FX chain.
 function isFeedback() {
   return fxSlots.some(sl => FX[sl.idx].name === 'feedback');
 }
+// Chain position of the feedback effect, or -1.
 function feedbackChainIdx() {
   return fxSlots.findIndex(sl => FX[sl.idx].name === 'feedback');
 }
@@ -4864,12 +4688,9 @@ function applyFXChain(src) {
     }
     const atlas = fx.name === 'ascii' ? asciiAtlasTex : null;
     if (needsBlend) {
-      // Render the effect into fbo3 — free once the gen chain has finished, and it
-      // can never alias `cur` — then mix it straight back over the still-intact
-      // input. The old path copied the input to a separate scratch buffer first,
-      // costing a third fullscreen pass per wet/dry slot for nothing.
-      // drawBlend(base, top, ...): base is the dry input, top is the effect output,
-      // so the mode composites wet over dry exactly like a GEN slot over the layer below.
+      // Render into fbo3 (free after the gen chain, and it can never alias `cur`),
+      // then mix back over the intact input — two passes, not three.
+      // drawBlend(base, top): base is dry, top is wet, as with a GEN slot.
       drawQuad(fxProg(fi), cur, ep, fbo3, atlas);
       drawBlend(cur, fboTex3, slotAmt, fbs[pass % 2], slotMode);
       cur = fbtex[pass % 2]; pass++;
@@ -4926,6 +4747,7 @@ function advectMaterial(src, gain, relax) {
   matSeeded = true;
 }
 
+// Runs the FX chain over src, including the feedback and prev-frame paths.
 function renderWithFX(src) {
   _frameSrcTex = chainNeedsPrev() ? src : null;
   if (_frameSrcTex) {
@@ -4956,17 +4778,14 @@ function renderWithFX(src) {
   }
 }
 
-// Composite each gen shader onto the base (video/camera) using per-slot blend modes.
-// genSlots[pos].mode / genSlots[pos].amt control how shader at pos blends onto the layer below.
-// fbo3 is used as scratch for each shader render; fbo/fbo2 ping-pong for accumulation.
-// fboFx holds the initial base if it came from fboTex2 (to prevent clobber).
+// Composites the gen chain onto the base using each slot's mode and amt.
+// fbo3 is scratch per shader; fbo/fbo2 ping-pong the accumulator; fboFx holds
+// the base when it arrived in fboTex2, to avoid clobbering it.
 function blendGenOntoBase(baseTex) {
   const chain = genSlots.map((sl, pos) => ({ gi: sl.idx, pos })).filter(({ pos }) => !genSlots[pos].off);
-  // Nothing to composite: return null so the caller falls back to baseTex. Taking
-  // the protective copy below and returning fboTexFx instead would hand the FX
-  // chain a texture it is about to use as its own wet/dry scratch — a read-write
-  // feedback loop on the same attachment. Reachable by default: vidFlipV starts
-  // true (so baseTex is fboTex2) and entering LIVE bypasses every gen slot.
+  // Return null so the caller falls back to baseTex. Returning fboTexFx here
+  // would hand the FX chain a texture it uses as its own scratch — a read-write
+  // loop on one attachment. Reachable by default in LIVE.
   if (chain.length === 0) return null;
 
   // Protect baseTex from being overwritten — fbo/fbo2 ping-pong the accumulator
@@ -4994,16 +4813,14 @@ function blendGenOntoBase(baseTex) {
   return acc;
 }
 
+// Draws one frame: base layer, gen chain, FX pipeline.
 function render() {
   const mode = MODES[modeIdx];
   reapFBOs();
 
-  // Every mode works the same way: a base layer at the bottom, the gen chain
-  // composited over it with each slot's own blend mode and amount, then the FX
-  // pipeline over the result. The base is the video in SAMPLER, the camera in
-  // LIVE, and in SHADER whichever source the blend picker names — SHADER used to
-  // have no base at all, which left getBlendTex() orphaned and made slot 0's
-  // blend mode meaningless because there was nothing underneath it.
+  // One path for every mode: base layer, gen chain composited over it, then the
+  // FX pipeline. Base is the video in SAMPLER, the camera in LIVE, and in SHADER
+  // whichever source the blend picker names.
   let base = null;
   if (mode === 'SAMPLER') {
     // The frame callback may already have uploaded this frame at the moment it
@@ -5034,6 +4851,7 @@ function render() {
 
 let _lfoViz = null;
 
+// rAF driver: playback stepping, audio, render.
 function loop(ts) {
   // Every GL handle is invalid while the context is gone.
   if (contextLost) { requestAnimationFrame(loop); return; }
@@ -5139,14 +4957,8 @@ const hstEl    = document.getElementById('hst');
 let _spiLastMs = 0;
 let _spiForce  = true;   // force one immediate pass after any discrete action
 
-// #hud is display:none and nothing turns it on, but this ran the full DOM
-// update on those invisible elements every frame — a documented dead cost that
-// has been sitting here for a while. Measured once via offsetParent, not every
-// frame: reading it forces layout, which is the thing being avoided.
-// #hud is display:none and nothing ever turns it on, but the full DOM update ran
-// on those invisible elements every frame — a dead cost documented for a while.
-// Split rather than early-returned: updateHUD() also dispatches updateSPI(), and
-// returning from the top would have taken the whole control panel with it.
+// #hud is display:none and nothing turns it on. Split out of updateHUD() rather
+// than early-returned there — updateHUD() also dispatches updateSPI().
 function _paintHud() {
   const mode = MODES[modeIdx];
 
@@ -5231,18 +5043,15 @@ function _paintHud() {
 }
 
 let _hudLive = null;
+// Per-frame UI dispatch. Paints the HUD if visible, throttles updateSPI.
 function updateHUD() {
-  // Computed display, not offsetParent: offsetParent is null for a position:fixed
-  // element even when it is perfectly visible, so that test would report "hidden"
-  // the moment anyone gave #hud a position. Read once and remembered either way —
-  // both force layout.
+  // Computed display, not offsetParent — the latter is null for position:fixed
+  // even when visible. Read once: it forces layout.
   if (_hudLive === null) _hudLive = !!hudEl && getComputedStyle(hudEl).display !== 'none';
   if (_hudLive) _paintHud();
 
-  // The panel walks 32 grid buttons, both mod arrays and every param row. It is
-  // all dirty-checked, but running it once per frame competes with a chain that
-  // can be 25 fullscreen passes deep. 30Hz is indistinguishable on sliders and
-  // caps the cost regardless of how fast the render loop is going.
+  // 30Hz. The panel walks 32 grid buttons, both mod arrays and every param row;
+  // dirty-checked, but not worth running against a 25-pass chain every frame.
   const _now = performance.now();
   if (_spiForce || _now - _spiLastMs >= 33) {
     _spiLastMs = _now;
@@ -5257,10 +5066,8 @@ let toastTimer = null;
 const toastEl  = document.getElementById('toast');
 
 // ── Diagnostic overlays ──────────────────────────────────────────────────────
-// There was no timing instrumentation in this file at all, which meant a user
-// reporting "it's slower on Windows" could not be answered with anything but
-// speculation — and the project's own hardest bug took four sessions of theory
-// and one second of counters. These are the counters.
+// P = frame timing, I = GPU and platform report. Both toggleable, both intended
+// for answering "it runs slower on my machine" with numbers.
 
 const perfEl = document.getElementById('perf-overlay');
 const diagEl = document.getElementById('diag-overlay');
@@ -5270,6 +5077,7 @@ let perfOn = false, diagOn = false;
 // is, and a mean alone hides a 90 ms hitch every second inside a healthy 16.8.
 const _pf = { t: [], last: 0, acc: 0, fps: 0, mean: 0, max: 0, long: 0, shown: 0 };
 
+// Records one frame delta and repaints the perf overlay twice a second.
 function perfSample(ts) {
   if (!perfOn) return;
   if (_pf.last) {
@@ -5296,6 +5104,7 @@ function perfSample(ts) {
   _pf.long = 0;
 }
 
+// Estimated resident GPU memory, mirroring the real allocation.
 function _bufMB() {
   // Matches the allocation in makeFBO/_lazy/ensureMat: three RGBA8 always, the
   // four optional ones only when live, plus the RG16F pair.
@@ -5307,6 +5116,7 @@ function _bufMB() {
   return bytes / 1048576;
 }
 
+// Renders the perf overlay text.
 function perfPaint() {
   if (!perfEl) return;
   const cls = _pf.mean > 33.3 ? 'pf-bad' : _pf.mean > 16.8 ? 'pf-warn' : '';
@@ -5321,6 +5131,7 @@ function perfPaint() {
     `chain   ${gen} gen / ${fx} fx`;
 }
 
+// Shows/hides the perf overlay.
 function togglePerf() {
   perfOn = !perfOn;
   perfEl.classList.toggle('vis', perfOn);
@@ -5328,10 +5139,9 @@ function togglePerf() {
   if (perfOn) perfPaint();
 }
 
-// Everything needed to answer "why is it slower on that machine" without a
-// round trip. mediump precision is the one people never think to check: it is a
-// genuine fp16 on Apple Silicon (fast) and promoted to fp32 through ANGLE on
-// Windows (not), which is a real cross-platform difference in the same shaders.
+// GPU and platform report, copyable. The mediump line matters most: 10 bits is
+// true fp16 (Apple Silicon, ~2x throughput), 23 is fp32 (ANGLE on Windows) —
+// a real cross-platform speed difference from identical shaders.
 function diagReport() {
   const dbg = gl.getExtension('WEBGL_debug_renderer_info');
   const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
@@ -5365,6 +5175,7 @@ function diagReport() {
   return L.map(([k, v]) => k.padEnd(12) + v).join('\n');
 }
 
+// Shows/hides the system info overlay and builds its report.
 function toggleDiag() {
   diagOn = !diagOn;
   diagEl.classList.toggle('vis', diagOn);
@@ -5381,6 +5192,7 @@ function toggleDiag() {
   diagEl.appendChild(btn);
 }
 
+// Transient status message, bottom of screen.
 function toast(msg) {
   toastEl.textContent = msg.toUpperCase();
   toastEl.classList.add('on');
@@ -5397,11 +5209,13 @@ const STEP = 0.025;
 // Track 0-key state for IN → OUT → CLEAR cycle
 let inOutState = 0; // 0=next sets IN, 1=next sets OUT, 2=next clears
 
+// Clamps fxIdx into range, or -1 when the chain is empty.
 function syncFxIdx() {
   if (fxSlots.length === 0) { fxIdx = -1; return; }
   if (fxIdx >= fxSlots.length || fxIdx < 0) fxIdx = fxSlots.length - 1;
 }
 
+// Tap on an FX button: remove if present, otherwise append.
 function fxChainToggle(i) {
   const pos = fxSlots.findIndex(sl => sl.idx === i);
   if (pos >= 0) {
@@ -5415,6 +5229,7 @@ function fxChainToggle(i) {
   feedbackInit = false;
 }
 
+// Nudges the selected parameter of the active layer.
 function adjParam(delta) {
   const mode = MODES[modeIdx];
   let arr, shader;
@@ -5434,6 +5249,7 @@ function adjParam(delta) {
   }
 }
 
+// Advances the parameter selection, wrapping through the blend rows.
 function cycleParam() {
   const mode = MODES[modeIdx];
   let shader;
@@ -5445,6 +5261,7 @@ function cycleParam() {
   toast('param: ' + shader.params[selParam]);
 }
 
+// Steps the FX chain's last slot to the previous shader.
 function prevFX() {
   const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : 0;
   const next = cur <= 0 ? FX.length - 1 : cur - 1;
@@ -5452,6 +5269,7 @@ function prevFX() {
   toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
+// Steps the FX chain's last slot to the next shader.
 function nextFX() {
   const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : -1;
   const next = (cur + 1) % FX.length;
@@ -5459,6 +5277,7 @@ function nextFX() {
   toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
+// Clears the entire FX chain.
 function toggleFX() {
   fxSlots = [];
   syncFxIdx();
@@ -5466,6 +5285,7 @@ function toggleFX() {
   toast('fx: off');
 }
 
+// Number-key gen shader select.
 function handleSlot(n) {
   // Keys 4-9: n is 4..9
   const mode = MODES[modeIdx];
@@ -5480,6 +5300,7 @@ function handleSlot(n) {
   // SAMPLER/LIVE: no slot function — silently ignore
 }
 
+// 0 key: in -> out -> clear in SAMPLER/LIVE, next gen in SHADER.
 function handleZero() {
   const mode = MODES[modeIdx];
   if (mode === 'SHADER') {
@@ -5510,6 +5331,7 @@ function handleZero() {
   }
 }
 
+// Adds or removes the feedback effect with trail-friendly defaults.
 function toggleTrail() {
   const feedbackIdx = FX.findIndex(s => s.name === 'feedback');
   if (feedbackIdx < 0) return;
@@ -5592,6 +5414,11 @@ document.addEventListener('keydown', e => {
   }
 
   // ── . : toggle trail/feedback ───────────────────────────────────────────
+  // [ / ] : step through the preset bank. Both were free, and they sit next to
+  // each other on every layout, which is what a live control needs.
+  if (c === 'BracketLeft')  { stepPreset(-1); e.preventDefault(); return; }
+  if (c === 'BracketRight') { stepPreset(+1); e.preventDefault(); return; }
+
   if (c === 'NumpadDecimal' || c === 'Period') {
     toggleTrail(); e.preventDefault(); return;
   }
@@ -5643,10 +5470,9 @@ try {
   if (saved === 'user' || saved === 'environment') camFacing = saved;
 } catch {}
 
-// Set while a deliberate switch is in flight. Stopping the old track fires
-// 'ended', which would otherwise send onCameraLost() off to reacquire the OLD
-// facing mode, racing the new request -- and on iOS two concurrent
-// getUserMedia calls fight, giving a black frame or the wrong camera.
+// Set while a deliberate camera switch is in flight. Stopping the old track
+// fires 'ended', which would otherwise have onCameraLost() reacquire the OLD
+// facing mode and race the new request.
 let _camSwitching = false;
 
 async function switchCamera() {
@@ -5720,12 +5546,11 @@ async function startCamera(facing) {
   }
 }
 
-// True once the camera has started successfully in this session. Used to decide
-// whether reacquiring on foreground is a resumption (silent where permission
-// persists) or an unsolicited prompt, which we never spring on someone.
+// True once the camera has started successfully. Gates reacquisition.
 let camWasActive = false;
 let _camRetrying = false;
 
+// Watches a camera track so a lost device can be reacquired.
 function watchCamTrack(stream) {
   stream.getVideoTracks().forEach(track => {
     track.addEventListener('ended', () => onCameraLost());
@@ -5739,6 +5564,7 @@ function watchCamTrack(stream) {
   });
 }
 
+// Reacquires the camera if it was already working.
 function onCameraLost() {
   if (_camSwitching) return;                  // we stopped it on purpose
   if (!camStream) return;                     // already handled
@@ -5751,10 +5577,8 @@ function onCameraLost() {
   }
 }
 
-// Reacquire only if the camera was already working, so this can never be the
-// first prompt someone sees. Safari does not persist camera permission, so a
-// resumption there may re-prompt; unavoidable, and still better than a
-// permanently frozen frame.
+// Reacquire only if the camera was already working, so this is never the first
+// permission prompt. Safari may re-prompt — it does not persist the grant.
 async function tryReacquireCamera() {
   if (_camRetrying || camStream || !camWasActive) return;
   if (MODES[modeIdx] !== 'LIVE') return;
@@ -5774,12 +5598,14 @@ document.addEventListener('visibilitychange', () => {
   tryReacquireCamera();
 });
 
+// Camera failure modal, with the reason.
 function showCamError(msg) {
   const el = document.getElementById('cam-error-msg');
   if (el) el.textContent = msg;
   document.getElementById('cam-error-overlay').classList.add('vis');
 }
 
+// Stops every camera track and clears the element.
 function stopCamera() {
   if (!camStream) return;
   camStream.getTracks().forEach(t => t.stop());
@@ -5789,12 +5615,9 @@ function stopCamera() {
 
 // ── Randomise ─────────────────────────────────────────────────────────────────
 // Fills both chains with fresh shaders, values, blend modes and LFO movement.
-//
-// Blend modes are drawn from a WEIGHTED bag, not uniformly. multiply, darken and
-// burn each remove light, so a uniform pick puts one of them in a four-deep
-// chain most of the time and three in a row leave a black frame. Slot 0 is
-// forced to normal at full amount because it composites onto black, where any
-// subtractive mode is an immediate blackout regardless of what follows.
+// Blend modes come from a WEIGHTED bag: multiply/darken/burn remove light, and a
+// uniform pick blacks out a four-deep chain most of the time. Slot 0 is forced to
+// normal at full amount — it composites onto black.
 const RND_MODES = [0,0,0,0, 1,1, 2,2, 5, 7, 4];  // normal ×4, add ×2, screen ×2, lighten, overlay, difference
 const _rnd  = (a, b) => a + Math.random() * (b - a);
 const _rndI = n => Math.floor(Math.random() * n);
@@ -5821,6 +5644,7 @@ function _rndParams(sh) {
   });
 }
 
+// Fills both chains with fresh shaders, values, blends and LFO movement.
 function randomiseAll() {
   const gPick = _pickDistinct(GEN.length, 4);
   const fPick = _pickDistinct(FX.length, 4);
@@ -5841,12 +5665,9 @@ function randomiseAll() {
   }));
   fxIdx = 0;
 
-  // Shape, period and amp only. offset is left alone, and skew/curve stay at
-  // their 0.5 identity — warping the phase of an already-random shape makes the
-  // motion impossible to read as any particular waveform. Both the free-running
-  // period and the BPM beat index are set so this lands either way, and
-  // lfoUseBpm is NOT touched: whether you are running to a clock is your choice,
-  // not something a randomiser should overturn.
+  // Shape, period and amp only. skew/curve stay at their 0.5 identity — warping
+  // an already-random shape makes the motion unreadable. Period and beat index
+  // are both set so it lands either way. lfoUseBpm is deliberately not touched.
   lfos.forEach((l, i) => {
     l.shape  = _rndI(LFO_SHAPE_NAMES.length);
     l.amp    = _rnd(0.15, 0.7);
@@ -5880,22 +5701,18 @@ function randomiseAll() {
   toast('randomised');
 }
 
+// Bypasses every gen slot, leaving the chain intact.
 function disableAllGenShaders() {
   genSlots.forEach(sl => { sl.off = true; });
 }
 
-// Single entry point for every interactive mode change — the ENTER key, the MODE
-// button, the three set-mode buttons and toggleCamera all came through here
-// after each having its own copy of this, which is how SAMPLER ended up without
-// the gen bypass that LIVE had.
+// Single entry point for every interactive mode change: ENTER, the MODE button,
+// the three set-mode buttons and toggleCamera. Do not add a fourth copy.
 //
-// Arriving in SAMPLER or LIVE shows the source straight through. Both modes are
-// about the source, so landing in one with the shader stack painted over the top
-// hides the thing you just switched to look at. The bypass is positional and the
-// chain is left intact, so the blend button puts it straight back.
+// SAMPLER and LIVE arrive with the gen chain bypassed so the source shows
+// through. The chain is left intact, so the blend button restores it.
 //
-// Deliberately NOT used by applyState(): a preset carries its own bypass set
-// and has to be restored exactly as saved, not overwritten by this policy.
+// NOT used by applyState(): a preset carries its own bypass set.
 function setMode(m) {
   const i = MODES.indexOf(m);
   if (i < 0) return Promise.resolve();
@@ -5909,13 +5726,9 @@ function setMode(m) {
     if (m === 'SAMPLER') {
       disableAllGenShaders();
     } else if (genSlots.length && genSlots.every(sl => sl.off)) {
-      // The mirror of the above, and not optional now that SAMPLER bypasses too.
-      // SHADER exists to show the gen stack; arriving with every slot bypassed
-      // renders the bare source — or black, with no source — in the one mode
-      // where the shaders are the point. SAMPLER and LIVE both leave exactly
-      // that state behind and the ENTER cycle runs SAMPLER -> SHADER, so this is
-      // the common path, not an edge case. Only the all-off state is cleared: a
-      // partial per-slot bypass set from the flow strip is deliberately kept.
+      // SHADER exists to show the gen stack, and SAMPLER/LIVE leave every slot
+      // bypassed — the common path, since ENTER cycles SAMPLER -> SHADER.
+      // Only the all-off state is cleared; a partial bypass set is kept.
       genSlots.forEach(sl => { sl.off = false; });
     }
   }
@@ -5979,31 +5792,31 @@ const lfoBeatIdx = [3, 4, 5];  // default 1, 2, 4 beats
 
 let _tapTimes = [];
 
+// Formats a BPM value for display.
 function bpmToLabel(b) { return b.toFixed(1) + ' BPM'; }
+// An LFO's period in seconds, from either the free rate or the BPM clock.
 function lfoEffPeriod(idx) {
   if (lfoUseBpm[idx]) return BPM_BEATS[lfoBeatIdx[idx]] * 60 / globalBpm;
   return lfos[idx].period;
 }
 
-// skew warps phase before the shape is evaluated — a piecewise-linear remap that
-// sends `k` to the halfway point. One warp covers every shape coherently: a
-// triangle's peak slides toward either end (so it becomes a ramp up or a ramp
-// down), a square's duty cycle becomes k, and a sine gains a fast rise and slow
-// fall. Identity at 0.5, so an LFO saved before skew existed is unaffected.
+// skew warps phase before the shape is evaluated: a piecewise-linear remap
+// sending `k` to the halfway point. Triangle peak slides, square duty becomes k,
+// sine gains fast rise / slow fall. Identity at 0.5.
 function lfoSkewPhase(phase, skew) {
   const k = Math.min(0.98, Math.max(0.02, skew ?? 0.5));
   return phase < k ? (phase / k) * 0.5 : 0.5 + (phase - k) / (1 - k) * 0.5;
 }
-// curve bends the trajectory between the extremes: below 0.5 the value
-// accelerates toward the peak (spiky, fast attack), above it decelerates
-// (plateaued). Applied to the unipolar output so it works on every shape,
-// including the held value of S&H. Exactly linear at 0.5.
+// curve bends the trajectory: below 0.5 accelerates toward the peak (spiky),
+// above decelerates (plateaued). Applied to the unipolar output so it covers
+// every shape including S&H. Linear at 0.5.
 function lfoCurve(u, curve) {
   const c = curve ?? 0.5;
   if (Math.abs(c - 0.5) < 1e-4) return u;
   return Math.pow(Math.max(0, u), Math.pow(4, (0.5 - c) * 2));
 }
 
+// Evaluates one LFO shape at a phase in 0..1.
 function lfoWave(shape, phase) {
   switch (shape) {
     case 0: return Math.sin(phase * Math.PI * 2);
@@ -6014,6 +5827,7 @@ function lfoWave(shape, phase) {
   }
 }
 
+// Current value of LFO idx, with skew, curve, amp and offset applied.
 function lfoVal(idx) {
   const lfo = lfos[idx];
   const period = lfoEffPeriod(idx);
@@ -6032,6 +5846,7 @@ function lfoVal(idx) {
   return (lfo.offset ?? 0) + lfoCurve((bipolar + 1) * 0.5, lfo.curve) * lfo.amp;
 }
 
+// Repaints every LFO control from state.
 function syncAllLfos() {
   // copy LFO 0 period/mode to LFOs 1 and 2, then reset all phases
   for (let i = 1; i < 3; i++) {
@@ -6049,6 +5864,7 @@ function syncAllLfos() {
   for (let i = 0; i < 3; i++) lfoPhaseOffset[i] = now;
 }
 
+// LFO bindings for the layer being edited.
 function currentLfoArr() {
   const mode = MODES[modeIdx];
   if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].lfoMod;
@@ -6056,6 +5872,7 @@ function currentLfoArr() {
   return null;
 }
 
+// MIDI bindings for the layer being edited.
 function currentMidiArr() {
   const mode = MODES[modeIdx];
   if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].midiMod;
@@ -6063,6 +5880,7 @@ function currentMidiArr() {
   return null;
 }
 
+// Tears down the audio graph and stops any stream it owns.
 function audioStop() {
   audioActive = false;
   audioSourceMode = 'off';
@@ -6132,6 +5950,7 @@ async function audioStart(mode) {
   }
 }
 
+// Per-frame FFT read: band scalars always, GPU upload only on demand.
 function updateAudioData() {
   if (!audioActive || !audioAnalyser) { clearAudioTex(); flushAudioHistSilence(); return; }
   audioAnalyser.getByteFrequencyData(audioFreqData);
@@ -6146,10 +5965,9 @@ function updateAudioData() {
   audioData.mid    = Math.max(avg(be, me), audioData.mid    * decay);
   audioData.treble = Math.max(avg(me, te), audioData.treble * decay);
   audioData.vol    = Math.max(avg(0, te),  audioData.vol    * decay);
-  // The band scalars above drive audio-mod and are always needed. The GPU upload
-  // is ~1300 JS ops plus two texSubImage2D calls, and only squarewaves and
-  // oscilloscope read it — skip it when nothing in either chain does.
-  // (The history ring refills within AUDIO_HIST_H frames of one being added.)
+  // Band scalars are always needed; the GPU upload (~1300 ops + two
+  // texSubImage2D) is only read by squarewaves and oscilloscope, so gate it on
+  // demand. The history ring refills within AUDIO_HIST_H frames.
   if (chainNeedsAudioTex()) updateAudioTex();
 }
 
@@ -6186,6 +6004,7 @@ function ensureAudioTex() {
 }
 
 let _audioTexCleared = false;
+// Zeroes the audio texture so shaders see silence, not a stale frame.
 function clearAudioTex() {
   // Only meaningful once a texture exists and it isn't already silent.
   if (!audioTex || _audioTexCleared) return;
@@ -6198,6 +6017,7 @@ function clearAudioTex() {
   _audioTexCleared = true;
 }
 
+// Uploads spectrum and waveform rows to the GPU.
 function updateAudioTex() {
   ensureAudioTex();
   _audioTexCleared = false;
@@ -6261,6 +6081,7 @@ function _writeHistRow(fill) {
   audioHistRow = (audioHistRow + 1) % AUDIO_HIST_H;
 }
 
+// Writes the newest waveform into the history ring.
 function pushAudioHist() {
   _histSilentCount = 0;
   _writeHistRow(null);
@@ -6274,6 +6095,7 @@ function flushAudioHistSilence() {
   _histSilentCount++;
 }
 
+// A slot's parameters with audio, LFO and MIDI modulation applied.
 function effParams(baseArr, modArr, lfoModArr, midiModArr) {
   // Fast path: most slots have nothing bound, and the map() below would allocate
   // an array per shader per frame only to throw it away and return baseArr.
@@ -6303,6 +6125,7 @@ function effParams(baseArr, modArr, lfoModArr, midiModArr) {
   return changed ? out : baseArr;
 }
 
+// Audio bindings for the layer being edited.
 function currentModArr() {
   const mode = MODES[modeIdx];
   if (layer === 'gen' && mode === 'SHADER') return genSlots[genIdx].audioMod;
@@ -6315,6 +6138,7 @@ function currentModArr() {
 const _midiPopup  = document.getElementById('midi-cc-popup');
 const _midiCcInp  = document.getElementById('midi-cc-input');
 
+// Opens the CC-number entry popup for one parameter.
 function midiCcPopupShow(anchorEl, si, pi) {
   if (!_midiPopup) return;
   const r = anchorEl.getBoundingClientRect();
@@ -6331,6 +6155,7 @@ function midiCcPopupHide() {
   _midiLearnTarget = null;
 }
 
+// Applies the typed CC number to the bound parameter.
 function midiCcPopupCommit() {
   if (!_midiLearnTarget) { midiCcPopupHide(); return; }
   const val = parseInt(_midiCcInp.value);
@@ -6410,11 +6235,8 @@ document.addEventListener('pointerdown', e => {
 
   sel && sel.addEventListener('change', () => connectInput(sel.value));
 
-  // Web MIDI is permission-gated, so requesting it on load prompts everyone who
-  // opens a share link -- including the majority who have no controller
-  // attached and never asked for MIDI. Worse, Chrome's MIDI prompt is worded
-  // around device access and reads as alarming on a link someone just sent you.
-  // So it is opt-in: nothing is requested until the user asks for it.
+  // Opt-in. Web MIDI is permission-gated, and requesting it on load would prompt
+  // everyone opening a share link — with wording that reads as alarming.
   const row = document.getElementById('midi-device-row');
   const btn = document.getElementById('midi-enable');
   let requested = false;
@@ -6464,6 +6286,7 @@ document.addEventListener('pointerdown', e => {
 
 let screenStream = null;
 
+// True if the sampler element has any source attached.
 function vidHasSrc() { return !!(vid.src || vid.srcObject); }
 
 async function captureScreen() {
@@ -6498,16 +6321,85 @@ async function captureScreen() {
 
 let blobURL = null;
 
-// What the file actually is. Nothing used to ask: the only loadedmetadata
-// handler repositioned the in/out thumbs, so an unplayable codec sat on
-// "loading…" forever and an oversized clip rendered black. `fps` is filled in by
-// the rVFC probe below, which is the only way to get it from a <video> element.
+// ── Source binding ───────────────────────────────────────────────────────────
+// A preset names the clip it was built on but cannot carry it: the file is
+// megabytes against a 5 MB quota and a File handle cannot survive a reload.
+// It stores a fingerprint and the app asks for the file once per session.
+//
+// The cache holds the File, not an object URL — loadVideo revokes the previous
+// blob URL on every clip change, which would kill a cached URL.
+const _srcCache    = new Map();   // fingerprint -> File, located this session
+const _srcDeclined = new Set();   // fingerprint -> user said skip, stop asking
+let _pendingInOut  = null;        // in/out waiting for the clip to finish loading
+let _locateWant    = null;        // descriptor the locate bar is currently asking for
+
+// Identity for a source clip: name, size and duration.
+function srcFingerprint(d) {
+  if (!d || !(d.fileName || d.name)) return '';
+  // Name plus size is a strong enough identity for footage, and duration guards
+  // the case of a re-encode keeping the name. No hashing: reading the file to
+  // hash it would defeat the point of not loading it.
+  return (d.fileName || d.name) + '|' + (d.bytes || 0) + '|' +
+         (d.duration ? d.duration.toFixed(2) : '');
+}
+
+// Descriptor for the loaded clip, or null when there is none.
+function currentSrcDescriptor() {
+  if (!vidInfo.fileName || vidInfo.live || !vid.src) return null;
+  return { fileName: vidInfo.fileName, name: vidInfo.name,
+           bytes: vidInfo.bytes, duration: vidInfo.duration };
+}
+
+// Loads a located file and caches it for the session.
+function bindSourceFile(file, desc) {
+  const fp = srcFingerprint(desc);
+  if (fp) _srcCache.set(fp, file);
+  // loadVideo forces SAMPLER, which is wrong for a preset saved in SHADER with a
+  // sampler blend source. Restore whatever applyState had already chosen.
+  const wantMode = modeIdx;
+  loadVideo(URL.createObjectURL(file), file.name, file);
+  modeIdx = wantMode;
+}
+
+// Dismisses the missing-source bar.
+function hideLocate() {
+  _locateWant = null;
+  document.getElementById('src-locate')?.classList.remove('vis');
+}
+
+// Called from applyState. Never blocks: the chain has already been applied by
+// the time this runs, and a jump mid-set must not wait on a file dialog.
+function requestSource(desc, inP, outP) {
+  const applyDirect = () => { _pendingInOut = null; inP !== undefined && (inPt = inP ?? null); outP !== undefined && (outPt = outP ?? null);
+                              if (window.updateInOutThumbs) window.updateInOutThumbs(); };
+  if (!desc) { applyDirect(); hideLocate(); return; }
+  const fp = srcFingerprint(desc);
+  if (fp && fp === srcFingerprint(currentSrcDescriptor())) { applyDirect(); hideLocate(); return; }
+
+  _pendingInOut = { in: inP ?? null, out: outP ?? null };
+  const cached = fp && _srcCache.get(fp);
+  if (cached) { bindSourceFile(cached, desc); hideLocate(); return; }   // located once, reused all set
+  if (fp && _srcDeclined.has(fp)) { hideLocate(); return; }             // asked, dismissed, stay quiet
+
+  const bar = document.getElementById('src-locate');
+  const msg = document.getElementById('src-locate-msg');
+  if (!bar || !msg) return;
+  _locateWant = desc;
+  const mb = desc.bytes ? ' · ' + (desc.bytes / 1048576).toFixed(0) + 'MB' : '';
+  const sec = desc.duration ? ' · ' + desc.duration.toFixed(0) + 's' : '';
+  msg.textContent = 'preset needs ' + (desc.fileName || desc.name) + mb + sec;
+  bar.classList.add('vis');
+}
+
+// What the loaded file is: resolution, duration, live-stream, size, and fps.
+// fps comes from the rVFC probe below — the only route to it from a <video>.
 let vidInfo = { w: 0, h: 0, duration: 0, fps: null, live: false, bytes: 0, name: '' };
 
 // Estimated from presentedFrames / mediaTime across the first second of
 // playback, then left alone. Both counters come from rVFC metadata; there is no
 // other route to a source frame rate in the browser.
 let _fpsProbe = null;
+// Estimates source frame rate from rVFC metadata, then stops.
 function startFpsProbe() {
   if (!vid.requestVideoFrameCallback) { vidInfo.fps = null; return; }
   _fpsProbe = null;
@@ -6522,6 +6414,7 @@ function startFpsProbe() {
   vid.requestVideoFrameCallback(probe);
 }
 
+// One-line human summary of the loaded clip.
 function describeSource() {
   const i = vidInfo;
   const res = i.w && i.h ? i.w + '×' + i.h : 'unknown size';
@@ -6531,6 +6424,7 @@ function describeSource() {
   return [res, len, fps, mb].filter(Boolean).join(' · ');
 }
 
+// Reports the loaded clip and warns if it exceeds what the GPU can hold.
 function assessSource() {
   vidInfo.w = vid.videoWidth  || 0;
   vidInfo.h = vid.videoHeight || 0;
@@ -6552,15 +6446,29 @@ function assessSource() {
   }
   console.info('recur: source — ' + describeSource());
   startFpsProbe();
+  // A preset's in/out points are meaningless until the clip they refer to is
+  // loaded, so they wait here rather than being applied in applyState.
+  if (_pendingInOut) {
+    const d = vidInfo.duration || 0;
+    const clamp = v => (v === null || v === undefined) ? null : Math.max(0, Math.min(d || v, v));
+    inPt  = clamp(_pendingInOut.in);
+    outPt = clamp(_pendingInOut.out);
+    _pendingInOut = null;
+    if (window.updateInOutThumbs) window.updateInOutThumbs();
+  }
 }
 
+// Loads a clip as the sampler source and resets playback state.
 function loadVideo(url, name, file) {
   if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   vid.srcObject = null;
   if (blobURL && blobURL !== url) URL.revokeObjectURL(blobURL);
   blobURL = url.startsWith('blob:') ? url : null;
   vidName = (name || 'video').replace(/.*[/\\]/, '').replace(/\.[^.]+$/, '');
-  vidInfo = { w: 0, h: 0, duration: 0, fps: null, live: false, bytes: file?.size || 0, name: vidName };
+  // fileName keeps the extension; vidName does not, and a preset asking you to
+  // locate "holiday" rather than "holiday.mp4" is not much help.
+  vidInfo = { w: 0, h: 0, duration: 0, fps: null, live: false,
+              bytes: file?.size || 0, name: vidName, fileName: name || vidName };
   _vidTexErrShown = false;   // a new file deserves its own diagnosis
   // Asked before the load, not after it fails: canPlayType is the only cheap way
   // to tell "browser cannot decode this" from "file is broken".
@@ -6627,10 +6535,14 @@ document.addEventListener('drop', e => {
   dragCounter = 0;
   dzEl.classList.remove('on');
   const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('video/')) {
+  if (!f) return;
+  // A .json is a preset bank; anything else is treated as footage.
+  if (f.type === 'application/json' || /\.json$/i.test(f.name)) {
+    importBankFile(f);
+  } else if (f.type.startsWith('video/')) {
     loadVideo(URL.createObjectURL(f), f.name, f);
   } else {
-    toast('not a video file');
+    toast('drop a video or a .json bank');
   }
 });
 
@@ -6677,6 +6589,7 @@ let _spiParamRows = [];
 
 let spiOpen = false;
 
+// Opens or closes the control panel.
 function toggleSPI() {
   spiOpen = !spiOpen;
   spiPanel.classList.toggle('open', spiOpen);
@@ -6690,13 +6603,11 @@ function toggleSPI() {
 spiTab.addEventListener('click', toggleSPI);
 
 // ── Collapsible sections ──────────────────────────────────────────────────────
-// The panel runs long on a phone, so every section header in the body doubles as
-// a show/hide toggle. Section content is found by walking siblings up to the next
-// header rather than by wrapping each section in a container — no markup
-// restructuring, so nothing else in the panel has to change. State persists.
-// The MODE header in #spi-header is deliberately excluded: nothing follows it but
-// the rest of the header, so a sibling walk there would swallow the source
-// section, zoom row and flow strip too.
+// Every section header in the body doubles as a show/hide toggle. Content is
+// found by walking siblings to the next header, so no markup restructuring is
+// needed. State persists in localStorage.
+// The MODE header is excluded: a sibling walk there would swallow the source
+// section, zoom row and flow strip.
 const SPI_COLLAPSE_KEY = 'recur.spiCollapsed';
 // Closed on a fresh install: the two shader pickers are what you reach for
 // constantly, the rest are set-and-forget. Only applies when nothing has been
@@ -6723,20 +6634,17 @@ function _spiFoldKey(sec) {
   if (sec.id === 'spi-view-hdr')   return 'VIEW';
   return sec.textContent.trim();
 }
-// Declared here, not down in the flow-strip section: initSpiCollapse runs
-// immediately below and would touch them in the temporal dead zone, which throws
-// and takes the whole app down — but only for someone who had folded this
-// section and then reloaded.
+// Declared here, not in the flow-strip section: initSpiCollapse runs just below
+// and would hit these in the TDZ.
 let _spiViewHidden = false;   // ZOOM & CHAINS folded — skip the strip rebuild
 let _spiFlowDirty  = false;   // force one rebuild on the way back out
 
+// Folds or unfolds one panel section and remembers it.
 function spiSetCollapsed(sec, on) {
   sec.classList.toggle('collapsed', on);
   _spiSectionBody(sec).forEach(n => n.classList.toggle('spi-hidden', on));
-  // Folding the chains away is not just screen space: buildFlowStrip rebuilds a
-  // few dozen elements whenever the chain changes, and there is no point doing
-  // that into something nobody can see. Clearing the dirty key on the way back
-  // out forces one rebuild so it never reappears stale.
+  // Folded also means buildFlowStrip stops rebuilding into something invisible.
+  // The dirty flag on unfold forces one rebuild so it never reappears stale.
   if (sec.id === 'spi-view-hdr') {
     _spiViewHidden = on;
     if (!on) _spiFlowDirty = true;
@@ -6830,10 +6738,9 @@ function fxSelectParams(btn) {
   toast(FX[fi].name + ' params');
 }
 
-// Right-click / long-press GEN button → select its params without toggling chain.
-// genIdx is a CHAIN POSITION, so the shader index has to be mapped through the
-// chain — writing the raw index here pointed past the end of the chain and blanked
-// the whole params panel. Mirrors fxSelectParams above.
+// Right-click / long-press a GEN button: select its params without toggling the
+// chain. genIdx is a CHAIN POSITION, so the shader index must be mapped through
+// the chain. Mirrors fxSelectParams above.
 function genSelectParams(btn) {
   const gi = parseInt(btn.dataset.gi);
   const pos = genSlots.findIndex(sl => sl.idx === gi);
@@ -6888,6 +6795,7 @@ document.getElementById('spi-panel').addEventListener('click', e => {
 
 // ── Help overlay ──────────────────────────────────────────────────────────────
 const helpOverlay = document.getElementById('help-overlay');
+// Shows or hides the help overlay.
 function toggleHelp() { helpOverlay.classList.toggle('vis'); }
 document.getElementById('help-close').addEventListener('click', toggleHelp);
 helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) toggleHelp(); });
@@ -6996,11 +6904,9 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       toggleReverse();
       break;
     case 'camera':
-      // In LIVE the camera IS the source, so there is nothing to toggle —
-      // toggleCamera() reads that as "leave LIVE" and drops to SAMPLER, which is
-      // not what a camera icon promises. Leave it lit and inert here; the MODE
-      // buttons directly above are how you leave. The L key still calls
-      // toggleCamera() so the documented keyboard shortcut is unchanged.
+      // In LIVE the camera IS the source, and toggleCamera() would read this as
+      // "leave LIVE" and drop to SAMPLER. Lit but inert; MODE is how you leave.
+      // The L key still calls toggleCamera() directly.
       if (MODES[modeIdx] === 'LIVE') { toast('camera is the source in LIVE'); break; }
       toggleCamera();
       break;
@@ -7030,6 +6936,11 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       fxSlots  = []; fxIdx = -1;
       blendAmount = 0.5;
       toast('default state');
+      break;
+    }
+    case 'preset-jump': {
+      const i = parseInt(btn.dataset.preset);
+      if (!isNaN(i)) loadPresetAt(i);
       break;
     }
     case 'perf':
@@ -7179,16 +7090,10 @@ document.getElementById('spi-panel').addEventListener('click', e => {
 })();
 
 // ── Recording duration repair ─────────────────────────────────────────────────
-// MediaRecorder writes container metadata before it knows how long the
-// recording will be, so no duration is stored and players report whatever they
-// can infer -- typically a couple of seconds regardless of the real length.
-// The frames are all present; only the header is wrong. These patch the true
-// duration in after the fact.
-// ── EBML / WebM ──────────────────────────────────────────────────────────────
-// MediaRecorder writes the Segment Info before it knows how long the recording
-// will be, so no Duration element is emitted and players fall back to guessing
-// from the last cluster timestamp they happen to have parsed. Injecting a
-// Duration into Info fixes the reported length without touching frame data.
+// MediaRecorder writes container metadata before it knows the recording length,
+// so no duration is stored and players report a few seconds regardless. The
+// frames are all present — only the header is wrong. These patch it after the
+// fact: a Duration element into WebM's Segment Info, and mvhd/tkhd/mdhd for MP4.
 
 function readVint(buf, pos, stripMarker) {
   const first = buf[pos];
@@ -7262,6 +7167,7 @@ function durationElement(ticks) {
   return el;
 }
 
+// Injects a Duration element into a recorded WebM.
 function fixWebmDuration(bytes, durationMs) {
   const buf = bytes;
   const top = children(buf, 0, buf.length);
@@ -7337,9 +7243,7 @@ function fixWebmDuration(bytes, durationMs) {
 }
 
 // ── MP4 ──────────────────────────────────────────────────────────────────────
-// Chrome's MP4 recording is fragmented, so moov carries zero durations and
-// players that do not scan every fragment report a fraction of the real length.
-// Writing the true duration into mvhd/tkhd/mdhd is enough for them.
+// Chrome's MP4 recording is fragmented, so moov carries zero durations.
 
 function u32(dv, o) { return dv.getUint32(o, false); }
 
@@ -7365,6 +7269,7 @@ function findBoxes(bytes, start, end) {
   return out;
 }
 
+// Writes the true duration into a recorded MP4's mvhd/tkhd/mdhd.
 function fixMp4Duration(bytes, durationMs) {
   const moovTop = findBoxes(bytes, 0, bytes.length).find(b => b.type === 'moov');
   if (!moovTop) return null;
@@ -7438,6 +7343,7 @@ let _exportPendingName = 'recur-export';
 
 const EXPORT_LENGTHS = [5,10,15,20,30,45,60,90,120]; // seconds options mapped linearly
 
+// Export length from the slider, 5-120s on a sqrt curve.
 function exportLenSeconds() {
   // map 0-1 to 5-120s on a sqrt curve for finer control at short durations
   const t = exportLenNorm;
@@ -7455,6 +7361,7 @@ function updateExportLen() {
   if (val)   val.textContent  = s + 's';
 }
 
+// Opens the export dialog; recording starts once confirmed.
 function startExport() {
   if (exportRecorder) return;
   // Show dialog unconditionally — API checks happen in _doExport after user confirms
@@ -7584,6 +7491,7 @@ document.getElementById('export-save-discard').addEventListener('click', () => {
   document.getElementById('export-save-dialog').classList.remove('on');
 });
 
+// Stops recording, repairs the container duration and downloads it.
 function stopExport() {
   if (!exportRecorder) return;
   clearInterval(exportCountdown);
@@ -7591,6 +7499,7 @@ function stopExport() {
   exportRecorder.stop();
 }
 
+// Updates the record button and countdown.
 function updateExportBtn(recording, remaining) {
   const btn   = document.getElementById('sk-export-btn');
   const label = document.getElementById('sk-export-label');
@@ -7605,6 +7514,11 @@ function updateExportBtn(recording, remaining) {
 }
 
 // ── Flow strip ────────────────────────────────────────────────────────────────
+// Three rows: GEN, FX and the preset BANK. SRC sits above it in #spi-src-cap-row.
+// presetIdx is which bank slot is lit, -1 for none. Declared here, not with the
+// bank functions — buildFlowStrip() reads it and a `let` further down is in TDZ.
+let presetIdx = -1;
+
 const _flowStrip = document.getElementById('flow-strip');
 // SRC/CAM lives outside the strip now, so it survives every innerHTML rebuild
 // and keeps its panel-level data-action delegation without being re-bound.
@@ -7624,6 +7538,7 @@ const _abbrev = {
   'wobble':'WBL','zoom-fx':'ZFX','ascii':'ASCII','halftone':'HLFT','sample-hold':'S/H',
   'scatter':'SCAT',
 };
+// Shortens a shader name to fit a flow-strip block.
 function _fb_abbr(name) {
   if (_abbrev[name]) return _abbrev[name];
   const parts = name.split(/[-\s]/);
@@ -7631,6 +7546,7 @@ function _fb_abbr(name) {
   return parts.map(p => p.slice(0, parts.length > 2 ? 2 : 3)).join('').toUpperCase().slice(0,5);
 }
 
+// Rebuilds the GEN, FX and BANK rows when the chain changes.
 function buildFlowStrip() {
   if (!_flowStrip) return;
   if (_spiViewHidden) return;   // nothing to see, nothing to build
@@ -7647,8 +7563,12 @@ function buildFlowStrip() {
     _flowCamBtn.classList.toggle('fb-cam-active', camOn);
   }
 
+  // The bank belongs in the key too, or saving, deleting or importing a preset
+  // would not repaint the row it lives in.
+  const bank = loadPresets();
   const key = genSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + genIdx + '|' +
-              fxSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + fxIdx;
+              fxSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + fxIdx + '|' +
+              bank.length + '|' + presetIdx;
   if (key === _flowLastKey) return;
   _flowLastKey = key;
 
@@ -7682,22 +7602,32 @@ function buildFlowStrip() {
     bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${fxSlots.length}"></span>`);
   }
 
+  // ── BANK row: saved presets, click to jump ───────────────────────────────
+  // No data-fb-type on these: the strip's pointerdown handler matches
+  // `.fb[data-fb-type]` for dragging, and a preset is not a chain slot.
+  const bnk = [];
+  if (!bank.length) {
+    bnk.push(`<span class="fb fb-bank-empty">no presets</span>`);
+  } else {
+    bank.forEach((p, i) => {
+      const nm = (p.name || 'preset').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      bnk.push(`<span class="fb fb-bank${i === presetIdx ? ' fb-sel' : ''}" data-action="preset-jump" data-preset="${i}" title="${nm} — ${p.date || ''}">${nm}</span>`);
+    });
+  }
+
   // SRC is no longer part of the strip — see #spi-src-cap-row in the markup.
   _flowStrip.innerHTML =
     `<div class="flow-row-lbl"><span class="fb fb-src">GEN</span></div>` +
     `<div class="flow-row flow-row-gen">${top.join('')}</div>` +
     `<div class="flow-row-lbl"><span class="fb fb-src">FX</span></div>` +
-    `<div class="flow-row flow-row-fx">${bot.join('')}</div>`;
+    `<div class="flow-row flow-row-fx">${bot.join('')}</div>` +
+    `<div class="flow-row-lbl"><span class="fb fb-src">BANK</span></div>` +
+    `<div class="flow-row flow-row-bank">${bnk.join('')}</div>`;
 }
 
 // ── Source section ───────────────────────────────────────────────────────────
-// Previously a floating popup opened by tapping the flow strip's SRC block —
-// which looked and behaved unlike every other control in the app. The things
-// it surfaces are real, frequently-needed controls (which source the SHADER
-// blend reads, which gen slots are bypassed, sampler playback) so they now
-// live as a permanent section under the header, matching the rest of the
-// GUI, and shown whenever the camera is on, or LIVE or SAMPLER mode is
-// selected.
+// Permanent section under the header: SHADER blend source, gen bypass, and
+// sampler playback. Shown whenever the camera is on, or in LIVE or SAMPLER.
 const _srcSection = document.getElementById('spi-source-section');
 let _srcSectionLastKey = '';
 // 0.25x .. 4x, log-mapped: t=0.5 is exactly 1x and every doubling is the same
@@ -7709,6 +7639,7 @@ const tFromRate = r => Math.log(Math.max(RATE_MIN, Math.min(4, r)) / RATE_MIN) /
 // Soft detents, not hard snapping: land within ~2% of the track and it grabs the
 // round value, otherwise you keep whatever you dragged to.
 const RATE_DETENTS = [0.25, 0.33, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+// Snaps playback rate to soft detents near common values.
 function snapRate(t) {
   for (const r of RATE_DETENTS) if (Math.abs(t - tFromRate(r)) < 0.022) return r;
   return Math.round(rateFromT(t) * 100) / 100;
@@ -7720,6 +7651,7 @@ function snapRate(t) {
   setVidRate(vidRate);   // paint the initial position and readout
 })();
 
+// Sets playback rate and updates the readout.
 function setVidRate(r) {
   vidRate = r;
   vid.playbackRate = vidRate;
@@ -7728,6 +7660,7 @@ function setVidRate(r) {
   _setTxt(document.getElementById('src-rate-val'), r.toFixed(2) + '\u00d7');
 }
 
+// Rebuilds the SRC controls for the current mode.
 function renderSourceSection() {
   if (!_srcSection) return;
   const mode  = MODES[modeIdx];
@@ -7765,11 +7698,8 @@ function renderSourceSection() {
     if (el) el.style.display = show ? 'flex' : 'none';
   }
   if (isSampler) {
-    // The icon shows the action, not the state: pause glyph while playing. The
-    // .on class picks which of the button's two glyphs is visible.
-    // Exactly one direction lamp at a time: play lights only when running
-    // forward, reverse only when running backward. Both lit at once made it
-    // impossible to tell which was actually driving playback.
+    // The icon shows the ACTION, not the state: pause glyph while playing.
+    // Exactly one direction lamp lit at a time.
     const fwd = !paused && !reversed;
     _tog(document.getElementById('src-playpause'), 'on', fwd);
     _setTxt(document.getElementById('src-playpause-cap'), fwd ? 'pause' : 'play');
@@ -7793,12 +7723,9 @@ function renderSourceSection() {
   // The icon carries state through the .on class; there is no label to set.
   _tog(document.getElementById('src-cam-toggle'), 'on', camOn);
 
-  // The camera group has no business in SAMPLER: the source is a file there, and
-  // the camera button is really a mode switch, which the MODE buttons already
-  // are. Show it only where the camera is, or could be, the source.
-  // Front/rear only mean anything on a device with both cameras — desktop
-  // generally ignores facingMode. Dimmed rather than hidden, so the group keeps
-  // its shape and you can see the control exists.
+  // Camera group only where the camera is, or could be, the source.
+  // Front/rear are dimmed rather than hidden on desktop, which ignores
+  // facingMode — the group keeps its shape.
   const faceU = document.getElementById('src-face-user');
   const faceE = document.getElementById('src-face-env');
   _tog(faceU, 'na', !isCoarsePointer);
@@ -7824,10 +7751,8 @@ function renderSourceSection() {
   const baseAmt  = Math.round((genSlots[0].amt ?? 1) * 100);
   _setTxt(document.getElementById('src-blend-pct'), baseMode + ' ' + baseAmt + '%');
 
-  // The discoverability fix: bypassed gen slots are otherwise invisible.
-  // One toggle rather than a button per slot: the flow strip already gives
-  // per-slot bypass on double-click, so all this answers is "straight source, or
-  // the shader stack composited over it".
+  // All-or-nothing gen bypass. Per-slot control is the flow strip's
+  // double-click; this only answers "source only, or shaders over it".
   if (genSlots.length) {
     const blended = !genSlots.every(sl => sl.off);
     _tog(document.getElementById('src-genover-toggle'), 'on', blended);
@@ -8002,9 +7927,7 @@ function renderSourceSection() {
     if (insEls[slotIdx]) insEls[slotIdx].classList.add('fb-ins-hot');
   }
 
-  // The gen branch used to move six of the eight per-slot arrays and leave the
-  // blend mode and amount at the old position, while the fx branch below moved
-  // all seven of its own. Moving one object cannot express that difference.
+      // One object moves, so every property of the slot moves with it.
   function commitReorder(kind, fromPos, toPos) {
     if (fromPos === toPos || fromPos === toPos - 1) return;
     if (kind === 'gen') { genIdx = chainMove(genSlots, fromPos, toPos); syncGenIdx(); }
@@ -8163,6 +8086,7 @@ function _setW(el, val)   { if (el && el.style.width  !== val) el.style.width  =
 function _setL(el, val)   { if (el && el.style.left   !== val) el.style.left   = val; }
 function _tog(el, cls, on) { if (el) el.classList.toggle(cls, on); }
 
+// Repaints the whole control panel. Dirty-checked throughout.
 function updateSPI() {
   if (!spiOpen) return;
   const r = _spiRefs;
@@ -8464,17 +8388,20 @@ function updateSPI() {
 let _dragPi = -1, _dragX0 = 0, _dragY0 = 0, _dragV0 = 0, _dragIntent = null;
 let _dragRafPending = false, _dragLastX = 0, _touchLastX = 0, _touchLastY = 0;
 
+// Parameter array for the layer being edited.
 function _dragArr() {
   if (layer === 'gen') return genSlots[genIdx].params;
   if (layer === 'fx' && fxIdx >= 0) return fxSlots[fxIdx].params;
   return null;
 }
 
+// Blend amount of the selected slot.
 function _getBlendVal() {
   if (layer === 'fx') return fxIdx >= 0 ? (fxSlots[fxIdx].amt ?? 1) : 0;
   if (layer === 'gen') return genSlots[genIdx].amt ?? 1.0;
   return 0;
 }
+// Sets blend amount on the selected slot.
 function _setBlendVal(v) {
   v = Math.max(0, Math.min(1, v));
   if (layer === 'fx') { if (fxIdx >= 0) fxSlots[fxIdx].amt = v; }
@@ -8495,6 +8422,7 @@ function spiParamDragStart(e) {
   window.addEventListener('mouseup',   spiParamDragEnd);
 }
 
+// Snaps a parameter to its declared positions, if it has any.
 function _snapVal(v, pi) {
   const sh = layer === 'gen' ? GEN[genSlots[genIdx].idx] : (fxIdx >= 0 ? FX[fxSlots[fxIdx].idx] : null);
   const sv = sh?.snapVals?.[pi];
@@ -8585,11 +8513,8 @@ function getState() {
   return {
     modeIdx, genIdx, genChain: genSlots.map(sl => sl.idx),
     genChainSeeds: genSlots.map(sl => sl.seed),
-    // Padded back out to 4. The V5 encoder writes these as four fixed nibble
-    // pairs (bytes 14-17) whatever the chain length, and the old fixed-length-4
-    // arrays are what it was written against — emitting a short array here would
-    // change those bytes for slots that do not exist. Decoders ignore the
-    // trailing entries either way; this just keeps the wire output stable.
+    // Padded to 4: the V5 encoder writes four fixed nibble pairs (bytes 14-17)
+    // whatever the chain length. A short array here would change those bytes.
     genChainMode: [0, 1, 2, 3].map(i => genSlots[i]?.mode ?? 0),
     genChainAmt:  [0, 1, 2, 3].map(i => genSlots[i]?.amt  ?? 0.5),
     fxChain: fxSlots.map(sl => sl.idx), fxIdx, layer, selParam,
@@ -8601,6 +8526,11 @@ function getState() {
     // is not — it's a per-device performance setting, and a shared preset has no
     // business overriding what the recipient's hardware can manage.
     vidRate, vidLoopOn, vidPingPong, audioHold,
+    // in/out were deliberately left out while presets had no idea which clip
+    // they belonged to — a loop range against an unknown file is noise. They are
+    // meaningful now, and are only restored once the named clip is bound.
+    inPt, outPt,
+    src: currentSrcDescriptor(),
     genSlotParams:   genSlots.map(sl => [...sl.params]),
     genSlotAudioMod: genSlots.map(sl => sl.audioMod.map(m => ({ ...m }))),
     genSlotLfoMod:   genSlots.map(sl => sl.lfoMod.map(m => ({ ...m }))),
@@ -8616,22 +8546,16 @@ function getState() {
   };
 }
 
-// Build a per-slot array. Prefers modern slot-keyed data; falls back to
-// legacy shader-keyed data by looking each chain entry up by shader index;
-// otherwise fills from defaults. `chain` holds shader indices per slot.
-// Force every slot's arrays to the length its shader declares RIGHT NOW.
-//
-// Two directions, both real. A preset saved before a param was appended stores a
-// SHORT array, and the panel reads shader.params.length entries — pvals[i] came
-// back undefined and .toFixed(2) threw, killing updateSPI and updateHUD, which
-// run every frame: the whole control panel died on load. A V5 share URL is the
-// other way round, always carrying N_P=12 entries, so it arrives LONG with
-// trailing junk that would be re-encoded on the next share.
-//
-// Missing params fill with 0, not with the shader's def. 0 is the documented
-// neutral for an appended param, and neutral is what makes an old preset render
-// the way it did when it was saved; def is the fresh-instance value and is not
-// neutral (plasma's detail defaults to 0.45).
+// Builds a per-slot array. Prefers slot-keyed data, falls back to legacy
+// shader-keyed data by chain lookup, otherwise fills from defaults.
+// `chain` holds shader indices per slot.
+
+// Forces every slot array to the length its shader declares NOW. Both directions
+// occur: a JSON preset predating an appended param arrives SHORT (and the panel
+// reads shader.params.length, so undefined entries throw every frame), a V5 URL
+// arrives LONG with N_P=12 entries and trailing junk.
+// Missing entries fill with 0, NOT def — 0 is the neutral value for an appended
+// param, and def is the fresh-instance value (plasma's detail is 0.45).
 function _padSlots(slots, chain, table, make) {
   return slots.map((vals, pos) => {
     const want = table[chain[pos]]?.params.length ?? 0;
@@ -8648,6 +8572,7 @@ function _slotsFrom(slotArr, legacyArr, chain, makeDefault) {
   return chain.map(sh => makeDefault(sh));
 }
 
+// Restores a preset or share URL. The inbound half of the wire format.
 function applyState(s) {
   if (s.modeIdx !== undefined) {
     const prev = modeIdx;
@@ -8655,20 +8580,15 @@ function applyState(s) {
     if (modeIdx === 2 && prev !== 2) startCamera();
     else if (modeIdx !== 2 && prev === 2) stopCamera();
   }
-  // Flat shape in, slots out. State arrives as the frozen wire format — a JSON
-  // preset, a V5 share URL, or legacy shader-keyed state from a build that
-  // predates chains — and is assembled into slot objects at the bottom of this
-  // block. Nothing downstream of here sees the flat arrays.
-  //
-  // Anything the incoming state omits has to fall back to what is on screen,
-  // which means capturing it before the slots are replaced.
+  // Flat wire shape in, slot objects out — JSON preset, V5 URL, or legacy
+  // shader-keyed state. Nothing downstream of this block sees the flat arrays.
+  // Anything the incoming state omits falls back to what is on screen, so it is
+  // captured before the slots are replaced.
   const _prevMode = genSlots.map(sl => sl.mode);
   const _prevAmt  = genSlots.map(sl => sl.amt);
   let gChain;
-  // slice(0, CHAIN_MAX) is load-bearing, not tidiness. CHAIN_MAX was only ever
-  // enforced in chainInsert, so a JSON share link or preset carrying a 200,000-
-  // entry chain built 200,000 slot objects here — each with four sub-arrays —
-  // and the render loop then walked all of them every frame.
+  // slice(0, CHAIN_MAX) is load-bearing: without it a JSON preset or share link
+  // carrying a 200,000-entry chain builds 200,000 slot objects here.
   if (s.genChain  !== undefined) { gChain = s.genChain.filter(i => i >= 0 && i < GEN.length).slice(0, CHAIN_MAX); if (!gChain.length) gChain = [0]; }
   else if (s.genIdx !== undefined) gChain = [s.genIdx]; // legacy
   else gChain = genSlots.map(sl => sl.idx);
@@ -8716,10 +8636,9 @@ function applyState(s) {
   fLfo = _padSlots(fLfo, fChain, FX,  () => ({ lfo: null }));
   fMid = _padSlots(fMid, fChain, FX,  () => ({ cc: null }));
 
-  // Assembled against the filtered chain, so a preset carrying a stale-length
-  // array cannot leave a slot half-populated. Bypass is a slot field now rather
-  // than a set of positions, so it needs no separate remapping pass — but it is
-  // still positional on the wire, and still applied after the chain is known.
+  // Assembled against the filtered chain, so a stale-length array cannot leave a
+  // slot half-populated. Bypass is positional on the wire, so it is applied here,
+  // after the chain is known.
   const gOff = new Set(s.genDisabled || []), fOff = new Set(s.fxDisabled || []);
   genSlots = gChain.map((idx, i) => ({
     idx,
@@ -8741,6 +8660,13 @@ function applyState(s) {
   syncFxIdx();
   // Legacy state with no bypass field: mirror what entering LIVE by hand does.
   if (!s.genDisabled && MODES[modeIdx] === 'LIVE') disableAllGenShaders();
+  // Source binding last: the chain and mode are already applied, so a located
+  // file lands on a patch that is otherwise finished. V5 share URLs carry no
+  // descriptor, so `s.src === undefined` there and nothing is ever asked for.
+  if (s.src !== undefined || s.inPt !== undefined || s.outPt !== undefined) {
+    requestSource(s.src || null, s.inPt ?? null, s.outPt ?? null);
+  }
+
   if (s.lfos) s.lfos.forEach((l, i) => {
     if (lfos[i]) {
       // Wholesale replace, so anything the incoming state omits has to be
@@ -8769,15 +8695,108 @@ function applyState(s) {
   if (s.lfoBeatIdx) s.lfoBeatIdx.forEach((v, i) => { lfoBeatIdx[i] = v; });
 }
 
+// Reads the preset list from localStorage.
 function loadPresets() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
 }
 
+// ── Preset bank ──────────────────────────────────────────────────────────────
+// Presets live in localStorage: per-browser-profile, per-origin, and not part of
+// index.html, so they do not travel with the file. On file:// Chrome shares one
+// opaque origin across every local file and Safari often refuses outright.
+//
+// A sidecar presets.json cannot be auto-loaded — fetch() on file:// is blocked by
+// CORS in Chrome — so transport is a user-initiated bank export/import.
+const BANK_FORMAT = 'recur-bank';
+const BANK_VERSION = 1;
+
+// Downloads every preset as one portable .json.
+function exportBank() {
+  const list = loadPresets();
+  if (!list.length) { toast('no presets to export'); return; }
+  const bank = {
+    format: BANK_FORMAT, version: BANK_VERSION,
+    build: BUILD, saved: new Date().toISOString(),
+    presets: list,
+  };
+  const blob = new Blob([JSON.stringify(bank, null, 1)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'recur-bank-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast('exported ' + list.length + ' preset' + (list.length === 1 ? '' : 's'));
+}
+
+// Merges, never replaces: an imported bank must not destroy the local set, and a
+// merge is undoable by deleting. Identity is name + date, so re-importing the
+// same file is a no-op.
+function importBank(text) {
+  let bank;
+  try { bank = JSON.parse(text); }
+  catch { toast('not a valid bank file'); return false; }
+  const incoming = Array.isArray(bank) ? bank : bank?.presets;
+  if (!Array.isArray(incoming)) { toast('not a recur bank file'); return false; }
+  if (!Array.isArray(bank) && bank.format && bank.format !== BANK_FORMAT) {
+    toast('unrecognised bank format'); return false;
+  }
+  const list = loadPresets();
+  const seen = new Set(list.map(p => p.name + '|' + p.date));
+  let added = 0, skipped = 0, bad = 0;
+  for (const p of incoming) {
+    if (!p || typeof p.name !== 'string' || !p.state) { bad++; continue; }
+    const key = p.name + '|' + (p.date || '');
+    if (seen.has(key)) { skipped++; continue; }
+    seen.add(key);
+    list.push({ name: p.name, date: p.date || new Date().toLocaleString(), state: p.state });
+    added++;
+  }
+  if (!added) {
+    toast(skipped ? 'already imported' : 'no usable presets in file');
+    return false;
+  }
+  if (!savePresets(list)) return false;     // reports its own quota failure
+  _spiFlowDirty = true;
+  toast('imported ' + added + (skipped ? ' (' + skipped + ' dup)' : '') + (bad ? ' (' + bad + ' bad)' : ''));
+  return true;
+}
+
+// Reads a bank file and merges it.
+function importBankFile(file) {
+  const r = new FileReader();
+  r.onload = () => { if (importBank(String(r.result))) renderLoadList(); };
+  r.onerror = () => toast('could not read that file');
+  r.readAsText(file);
+}
+
+// ── Jumping ──────────────────────────────────────────────────────────────────
+// Applies full state exactly as saved, including mode — so a preset saved in
+// LIVE will start the camera.
+function loadPresetAt(i) {
+  const list = loadPresets();
+  if (!list.length) return;
+  const idx = ((i % list.length) + list.length) % list.length;
+  const p = list[idx];
+  if (!p || !p.state) { toast('empty preset slot'); return; }
+  applyState(p.state);
+  presetIdx = idx;
+  _spiFlowDirty = true;
+  _spiForce = true;
+  toast(p.name);
+}
+// Jumps to the previous or next preset, wrapping.
+function stepPreset(d) {
+  const len = loadPresets().length;
+  if (!len) { toast('no presets saved'); return; }
+  loadPresetAt(presetIdx < 0 ? (d > 0 ? 0 : len - 1) : presetIdx + d);
+}
+
+// Writes the preset list back. Returns false if storage refused.
 function savePresets(list) {
-  // loadPresets has always been guarded; this was not. localStorage is ~5 MB and
-  // a preset carries per-slot params plus three mod tables for up to eight slots,
-  // so a heavy user reaches the quota — and Safari in private browsing throws on
-  // the first write. The throw landed uncaught in the save-button handler.
+  // localStorage is ~5 MB and a preset carries per-slot params plus three mod
+  // tables for up to eight slots, so the quota is reachable. Safari in private
+  // browsing throws on the first write. Returns false rather than throwing.
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(list));
     return true;
@@ -8792,12 +8811,14 @@ function savePresets(list) {
 
 const N_P = 12;
 
+// URL-safe base64, chunked to avoid a call-stack overflow.
 function _urlB64Enc(bytes) {
   // chunk to avoid call-stack limit on large arrays
   let s = '';
   for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
+// Decodes URL-safe base64 back to bytes.
 function _urlB64Dec(str) {
   return Uint8Array.from(atob(str.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
 }
@@ -8852,6 +8873,7 @@ const BAND_DEC = [null, 'bass', 'mid', 'treble', 'vol'];
 const HDR  = 33; // V4 header bytes (kept for V4 decode)
 const HDR5 = 37; // V5 header bytes
 
+// Encodes state to the V5 binary share format.
 function _stateToBufV5(s) {
   const gc = s.genChain || [s.genIdx || 0];
   const ch = s.fxChain  || [];
@@ -8910,15 +8932,10 @@ function _stateToBufV5(s) {
   [0,1,2].forEach(i => { const p = encPeriod(lv[i]?.period ?? 4); buf[31+i*2]=(p>>8)&0xff; buf[32+i*2]=p&0xff; });
   let o = HDR5;
   // Pads with 0, NOT 0.5. Every slot writes all N_P param bytes regardless of how
-  // many its shader actually declares, so the padding value is what a param
-  // appended LATER will read back as. The project rule is "0 is neutral for
-  // every appended param" — padding with 0.5 quietly broke it for share URLs
-  // (in-app JSON was never affected, which is why it went unnoticed): a URL made
-  // when plasma had four params fed 0.5 into style, which snaps to index 4 and
-  // reopened as marble instead of classic, with detail/contrast/fold/drift all
-  // half-on. Old URLs cannot be repaired — 0.5 written as padding is
-  // indistinguishable from 0.5 chosen deliberately — but nothing new is broken.
-  // Byte layout is unchanged, so older builds still read these URLs fine.
+  // many its shader declares, so the padding is what a LATER-appended param reads
+  // back as — and 0 is the neutral value by project rule. URLs written before this
+  // was fixed cannot be repaired: padding 0.5 is indistinguishable from a chosen
+  // 0.5. Byte layout unchanged, so older builds still read these URLs.
   const w1  = (arr,i,j) => { buf[o++] = Math.round(((arr[i]||[])[j]??0)*255)&0xff; };
   const wBd = (arr,i,j) => { buf[o++] = BAND_ENC[arr[i]?.[j]?.band ?? null]; };
   const wDp = (arr,i,j) => { buf[o++] = Math.round(((arr[i]?.[j]?.depth)??0.5)*255)&0xff; };
@@ -8948,6 +8965,7 @@ function _stateToBufV5(s) {
   return buf;
 }
 
+// Decodes a V5 buffer back to state.
 function _bufToStateV5(buf) {
   const decPeriod = (hi, lo) => 0.1 + ((hi<<8|lo)/65535)*29.9;
   const flags = buf[10];
@@ -9018,6 +9036,7 @@ function _bufToStateV5(buf) {
 // ── V4 binary encode (kept for reference — V5 is now the write format) ─────────
 // _stateToBufV4 removed - V4 was decode-only; all writes go through V5.
 
+// Decodes a legacy V4 buffer.
 function _bufToStateV4(buf) {
   const NG = GEN.length, NF = FX.length;
   const flags = buf[8];
@@ -9098,12 +9117,9 @@ async function stateToB64(s) {
   return _urlB64Enc(compressed);
 }
 
-// The largest legitimate V5 payload is 541 bytes (4 gen + 4 fx slots, 12 params
-// each, plus header and trailing blocks). The JSON fallback is the only branch
-// that runs meaningfully longer. gzip amplifies about 1000:1, so reading the
-// stream with Response.arrayBuffer() — which is what this did — let a 512 KB
-// share URL allocate ~386 MB before anything inspected it, and a 1.5 MB one over
-// a gigabyte. Read it incrementally and give up at the ceiling instead.
+// The largest legitimate V5 payload is 541 bytes. gzip amplifies ~1000:1, so
+// reading the stream whole would let a 512 KB URL allocate ~386 MB before
+// anything inspected it. Read incrementally and abort at the ceiling.
 const MAX_SHARE_B64   = 256 * 1024;   // encoded, before base64 decode
 const MAX_SHARE_BYTES =  64 * 1024;   // decompressed: ~120x the real maximum
 
@@ -9605,10 +9621,9 @@ let castConnected = false;
   }
 })();
 
-// Called from the main loop. applyState() on the receiver is expensive - it
-// rebuilds every slot array and touches the DOM - so re-sending identical state
-// 20x/sec was the bulk of the cast cost. Diff first; when nothing has changed,
-// send only the audio levels, which do change every frame.
+// Called from the main loop. applyState() on the receiver rebuilds every slot
+// and touches the DOM, so diff first — when nothing has changed, send only the
+// audio levels.
 function castBroadcast() {
   if (isOutput || !castConnected || !_bc) return;
 
@@ -9717,13 +9732,15 @@ document.getElementById('save-ok').addEventListener('click', () => {
   // quota warning is how you lose a set you thought was on disk.
   const ok = savePresets(list);
   saveOverlay.classList.remove('vis');
-  if (ok) toast('saved: ' + name);
+  // unshift pushes every existing preset down one, and the new one is now live.
+  if (ok) { presetIdx = 0; _spiFlowDirty = true; toast('saved: ' + name); }
 });
 
 // ── Load modal ────────────────────────────────────────────────────────────────
 const loadOverlay = document.getElementById('load-overlay');
 const loadList    = document.getElementById('load-list');
 
+// Rebuilds the preset list in the LOAD dialog.
 function renderLoadList() {
   const list = loadPresets();
   if (!list.length) {
@@ -9748,18 +9765,55 @@ loadOverlay.addEventListener('click', e => {
   const del = e.target.closest('[data-del]');
   if (del) {
     const list = loadPresets();
-    list.splice(parseInt(del.dataset.del), 1);
+    const i = parseInt(del.dataset.del);
+    list.splice(i, 1);
     savePresets(list);
+    // Deleting shifts every later index, so the lit block in the bank row would
+    // otherwise point at the wrong preset.
+    if (presetIdx === i) presetIdx = -1;
+    else if (presetIdx > i) presetIdx--;
+    _spiFlowDirty = true;
     renderLoadList();
     return;
   }
   const item = e.target.closest('.sls-item');
   if (item) {
-    const list = loadPresets();
-    applyState(list[parseInt(item.dataset.i)].state);
+    // Route through loadPresetAt so the bank row lights the right block —
+    // clicking the list and pressing ] should leave the same state behind.
+    loadPresetAt(parseInt(item.dataset.i));
     loadOverlay.classList.remove('vis');
-    toast('loaded: ' + list[parseInt(item.dataset.i)].name);
   }
+});
+
+// ── Locate bar ───────────────────────────────────────────────────────────────
+const locateFileInput = document.getElementById('src-locate-file');
+document.getElementById('src-locate-btn').addEventListener('click', () => locateFileInput.click());
+document.getElementById('src-locate-skip').addEventListener('click', () => {
+  // Remembered for the session: stepping through a bank built on a clip you did
+  // not bring should not be a wall of identical prompts.
+  const fp = srcFingerprint(_locateWant);
+  if (fp) _srcDeclined.add(fp);
+  _pendingInOut = null;
+  hideLocate();
+});
+locateFileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f || !_locateWant) return;
+  // Whatever they picked is what they meant — the fingerprint is a hint for
+  // finding the file, not a lock on which file is allowed.
+  if (f.name !== (_locateWant.fileName || _locateWant.name)) toast('using ' + f.name);
+  bindSourceFile(f, _locateWant);
+  hideLocate();
+});
+
+document.getElementById('bank-export').addEventListener('click', exportBank);
+const bankFileInput = document.getElementById('bank-file');
+document.getElementById('bank-import').addEventListener('click', () => bankFileInput.click());
+bankFileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) importBankFile(f);
+  e.target.value = '';    // same file twice in a row must still fire change
 });
 
 // ── Share modal ───────────────────────────────────────────────────────────────
@@ -9781,14 +9835,9 @@ document.getElementById('share-close').addEventListener('click', () => shareOver
 shareOverlay.addEventListener('click', e => { if (e.target === shareOverlay) shareOverlay.classList.remove('vis'); });
 
 // ── Shader hot-reload (?dev) ──────────────────────────────────────────────────
-// Opt-in development path. With ?dev in the URL, any .glsl listed in
-// shaders/manifest.json overrides its inlined counterpart and recompiles when
-// the file changes on disk. Without ?dev this block returns immediately and
-// issues no requests at all, so the shipped single-file build is unaffected.
-//
-//   node tools/extract-shaders.js     index.html -> shaders/
-//   python3 serve.py                  then open /?dev
-//   node tools/inline-shaders.js      fold edits back into index.html
+// Opt-in. With ?dev in the URL, any .glsl in shaders/manifest.json overrides its
+// inlined counterpart and recompiles on change. Without ?dev this returns
+// immediately and issues no requests, so the shipped build is unaffected.
 (function(){
   if (!/(^|[?&])dev(&|=|$)/.test(location.search)) return;
 
