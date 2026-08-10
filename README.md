@@ -7,7 +7,7 @@ Feed it a video file, a camera, or a screen capture, stack up to four generative
 shaders and four effects over it, and drive any parameter from audio, an LFO, or
 MIDI. Record the output or cast it to a second screen.
 
-**[dirgemedia.com/recur](https://dirgemedia.com/recur)** · no install, no account.
+**[dirgemedia.com/recur](https://dirgemedia.com/recurweb)** · no install, no account.
 
 ---
 
