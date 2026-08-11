@@ -3,12 +3,14 @@
 Context document for **recur-recur-browser** (aka **recur_web**). Give this to
 Claude at the start of a session.
 
-*Reconciled against `index.html` on 2026-08-11 — 9951 lines / ~473 KB /
-sha256 `66a1175bb4af…`. `BUILD` reads `2026-08-11m · trim`; bump before deploy.*
+*Reconciled against `index.html` on 2026-08-11 — 10123 lines / ~482 KB /
+sha256 `561f5a52743b7a6d…`. `BUILD` reads `2026-08-11p · mandelbox`; bump before
+deploy.*
 
-Not GPU-verified this session: the `onResize` retry path, `reapFBOs` timing, the
-render cap, and `texSubImage2D` on the video upload. `USE_TEXSUBIMAGE` reverts
-the last in one line.
+Not GPU-verified: the `onResize` retry path, `reapFBOs` timing, the render cap,
+and `texSubImage2D` on the video upload. `USE_TEXSUBIMAGE` reverts the last in
+one line. Added to that list this session — the quaternion tumble phase, its
+reversed zoom range, and the whole of `mandelbox`.
 
 ---
 
@@ -290,7 +292,7 @@ program); `audioTex`/`audioHistTex` are nulled only on context restore.
 
 - WebGL2, `#version 300 es`, `precision mediump float` in the shared header `H`.
 - `MODES = ['SAMPLER','SHADER','LIVE']`.
-- **`GEN[]` 14, `FX[]` 21 — 35 entries, 34 with GLSL.** Entry:
+- **`GEN[]` 15, `FX[]` 21 — 36 entries, 35 with GLSL.** Entry:
   `{name, params, def, [src], [usesPrev], [snapVals]}`. Append at the end.
   `sample-hold` is the only entry with no `src:`.
 - Field formatting is not uniform: `levels` uses `src: H + \`` with spaces;
@@ -359,6 +361,22 @@ found a real stepper bug that fixed no symptom.
   V5 URLs arrive LONG with 12 entries. Missing entries fill with **0, not `def`**
   — `def` is the fresh-instance value (plasma's `detail` is 0.45).
 
+### Appending a shader is wire-safe; V4 decode is not
+
+**V5 is per-SLOT, not per-shader** — `genLen × N_P`, not `GEN.length × N_P` — so
+growing a table moves no bytes. Shader indices are stored as whole bytes
+(`buf[2]`, `buf[3-5]` as `+1`), so the table has room to 254. Verified by
+extracting the real `_stateToBufV5` and driving it under both table sizes:
+5,000/5,000 payloads byte-identical between `GEN.length` 14 and 15, and
+`genChain` round-trips 5,000/5,000 with the new index in play. `applyState`
+filters `i < GEN.length`, which only ever widens.
+
+**`_bufToStateV4` sizes its param blocks from the current `GEN.length`.** It is
+decode-only, but that means every shader ever appended has shifted its read
+offsets — a V4 buffer written when `GEN` held 14 entries now misaligns by
+`N_P` bytes and everything after the gen block decodes as garbage. Pre-existing
+and cumulative, not caused by any one addition.
+
 ### V5 trailing blocks
 
 Length-guarded, appended after the original body, fixed order, append only:
@@ -425,10 +443,19 @@ Switches to SHADER.
   `button` at minimum, plus `html.parser`. Add a CSS brace count for stylesheet
   changes.
 - **GLSL:** `npm i @shaderfrog/glsl-parser`; AST walk for undeclared identifiers,
-  skipping `field_selection.selection`. Rebuild the `${ASCII_*}` constants.
-  Expect **35 entries, 34 parsed**. Re-derive that count from the file — it was
+  skipping `field_selection.selection`. Rebuild the `${ASCII_*}` constants —
+  stub them as **int literals**, because the ascii source interpolates them as
+  `${X}.0` and a float stub fails to parse.
+  Expect **36 entries, 35 parsed**. Re-derive that count from the file — it was
   stale at 33/32 for two sessions. The durable invariant is: exactly one entry
   without GLSL, and it is `sample-hold`.
+- **The `src:` prefix is not always `H`.** `PAL`, `HUESHIFT` and `HSV` are
+  prepended too, and a matcher anchored on `` src: H+` `` silently skips a third
+  of the table while still reporting "no failures". Match
+  `src:\s*((?:[A-Z][A-Z0-9_]*\s*\+\s*)+)` and resolve each name.
+- **Scan the template literal, do not regex it.** Greedy `` [\s\S]*` `` runs the
+  last entry's source to the end of the file and swallows the ASCII block's
+  backticks. Walk from the opening backtick honouring `${...}` nesting.
 - **Read the count your tooling reports.** Two shaders once passed several "ALL
   PASS" runs unchecked.
 - **Extract the real function and drive it.** Seven genuine bugs across two
@@ -456,7 +483,10 @@ Switches to SHADER.
 cycling, `_padSlots` short/long/idempotency, upload-gate readyState matrix,
 chain differential harness, wire round-trip (shape, fixed point, V5 bytes,
 new-keys-additive), `capDims`, gzip bomb rejection, overlay logic, bank logic,
-source binding, legacy/V5 compatibility.
+source binding, legacy/V5 compatibility, **shader-table append safety** (V5
+bytes identical across `GEN.length`, driven on the extracted encoder), and
+**time-phase continuity** (worst single-frame step of every time-derived
+quantity against that trial's own 99th-percentile step; smooth is ~1.0).
 
 ---
 
@@ -476,6 +506,15 @@ source binding, legacy/V5 compatibility.
 - **`vid.currentTime` returns the seek target on assignment.**
 - **`readyState` drops to 1 during a seek.** Never gate a texture upload on it in
   code that seeks continuously.
+- **Wrap every time phase at the period of what reads it.** `th = TAU*fract(...)`
+  is seamless for `cos(th)`/`sin(th)`, but *halving* it is not: half of a
+  TAU-periodic phase is π-periodic, so `rot2(th*.5)` flipped the quaternion 180°
+  in one frame at every wrap. Period 16 s, first cut at a seed-dependent point,
+  so it reads as "a jump after about 8 seconds". A sub-rate reader needs its own
+  phase at its own rate: `fract(t*rate/(2*PERIOD) + off*.5)`, identical angular
+  velocity, wrap lands on a full turn. Diagnosed by measuring the worst
+  single-frame step of the whole time state against that trial's own 99th
+  percentile step — 1841× before, 1.004× after, over 400 random trials.
 - **mediump is fp16 on mobile.** `float(uFrame)` stops resolving single frames
   past ~2048 (~34 s). Time-deriving shaders declare `highp float t`, and function
   params receiving it must be `highp` too.
@@ -517,8 +556,53 @@ Pattern: original behaviour exact at style 0 with new params at 0, snapping
 - **maze-flight** — port of "Can't Find My Way Out" by ksin (CC0-1.0). Global
   `precision highp` — the camera's z is the clock. Integer hashing, world
   rebasing via `gK`.
-- **quaternion** — port of "Gilded Quaternion" by ufffd (CC0-1.0). Global
-  `precision highp` — the running derivative reaches ~1e10, past fp16.
+- **quaternion** (GEN 13, 12p) — port of "Gilded Quaternion" by ufffd (CC0-1.0).
+  Global `precision highp` — the running derivative reaches ~1e10, past fp16.
+  `zoom` is **inverted against camera distance**, `cd = mix(5.5, .35, uP4)`, so
+  up is closer; def `.592` reproduces the original framing at 2.45. Above zoom
+  0.718 the eye is inside the 1.8 bounding sphere. At the top of the travel the
+  frame is 78-100% object for four of the five form seeds; **form ≈ 0.5 puts the
+  eye inside the solid** and washes out, which is the one dead spot on that
+  slider. Marching is *cleaner* close in than at the default framing — near-miss
+  rescues 0.2% against 1.5%.
+- **mandelbox** (GEN 14, 12p) — Tom Lowe's Mandelbox on the quaternion's camera
+  rig, orbit trap colour and shading block; only the map differs. Folded
+  architecture rather than a creature. Global `precision highp` — `dr` compounds
+  as `dr*|scale|+1` and reaches ~4e8 at 16 iterations. No transcendentals in the
+  loop, so it costs about what the quaternion does at three times the iteration
+  count. See *Mandelbox ranges* below.
+
+### Mandelbox ranges
+
+All measured on a CPU port; none of it is GPU-verified.
+
+- **Surface radius is `3.42 × fold` and does not depend on `scale`** (300k
+  samples per setting). The camera is normalised against it, which is what turns
+  `fold` from a size knob into a pure shape knob: apparent size holds 19.9-22.7%
+  of frame across the whole fold slider, `scale` holds 19.0-24.6%. Nothing needs
+  re-framing after a fold move.
+- **Only negative scales are compact.** At `scale` +1.2 to +3.0 the object
+  sprawls to radius 6.8-12+; every negative scale measured sits at ~3.3 (at
+  fold 1). The slider is negative-only, -1.5 to -3.3.
+- **`scale` is warped**, `1.57u − 0.57u²`. Linear, the silhouette moves 3.7×
+  faster near -3.2 than near -1.5 and half the slider does nothing. Warped, the
+  spread is 3.0×. Measured as silhouette IoU at eight equal slider steps:
+  0.955 → 0.866 warped, against 0.978 → 0.756 linear.
+- **`minRadius` is not worth a param.** Swept 0.05-0.85 it holds IoU 0.92-0.97 —
+  a weaker knob than anything else here. Fixed at 0.25 (`m = 4` in the core).
+- **The step budget rises with zoom**, `80 + detail·71 + zoom²·150`. The interior
+  needs about twice the marching the silhouette does; at a flat 130 steps the
+  close end lost 4.2% of the frame to starved rays and 7.6% to near-miss
+  rescues. Lowering the march factor below 0.85 makes it *worse*, not better —
+  it is step starvation, not a DE bound problem. With the ramp, near-miss stays
+  ≤0.16% and starved ≤0.05% everywhere on the zoom range.
+- Default (`zoom .392`, `scale .5`, `fold .21` → cd 2R, scale -2.59, fold 0.85)
+  frames at 22.1% with **zero** near-miss and **zero** starved, 19.9 steps/px.
+- Palette gains are the reciprocals of each trap channel's measured 5th-95th
+  spread — 12.08 / 1.07 / 3.18 / 3.18, so gains .08 / .94 / .31 / .31.
+- `morph` drifts `scale` ±0.30 and `fold` ±0.07 on a circle. Both clamp inside
+  the measured range so it cannot reach an unchecked corner. The worst corner it
+  *can* reach (scale -3.3, fold 0.62) still fills 6.1% of frame.
 
 ## LFO
 
@@ -580,7 +664,21 @@ yield, or the seek is overwritten.
 - `feature-dots` `settle` default 0.16 is a guess, needs GPU tuning.
 - `loadVideo` / `captureScreen` enter SAMPLER without the gen bypass.
 - Unverified on a GPU: `onResize` halve-and-retry, `reapFBOs` timing, the render
-  cap, `texSubImage2D` upload.
+  cap, `texSubImage2D` upload, the quaternion tumble phase and reversed zoom,
+  and all of `mandelbox`.
+- **The quaternion `slice` stop may not hold.** The claim above is that ±0.75
+  cannot reach a blank frame because the set is empty past |w| ~0.85. On the CPU
+  port at `form` 0.5, both ends of the slider render **0% coverage** at every
+  camera distance tried. Either the original margin was measured at one form
+  only, or the port is wrong. Re-measure across form before trusting the stop.
+- Quaternion `form` ≈ 0.5 at maximum zoom puts the eye inside the solid, so the
+  frame washes to near-flat colour. The only dead spot on that slider.
+- Reversing quaternion `zoom` reframed every preset and share link written
+  before `2026-08-11o`. The bytes are still valid; the framing is not. Share
+  links from other people cannot be corrected.
+- `randomiseAll` rolls `zoom` uniformly, so ~28% of random quaternion and
+  mandelbox patches now start from inside the object. Not weighted.
+- `_bufToStateV4` read offsets drift with `GEN.length` — see above.
 - `fboFx` is not reaped — its condition is known to `render()`, not `reapFBOs()`.
 - Legacy `_bufToState` (pre-V4) is not length-checked the way V5 is.
 - `captureScreen` does not run `assessSource`.

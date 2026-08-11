@@ -1383,7 +1383,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">scatter</span><span class="hk-desc">Cuts the frame into a square grid and rearranges it. grid sets how many cells across, from a handful of big slabs up to 48 fine tiles. shuffle is how far a cell may travel, up to ten cells away, and amount is how many of them move at all — the rest pass through untouched. pixelate quantises inside each cell, from full detail down to one flat colour per tile. rate re-rolls the arrangement on a timer; at 0 it holds still, so you get a fixed scramble rather than a churn. seam darkens a border inside each cell so the grid reads as laid tiles. mode picks how cells move: 0 scatter (each jumps somewhere random), 1 swap (cells trade in pairs — a true permutation, so nothing is duplicated or lost), 2 rows (whole rows slide sideways), 3 columns (whole columns slide vertically), 4 spin (cells stay put but their contents rotate in 90 degree steps)</span></div>
     <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Tracks corner features in the image (Shi-Tomasi detection + Lucas-Kanade optical flow) and marks them with coloured dots that move with the structure they're tracking. Pitch sets dot spacing, sensitivity sets how readily a point is treated as a feature, dot-size and jitter shape the dots, tint/backdrop/gamma control colour, track blends tracked motion in, and settle controls how strongly dots relax back toward their grid position each frame — too little and the field shears apart, too much and dots snap back to the lattice</span></div>
     <div class="hk-row"><span class="hk-key">maze-flight</span><span class="hk-desc">Endless flight through an infinite fractal maze — a solid universe with corridors carved at three nested scales, so every wall is itself a smaller maze. Ported from a CC0 shader by ksin on glslop. speed sets how fast you travel (0 freezes the frame), fov widens or narrows the lens, turns is how hard the path wanders — at 0 it runs dead straight. width sets corridor size and density how many walls open, so the two together take you from tight warren to open hall. detail switches in the second and third nested scales at a third and three-quarters of its travel, and also buys the extra march steps needed to resolve them — it is the performance control, so drop it first if the frame rate suffers. It ships at 0.6, which leaves the third scale off: those corridors are under a tenth of a unit wide and sweep past the camera faster than a frame, which is most of what reads as sparkle. Push it past 0.75 for the full fractal and expect the near field to get busy. glow lights convex edges, circuits runs light along the wall grooves, windows lights sparse wall panels. hue sets the neon colour and drifts slowly on its own, saturation and fog finish the image. It ignores video entirely, so in LIVE mode set the slot blend to screen or add — the corridors are near black and the footage shows through them while the neon stays lit. Two slots running it land in different parts of the maze</span></div>
-    <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls in and out. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
+    <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in — turn it up to come closer, and the top of the travel puts the eye inside the object, so you fly through the structure rather than orbiting it. Which forms enclose you there varies: at the very top, form around a quarter and around one wrap right around you, form near three quarters opens back out into a gap. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
+    <div class="hk-row"><span class="hk-key">mandelbox</span><span class="hk-desc">Folded architecture rather than a creature — infinite slabs, corridors and rounded corners cut out of one solid, raymarched on the same turntable as quaternion. SHAPE: scale is the main form control and runs from stocky and rounded to lacy and spindly; the slider is warped so equal moves give equal change rather than doing most of its work at one end. fold sets the size of the box the space keeps folding back into, which is the strongest shape knob here — but the camera is normalised against it, so the object stays the same size on screen and fold changes only what it looks like. morph drifts scale and fold on a small circle so the structure breathes, and at 0 it holds still. detail sets iterations and march steps together. CAMERA: spin orbits, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in, and at the top of its travel you are inside the folds looking out through them. speed drives the morph and tumble only. COLOUR: hue rotates the palette, palette picks which orbit trap drives it, glow is the rim light, shade balances flat against modelled. The background is black, so on a screen or add blend it floats over video</span></div>
 
     <div class="hk-row"><span class="hk-key">vhs</span><span class="hk-desc">Analog tape emulation. chroma pulls red and blue apart horizontally, scanlines darkens alternate lines, noise adds per-pixel grain, and tracking jitters whole scanlines sideways at random — the tape-alignment wobble. A slight desaturation and warm tint are applied on top</span></div>
     <div class="hk-row"><span class="hk-key">posterize</span><span class="hk-desc">Reduces the image to a small number of colour steps — levels sets how many, 2 to 16 per channel. contrast is applied after the quantisation, so it hardens the edges between bands rather than creating more of them. tint-hue rotates the hue of the posterised result, centre being no shift. mix blends back against the original</span></div>
@@ -1643,7 +1644,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-11m · trim';
+const BUILD = '2026-08-11p · mandelbox';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -2668,10 +2669,11 @@ void main(){
     // The ISF's fixed 16s loop is traded for a free camera, and its six knobs
     // split across twelve. Every range below was measured on a CPU port.
     params: ['speed','spin','tilt','zoom','form','slice','morph','detail','hue','palette','glow','shade'],
-    // speed/morph/glow reproduce the ISF defaults. zoom is 2.45 against the
-    // ISF's 2.7, which was framed for a square poster — on 16:9 that leaves the
-    // object at 14% of the frame; 2.45 gives ~19% and still clears the edges.
-    def: [.333,.62,.62,.153,0.,.5,.417,.75,0.,0.,.333,.5],
+    // speed/morph/glow reproduce the ISF defaults. zoom .592 is camera distance
+    // 2.45, against the ISF's 2.7, which was framed for a square poster — on
+    // 16:9 that leaves the object at 14% of the frame; 2.45 gives ~19% and still
+    // clears the edges.
+    def: [.333,.62,.62,.592,0.,.5,.417,.75,0.,0.,.333,.5],
     src: H+`
 // highp is mandatory: the running derivative md2 reaches ~1e10, which is fine in
 // fp32 but five orders past fp16. At the shared header's mediump this returns
@@ -2742,15 +2744,20 @@ void main(){
 
   highp float t=(float(uFrame)+uSeed)/60.;
   // No unbounded world coordinate here: the object sits at the origin and time
-  // only enters through fract(), so wrapping these two phases bounds everything.
-  float ph =fract(t*mix(0.,3.,uP1)/PERIOD+fract(uSeed*.0137));
+  // only enters through fract(), so wrapping these phases bounds everything.
+  // Each phase must wrap at the period of what reads it. The tumble runs at half
+  // the morph rate, so it needs its own half-rate phase: halving th instead put
+  // a 180 deg flip in one frame at every wrap.
+  float rate=mix(0.,3.,uP1);
+  float ph =fract(t*rate/PERIOD+fract(uSeed*.0137));
+  float tph=fract(t*rate/(2.*PERIOD)+fract(uSeed*.0137)*.5);   // same angular rate
   float yaw=TAU*fract(t*(uP2-.5)*.5+fract(uSeed*.0091));
   float th =TAU*ph;
 
   // form + morph: the seed drifts on a small circle, so the creature breathes.
   qC=qSeed(uP5)+mix(0.,1.2,uP7)*.12*vec4(cos(th),sin(th),cos(2.*th),sin(2.*th));
   qSlice=mix(-.75,.75,uP6);
-  qRt=rot2(th*.5);
+  qRt=rot2(TAU*tph);
   // detail buys iterations and march steps together. It is a surface-detail and
   // cost control, not a shape control — silhouette held at 26.4-26.9% from 5 to
   // 14 iterations. Drop it first if the frame rate suffers.
@@ -2758,7 +2765,11 @@ void main(){
   int steps=70+int(uP8*60.99);
 
   float el=mix(-1.1,1.1,uP3);                 // stays clear of the pole at pi/2
-  float cd=mix(1.9,5.5,uP4);
+  // zoom is inverted against camera distance so up means closer. The near end
+  // is well inside the 1.8 bounding sphere: at .35 the frame is 78-100% object
+  // for four of the five form seeds, and the marcher is CLEANER there than at
+  // the default framing — near-miss rescues fall from 1.5% to 0.2%.
+  float cd=mix(5.5,.35,uP4);
   vec3 ro=cd*vec3(sin(yaw)*cos(el),sin(el),cos(yaw)*cos(el));
   vec3 fwd=normalize(-ro);
   vec3 rgt=normalize(cross(vec3(0.,1.,0.),fwd));
@@ -2822,6 +2833,167 @@ void main(){
       col += base*fres*3.*g;
       col += vec3(1.)*pow(fres,5.)*.8*g;
       col *= exp(-.18*max(te-cd+1.3,0.));
+    }
+  }
+
+  col=col/(1.+col);                 // soft knee, or the rim clips to flat white
+  col=pow(max(col,0.),vec3(.78));
+  col*=1.-.22*dot(uv,uv);
+  FC=vec4(clamp(col,0.,1.),1.);}`
+  },
+  {
+    name: 'mandelbox',
+    // Tom Lowe's Mandelbox: box fold, sphere fold, scale-and-offset, raymarched
+    // with the standard length(z)/|dr| estimate. Shares the quaternion's camera
+    // rig, orbit-trap colour and shading block — only the map differs.
+    // Folded architecture rather than a creature. Every range below was
+    // measured on a CPU port.
+    params: ['speed','spin','tilt','zoom','scale','fold','morph','detail','hue','palette','glow','shade'],
+    // zoom .392 is camera distance 2x the object radius, which frames it at 22%
+    // of a 16:9 frame — the quaternion's default is 19%. fold .21 is the
+    // classic 0.85 box limit, scale .5 is -2.59.
+    def: [.333,.62,.62,.392,.5,.21,.417,.75,0.,0.,.333,.5],
+    src: H+`
+// highp is mandatory: dr compounds as dr*|scale|+1 every iteration and reaches
+// ~4e8 at 16 iterations, four orders past fp16's 65504. At the shared header's
+// mediump the estimate saturates and the object renders as a solid block.
+precision highp float;
+precision highp int;
+
+#define TAU 6.28318530718
+const float PERIOD = 16.0;
+const int   MAXI   = 16;
+// Measured across 300k samples: the surface radius is 3.42 x fold and does not
+// depend on scale. Normalising the camera by it makes fold a pure SHAPE control
+// — apparent size holds 19.9-22.7% of frame from one end of the slider to the
+// other, so nothing has to be re-framed after a fold move.
+const float RK = 3.42;
+
+// Resolved once in main(): GLSL forbids initialising a global from a uniform.
+int   mIter;
+float mScale, mFold;
+mat2  mRt;
+
+mat2 rot2(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
+vec3 mPal(float t){ return .5+.5*cos(TAU*(t+vec3(.55,.40,.18))); }
+
+// Mandelbox DE. No transcendentals in the loop at all, which is why it costs
+// about what the quaternion does despite running three times the iterations.
+// dr only ever grows, so it needs no divide-by-zero guard.
+float mMap(vec3 p, out vec4 trap){
+  p.xz=mRt*p.xz;
+  vec3 z=p; float dr=1.;
+  trap=vec4(abs(z),dot(z,z));
+  for(int i=0;i<MAXI;i++){
+    if(i>=mIter) break;
+    z=clamp(z,-mFold,mFold)*2.-z;                 // box fold
+    float r2=max(dot(z,z),1e-12);
+    // sphere fold against a fixed unit radius with a 0.5 core: 1/.25 = 4
+    float m=r2<.25?4.:(r2<1.?1./r2:1.);
+    z*=m; dr*=m;
+    z=mScale*z+p; dr=dr*abs(mScale)+1.;
+    r2=dot(z,z);
+    trap=min(trap,vec4(abs(z),r2));
+    if(r2>1000.) break;
+  }
+  return length(z)/dr;
+}
+
+void main(){
+  vec2 uv=(vU-.5)*2.*vec2(uRes.x/uRes.y,1.);
+
+  highp float t=(float(uFrame)+uSeed)/60.;
+  // Each phase wraps at the period of whatever reads it. The tumble runs at
+  // half the morph rate, so it carries its own half-rate phase — halving th
+  // instead would flip the object 180 deg in a single frame at every wrap.
+  float rate=mix(0.,3.,uP1);
+  float ph =fract(t*rate/PERIOD+fract(uSeed*.0137));
+  float tph=fract(t*rate/(2.*PERIOD)+fract(uSeed*.0137)*.5);
+  float yaw=TAU*fract(t*(uP2-.5)*.5+fract(uSeed*.0091));
+  float th =TAU*ph;
+
+  // scale is warped so equal slider steps give equal silhouette change: under a
+  // linear map the shape moves 3.7x faster near -3.2 than near -1.5, and this
+  // brings the spread to 3.0x. Both knobs clamp inside the measured range, so
+  // morph cannot drive them anywhere that has not been checked for a blank frame.
+  float w=1.57*uP5-.57*uP5*uP5;
+  float mo=mix(0.,1.,uP7);
+  mScale=clamp(-(1.5+1.7*w)+mo*.30*sin(th),-3.3,-1.45);
+  mFold =clamp(mix(.65,1.6,uP6)+mo*.07*cos(th),.62,1.67);
+  mRt=rot2(TAU*tph);
+  mIter=8+int(uP8*8.99);
+  // The step budget rises with zoom. The interior needs about twice the marching
+  // the silhouette does; starving it there cost 4% of the frame in speckle.
+  int steps=80+int(uP8*70.99)+int(uP4*uP4*150.);
+
+  float R=RK*mFold;
+  float el=mix(-1.1,1.1,uP3);                 // stays clear of the pole at pi/2
+  // zoom is inverted against camera distance so up means closer. At 1 the eye
+  // sits at 0.45R, well inside the object: 94% of the frame is structure.
+  float cd=R*mix(3.0,.45,uP4);
+  vec3 ro=cd*vec3(sin(yaw)*cos(el),sin(el),cos(yaw)*cos(el));
+  vec3 fwd=normalize(-ro);
+  vec3 rgt=normalize(cross(vec3(0.,1.,0.),fwd));
+  vec3 upv=cross(fwd,rgt);
+  vec3 rd=normalize(uv.x*rgt+uv.y*upv+1.7*fwd);
+
+  vec3 col=vec3(0.);
+
+  // Enter at the bounding sphere and stop at its far side, so background pixels
+  // never march and no ray wanders past the object burning its budget.
+  float BR=R*1.02;
+  float bb=dot(ro,rd), cs=dot(ro,ro)-BR*BR;
+  float hh=bb*bb-cs;
+  if(hh>0.){
+    hh=sqrt(hh);
+    float tt=max(-bb-hh,.001*BR), tcap=-bb+hh;
+    vec4 tr,trHit=vec4(0.);
+    float te=0.,d=1e9;
+    bool hit=false;
+    for(int i=0;i<300;i++){
+      if(i>=steps) break;
+      d=mMap(ro+rd*tt,tr);
+      if(d<.0004*tt){ hit=true; break; }
+      tt+=d*.85;
+      if(tt>tcap) break;
+    }
+    // Same near-miss rescue as the quaternion, scaled by object size. With the
+    // budget above it claims under 0.2% of the frame anywhere on the zoom range.
+    if(!hit && d<.004*R && tt<tcap) hit=true;
+    if(hit){ te=tt; trHit=tr; }
+
+    if(hit){
+      vec3 p=ro+rd*te;
+      vec2 k=vec2(1.,-1.);
+      float e=.0005*R;
+      vec4 dm;
+      vec3 n=normalize(k.xyy*mMap(p+k.xyy*e,dm)+k.yyx*mMap(p+k.yyx*e,dm)+
+                       k.yxy*mMap(p+k.yxy*e,dm)+k.xxx*mMap(p+k.xxx*e,dm));
+
+      // palette picks WHICH orbit trap drives the hue, crossfading four sources
+      // on a triangular basis. Gains are the reciprocals of each channel's
+      // measured 5th-95th spread (12.08 / 1.07 / 3.18 / 3.18) so any selection
+      // sweeps a full turn — unscaled, the wide radius channel gives one flat hue.
+      float pw=uP10*3.;
+      float a0=max(1.-abs(pw    ),0.), a1=max(1.-abs(pw-1.),0.);
+      float a2=max(1.-abs(pw-2.),0.), a3=max(1.-abs(pw-3.),0.);
+      float arg=a0*trHit.w*.08+a1*trHit.y*.94+a2*trHit.x*.31+a3*trHit.z*.31;
+      vec3 base=mPal(uP9+.30+arg);
+
+      vec3 lig=normalize(vec3(.5,.8,.4));
+      float dif=max(dot(n,lig),0.);
+      float fres=pow(1.-max(dot(n,-rd),0.),2.2);
+      float ao=clamp(.5+.5*n.y,.3,1.);
+      float g=mix(0.,3.,uP11);
+
+      // shade balances flat-and-electric against modelled-and-solid: the ambient
+      // floor rises as the diffuse term falls, so the face never goes unlit.
+      col += base*mix(.18,.06,uP12)*ao;
+      col += base*dif*mix(.10,.55,uP12)*ao;
+      col += base*fres*3.*g;
+      col += vec3(1.)*pow(fres,5.)*.8*g;
+      // Depth cue in units of the object radius, so it does not change with fold.
+      col *= exp(-.6*max((te-cd)/R+.45,0.));
     }
   }
 
@@ -7500,7 +7672,7 @@ const _abbrev = {
   'plasma':'PLM','kaleidoscope':'KLID','tunnel':'TUN','flowing-colours':'FLWC',
   'hypnotic-rings':'HYPR','squarewaves':'SQRW','starfield':'STRF','voronoi':'VOR',
   'waves':'WAV','zoom-clouds':'ZMCL','gamma-ray':'GAMR','oscilloscope':'OSC',
-  'feature-dots':'DOTS','maze-flight':'MAZE','quaternion':'QUAT',
+  'feature-dots':'DOTS','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
   'vhs':'VHS','glitch':'GLTCH','feedback':'FBCK','mirror':'MIR','posterize':'POST',
   'invert':'INV','bitcrush':'BTCR','colorizer':'CLR','grain':'GRN',
   'hsv-shift':'HSV','hue-cycle':'HUE','kaleido-warp':'KLWP','rotate-zoom':'RTZM',

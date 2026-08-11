@@ -7,7 +7,7 @@ Feed it a video file, a camera, or a screen capture, stack up to four generative
 shaders and four effects over it, and drive any parameter from audio, an LFO, or
 MIDI. Record the output or cast it to a second screen.
 
-**[dirgemedia.com/recurweb](https://dirgemedia.com/recurweb)** · no install, no account.
+**[dirgemedia.com/recur](https://dirgemedia.com/recur)** · no install, no account.
 
 ---
 
@@ -34,7 +34,7 @@ first. Tap the blend toggle to bring the stack back.
 
 **Two chains**, up to four slots each, shown in the flow strip:
 
-- **GEN** — 14 generative shaders, composited onto each other with per-slot blend
+- **GEN** — 15 generative shaders, composited onto each other with per-slot blend
   mode and amount.
 - **FX** — 21 effects, applied in series, each with its own wet/dry and blend mode.
 
@@ -93,7 +93,9 @@ blend mode and modulation binding. A few hundred bytes, no server. Video files
 are not included in presets or share links.
 
 Share URLs are forward-compatible: an older build will still open a link made by
-a newer one.
+a newer one. That covers the *format*, not the meaning of every slider — if a
+control's range changes between builds, an old link still loads, but that shader
+may be framed differently than it was when the link was made.
 
 ## Performance
 
@@ -104,6 +106,11 @@ Two independent controls in **ZOOM & CHAINS**:
 - **RENDER CAP** (off / 1080 / 4K, default 4K) — an *absolute* pixel ceiling,
   independent of screen size. Bounds GPU memory on large displays; does nothing
   below the ceiling. Saved per device, not part of presets.
+
+`maze-flight`, `quaternion` and `mandelbox` are raymarched and cost far more
+than the rest of GEN. Each has a **detail** slider that buys surface detail with
+frame rate — drop that before you drop RES. Zooming inside the two fractal
+solids is the most expensive thing the tool does.
 
 `P` shows a live frame-time meter; `I` shows a GPU and platform report with a
 copy button. The report's `mediump` line is the usual explanation for the same
