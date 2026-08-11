@@ -592,13 +592,23 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 #spi-header {
   display:flex; flex-direction:column; gap:4px;
 }
+/* Mode label left, the four buttons right. 277px of the 408px available, so it
+   holds down to about 300px of panel.
+   flex-wrap as #spi-zoom-row does: every item in the header is nowrap, and a
+   nowrap flex item has min-width:auto, so nothing here can shrink. Without
+   somewhere to wrap to, #spi-panel's overflow:hidden CLIPS the last item rather
+   than reflowing — which is how CAST used to vanish on any viewport under
+   ~412px, i.e. most phones. */
 #spi-header-top {
-  display:flex; align-items:center; gap:6px;
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
 }
 #spi-header-top #spi-mode { flex:1; }
-/* Dim and small: it exists to spot a stale deploy at a glance. */
+/* The MODE rule doubles as the build marker's line. */
+#spi-mode-hdr { display:flex; align-items:baseline; gap:6px; }
+/* Dim and small: it exists to spot a stale deploy at a glance — which means it
+   must stay whole. flex-shrink:0 so it wraps entire rather than ellipsising. */
 #spi-build { font-size:8px; color:#062; letter-spacing:0; white-space:nowrap;
-  align-self:flex-end; padding-bottom:2px; }
+  flex-shrink:0; margin-left:auto; }
 /* RND, ZOOM and RES. flex-wrap so an overflow grows a line instead of clipping. */
 #spi-zoom-row {
   display:flex; align-items:center; gap:6px;
@@ -691,6 +701,16 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   font-size:11px; outline:none; width:100%; box-sizing:border-box;
 }
 .sls-input:focus { border-color:#0ff; }
+/* In a .sls-row beside a button: width:100% above would fight the flex basis. */
+.sls-input-inline { flex:1; width:auto; min-width:0; }
+/* Divides the dialog's two jobs. Reads like a .spi-section rule, one rung down. */
+.sls-sub {
+  font-size:9px; color:#0a0; letter-spacing:2px; text-transform:uppercase;
+  border-top:1px solid #052; padding-top:8px; margin-top:2px;
+}
+/* .sls-btn is flex:1 so buttons share a row evenly — but this one shares with an
+   input that should take the slack instead. */
+#bank-export { flex:0 0 auto; }
 .sls-url {
   background:rgba(0,20,0,.9); border:1px solid #0a0; border-radius:3px;
   padding:6px 8px; color:#0cc; font-family:'Courier New',monospace;
@@ -719,24 +739,33 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .audio-m-fill { height:100%; background:#0f0; width:0%; }
 
 /* ── Flow strip ───────────────────────────────────────────────────────────── */
-/* SRC + render cap. Above the strip so it reads source → gen → fx. */
-#spi-src-cap-row {
-  display:flex; align-items:center; gap:4px;
-  padding:2px 0 1px; flex-wrap:wrap;
-}
-/* Pushes the cap group to the right edge, leaving SRC and CAM on the left. */
-#spi-src-cap-row .spi-cap-lbl { margin-left:auto; }
-#spi-src-cap-row .spi-hbtn { padding:3px 6px; flex-shrink:0; }
+/* Pushes the buffer readout to the right edge of the RENDER CAP row. */
+#spi-cap-row #spi-res-val { margin-left:auto; }
+/* Width and padding come from the CTL_W rule further down the stylesheet. */
+#spi-cap-row { display:flex; align-items:center; gap:6px; padding:2px 0; flex-wrap:wrap; }
 
-#flow-strip {
+/* Three separate elements — bank, source, chains — sharing one column ruler so
+   they read as a single grid. The source row cannot live inside #flow-strip:
+   buildFlowStrip replaces that element's innerHTML, and the camera button has
+   to survive the rebuild with its panel-level delegation intact. */
+#bank-strip, #flow-strip {
   display:grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto auto;
+  /* Fixed label gutter, not auto: the labels are CTL_W like everything else in
+     the section, and an auto column would shift the rows sideways when the BANK
+     label gains a page digit. 42 + the 4px gutter. */
+  grid-template-columns: 46px 1fr;
   gap:2px 0;
   padding:2px 0 1px;
 }
+/* GEN and FX only — the bank moved to the top of the section. */
+#flow-strip { grid-template-rows: auto auto; }
+/* Bank controls, then the presets themselves. Stated rather than left to auto
+   rows, so the two-row shape is visible here and not only in buildFlowStrip. */
+#bank-strip { grid-template-rows: auto auto; }
+/* Left-aligned: the labels are all CTL_W now, so every row's label and every
+   row's first block share a left edge. */
 .flow-row-lbl {
-  display:flex; align-items:center;
+  display:flex; align-items:center; justify-content:flex-start;
   padding-right:4px; flex-shrink:0;
 }
 .flow-row {
@@ -745,6 +774,13 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   scrollbar-width:none; -webkit-overflow-scrolling:touch;
 }
 .flow-row::-webkit-scrollbar { display:none; }
+/* The bank wraps instead of scrolling. GEN and FX still scroll: they are drag
+   targets and a wrapped row would move blocks under the pointer mid-drag. */
+/* Spans the label gutter as well, so the presets start hard left rather than
+   indented to the box column. They are the one row in the section that is not
+   on the ruler: a preset is not a chain position, nothing lines up with it, and
+   the 46px buys most of another block per line. */
+.flow-row-bank { grid-column:1 / -1; flex-wrap:wrap; overflow:visible; row-gap:3px; align-items:flex-start; }
 .fb {
   flex-shrink:0; font-family:'Courier New',monospace; font-size:8px;
   border:1px solid #0a0; border-radius:2px; padding:1px 5px;
@@ -870,28 +906,72 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .fb-cam { color:#0a0; border-color:#0a0; cursor:pointer; touch-action:manipulation; }
 .fb-cam.fb-cam-active { color:#0f0; border-color:#0f0; background:rgba(0,35,0,.9); box-shadow:0 0 5px rgba(0,255,0,.25); }
 .fb-cam:hover { color:#0f0; border-color:#0f0; }
-.fb-bank { color:#c6c; border-color:#527; background:rgba(20,8,25,.9); max-width:64px; }
+/* The one exception to CTL_W: a preset is named, not labelled, and four
+   characters is not a name. 64px is fixed rather than a cap so the blocks are
+   uniform with each other. */
+.fb-bank { color:#c6c; border-color:#527; background:rgba(20,8,25,.9);
+  width:64px; max-width:none; height:16px; line-height:14px; padding:0 3px; text-align:center; }
 .fb-bank:hover, .fb-bank.fb-sel { color:#f9f; border-color:#f0f; background:rgba(38,12,45,.9); }
 .fb-bank.fb-sel { box-shadow:0 0 6px rgba(255,0,255,.3); }
 .fb-bank-empty { color:#404; border-color:#404; border-style:dashed; cursor:default; pointer-events:none; letter-spacing:2px; padding:2px 10px; }
+/* Bank row controls. No data-fb-type, same as the preset blocks, so the strip's
+   drag matcher ignores them. */
+.fb-ctl { color:#c6c; border-color:#527; background:rgba(20,8,25,.9); max-width:none; }
+.fb-ctl:hover { color:#f9f; border-color:#f0f; }
+.fb-ctl.fb-armed { color:#fff; border-color:#f0f; background:rgba(70,0,70,.95); box-shadow:0 0 6px rgba(255,0,255,.45); }
+/* Only a paged bank makes the label a control; unpaged it stays inert like GEN. */
+/* CLR is unrecoverable, so it reads red rather than the bank controls' magenta,
+   and brighter still once armed. Three classes, so it wins over .fb-ctl.fb-armed
+   on specificity wherever the two sit in the sheet. */
+.fb-ctl.fb-clr { color:#c66; border-color:#722; background:rgba(25,8,8,.9); }
+.fb-ctl.fb-clr:hover { color:#f99; border-color:#f00; }
+.fb-ctl.fb-clr.fb-armed { color:#fff; border-color:#f00; background:rgba(80,0,0,.95); box-shadow:0 0 6px rgba(255,0,0,.45); }
+/* The preset an armed overwrite is pointed at. Reads like CLR rather than like
+   the loaded-preset highlight, because it is about to be written over. */
+.fb-bank.fb-ovr-target { color:#fff; border-color:#f0f; background:rgba(70,0,70,.95); box-shadow:0 0 6px rgba(255,0,255,.45); }
+.fb-bank-lbl { cursor:pointer; }
+.fb-bank-lbl:hover { color:#f9f; border-color:#f0f; }
 .fb-fx-empty { color:#040; border-color:#040; border-style:dashed; cursor:default; pointer-events:none; letter-spacing:2px; padding:2px 10px; }
 /* Allow pointer-drag from grid buttons without browser scroll hijack */
 #gen-grid .sk, #fx-grid .sk { touch-action:pan-y; }
 .fb-dragging { opacity:.35 !important; }
 .fb-disabled { opacity:.3 !important; text-decoration:line-through; }
-.fb-insert {
-  flex-shrink:0; width:4px; height:18px;
-  border:1px dashed transparent; border-radius:2px;
-  transition:width .1s, border-color .1s, background .1s;
-  pointer-events:none;
+/* .fb-insert and .fb-arrow are gone. They were the drop targets and the flow
+   separators, and between them they put 16px of furniture in front of every
+   chain box — which is what knocked the GEN and FX rows off the column ruler
+   the rest of the section sits on. The boxes are the drop targets now. */
+/* CTL_W — one width for every boxed control in SHADERS AND FX CHAINS and the
+   MISC rows, so they read as one grid rather than rows of shrink-to-fit
+   buttons. It is set by the widest text anywhere in the section: the 5-char
+   shader abbreviations GLTCH and ASCII, 5 x (8px x 0.6 + 0.5 letter-spacing)
+   = 26.5px of text plus 2px of border. 42px leaves 13.5px of slack, which also
+   clears the 9px/1px-spaced .spi-hbtn labels (1080 is the widest at 25.6px).
+   Re-derive it if an abbreviation ever grows. Preset names are the one
+   exception below — at 42px they truncate to four characters. */
+.fb-slot, .fb-src, .fb-cam, .fb-ctl {
+  width:42px; height:16px; line-height:14px; padding:0; max-width:none;
+  text-align:center; overflow:hidden;
 }
-.fb-insert.fb-ins-hot {
-  width:36px; border-color:#0f0; background:rgba(0,50,0,.5);
+#spi-zoom-row .spi-hbtn, #spi-cap-row .spi-hbtn, #bank-strip .spi-hbtn {
+  width:42px; height:16px; padding:0; line-height:14px;
+  text-align:center; flex-shrink:0;
 }
-.fb-arrow {
-  flex-shrink:0; color:#040; font-size:9px;
-  line-height:1; pointer-events:none; user-select:none;
-}
+/* One blank position. Sized from CTL_W so the gap is exactly one box wide. */
+.fb-spacer { width:42px; height:16px; flex-shrink:0; }
+/* Unfilled positions. Drawn, not omitted: a chain that renders only what it
+   holds gives the two rows different lengths and nothing lines up. */
+/* Clickable, unlike before: an empty box can be armed, and the next pick from
+   the grid lands in it. */
+.fb-slot-empty { border-style:dashed; opacity:.5; cursor:pointer; }
+.fb-slot-empty:hover { opacity:.9; }
+.fb-slot-empty.fb-slot-gen { color:#660; border-color:#550; background:rgba(18,12,0,.45); }
+.fb-slot-empty.fb-slot-fx  { color:#050; border-color:#050; background:rgba(0,12,0,.45); }
+.fb-slot-empty.fb-slot-armed { opacity:1; border-style:solid; }
+.fb-slot-armed.fb-slot-gen { color:#ff0; border-color:#ff0; background:rgba(35,25,0,.9); box-shadow:0 0 6px rgba(255,220,0,.4); }
+.fb-slot-armed.fb-slot-fx  { color:#0ff; border-color:#0ff; background:rgba(0,25,30,.9); box-shadow:0 0 6px rgba(0,220,255,.4); }
+/* Drop target under the pointer. Outline, not width — the boxes are a fixed
+   grid now and nothing may reflow mid-drag. */
+.fb-box-hot { outline:1px solid #0f0; outline-offset:1px; background:rgba(0,50,0,.6) !important; }
 #flow-ghost {
   position:fixed; z-index:9999; pointer-events:none; display:none;
   font-family:'Courier New',monospace; font-size:9px; letter-spacing:.5px;
@@ -932,15 +1012,18 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   <div id="spi-header">
     <div id="spi-header-top">
       <div id="spi-mode">SHADER</div>
-      <span id="spi-build" title="build marker — check this matches the file you deployed"></span>
       <button class="spi-hbtn" id="btn-save">SAVE</button>
       <button class="spi-hbtn" id="btn-load">LOAD</button>
       <button class="spi-hbtn c-share" id="btn-share">SHARE</button>
       <button class="spi-hbtn c-cast" id="btn-cast" title="Open output window for projection">CAST</button>
     </div>
 
-    <!-- Mode -->
-    <div class="spi-section">MODE</div>
+    <!-- Mode. The section header carries the build marker on its right: the word
+         MODE is 30px of a 408px rule and the rest was empty, so the marker costs
+         no height here. Safe to nest inside a .spi-section because THIS one is
+         not foldable — _spiFoldables() matches #spi-body .spi-section and this
+         sits in #spi-header, so nothing ever reads its textContent as a key. -->
+    <div class="spi-section" id="spi-mode-hdr">MODE<span id="spi-build" title="build marker — check this matches the file you deployed"></span></div>
     <div class="spi-grid g3">
       <div class="sk c-cyan" data-action="set-mode" data-mode="SAMPLER">
         <span class="sk-label">sampler</span>
@@ -988,27 +1071,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
         <span class="src-blend-amt" id="src-blend-pct">normal 50%</span>
       </div>
     </div>
-    <div id="spi-view-hdr" class="spi-section">ZOOM &amp; CHAINS</div>
-    <div id="spi-zoom-row">
-      <button class="spi-hbtn c-rnd" data-action="randomise" id="spi-randomise" title="randomise: 4 shaders, 4 effects, all values, blend modes and LFO movement">RND</button>
-      <span class="spi-zoom-lbl">ZOOM</span>
-      <input type="range" id="spi-zoom-slider" min="0.5" max="3" step="0.01" value="1">
-      <span id="spi-zoom-val">1.00×</span>
-      <button class="spi-hbtn" id="spi-zoom-reset">1:1</button>
-      <span class="spi-zoom-lbl" title="Internal render resolution. Lower = fewer pixels through the shader chain.">RES</span>
-      <button class="spi-hbtn" data-rs="0.5">½</button>
-      <button class="spi-hbtn" data-rs="0.75">¾</button>
-      <button class="spi-hbtn res-on" data-rs="1">1×</button>
-    </div>
-    <div id="spi-src-cap-row">
-      <span class="flow-row-lbl"><span class="fb fb-src">SRC</span></span>
-      <span class="fb fb-cam" id="flow-cam-btn" data-action="camera" title="camera on/off">○CAM</span>
-      <span class="spi-zoom-lbl spi-cap-lbl" title="Absolute ceiling on the internal buffer, independent of display resolution. Bounds GPU memory on large screens; below the ceiling it does nothing.">RENDER CAP</span>
-      <button class="spi-hbtn" data-px="off">off</button>
-      <button class="spi-hbtn" data-px="1080p">1080</button>
-      <button class="spi-hbtn" data-px="4k">4K</button>
-      <span id="spi-res-val" class="spi-zoom-lbl" title="Actual internal buffer size."></span>
-    </div>
+    <div id="spi-view-hdr" class="spi-section">SHADERS AND FX CHAINS</div>
+    <div id="bank-strip"></div>
     <div id="flow-strip"></div>
     <div id="spi-audio-line"></div>
   </div>
@@ -1295,6 +1359,23 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
         <span class="sk-label">default</span>
       </div>
     </div>
+    <div id="spi-zoom-row">
+      <span class="spi-zoom-lbl">ZOOM</span>
+      <input type="range" id="spi-zoom-slider" min="0.5" max="3" step="0.01" value="1">
+      <span id="spi-zoom-val">1.00×</span>
+      <button class="spi-hbtn" id="spi-zoom-reset">1:1</button>
+      <span class="spi-zoom-lbl" title="Internal render resolution. Lower = fewer pixels through the shader chain.">RES</span>
+      <button class="spi-hbtn" data-rs="0.5">½</button>
+      <button class="spi-hbtn" data-rs="0.75">¾</button>
+      <button class="spi-hbtn res-on" data-rs="1">1×</button>
+    </div>
+    <div id="spi-cap-row">
+      <span class="spi-zoom-lbl" title="Absolute ceiling on the internal buffer, independent of display resolution. Bounds GPU memory on large screens; below the ceiling it does nothing.">RENDER CAP</span>
+      <button class="spi-hbtn" data-px="off">off</button>
+      <button class="spi-hbtn" data-px="1080p">1080</button>
+      <button class="spi-hbtn" data-px="4k">4K</button>
+      <span id="spi-res-val" class="spi-zoom-lbl" title="Actual internal buffer size."></span>
+    </div>
 
     <div style="height:32px"></div>
   </div><!-- /spi-body -->
@@ -1314,27 +1395,31 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-section">Panel</div>
     <div class="hk-row"><span class="hk-key">◀ tab</span><span class="hk-desc">Tap the tab at the bottom centre of the screen to open / close the control panel</span></div>
     <div class="hk-row"><span class="hk-key">grip strip</span><span class="hk-desc">Tap the grip at the top of the panel to close it. Drag it up/down to resize the panel height</span></div>
-    <div class="hk-row"><span class="hk-key">ZOOM &amp; CHAINS</span><span class="hk-desc">Folds away the zoom / render-scale row, the SRC + render-cap row, the SRC-GEN-FX flow strip and the audio line in one go, leaving the mode buttons and the param sliders. Handy on a phone when you only want to ride the sliders. While it is folded the flow strip stops rebuilding itself, so it saves a little work as well as space</span></div>
+    <div class="hk-row"><span class="hk-key">SHADERS AND FX CHAINS</span><span class="hk-desc">Folds away the preset bank, the source controls and the GEN and FX chains in one go, leaving the mode buttons and the param sliders. Handy on a phone when you only want to ride the sliders. Whichever way you leave it is remembered between sessions</span></div>
     <div class="hk-row"><span class="hk-key">PARAMS header</span><span class="hk-desc">The slider area has its own header above it, which folds the sliders away the same as any other section and names the shader they belong to — so you can still see what is selected with the sliders hidden</span></div>
-    <div class="hk-row"><span class="hk-key">section headers</span><span class="hk-desc">Every heading in the lower body — GEN SHADER, FX SHADER, VIDEO, LFO, AUDIO INPUT, MIDI, MISC — is a show/hide toggle. Tap one to fold that section away; the arrow on the right points down when open and right when closed. Useful on a phone where the panel would otherwise be a long scroll. VIDEO, LFO, AUDIO INPUT, MIDI and MISC start closed since they are mostly set-and-forget; GEN SHADER and FX SHADER start open. What you collapse from then on is remembered between sessions</span></div>
+    <div class="hk-row"><span class="hk-key">section headers</span><span class="hk-desc">Every heading in the lower body &mdash; SHADERS AND FX CHAINS, GEN SHADER, FX SHADER, VIDEO, LFO, AUDIO INPUT, MIDI, MISC &mdash; is a show/hide toggle. Tap one to fold that section away; the arrow on the right points down when open and right when closed. Useful on a phone where the panel would otherwise be a long scroll. VIDEO, LFO, AUDIO INPUT, MIDI and MISC start closed since they are mostly set-and-forget; GEN SHADER and FX SHADER start open. MISC also holds ZOOM, RES and RENDER CAP, so open it if you are hunting for those. What you collapse from then on is remembered between sessions</span></div>
     <div class="hk-row"><span class="hk-key">MODE buttons</span><span class="hk-desc">sampler / shader / live sit at the top of the panel, directly under SAVE / LOAD / SHARE / CAST, so they stay visible instead of scrolling away with the rest of the body</span></div>
-    <div class="hk-row"><span class="hk-key">RND</span><span class="hk-desc">Randomise, at the far left of the zoom row. Fills the GEN chain with 4 different shaders and the FX chain with 4 different effects, rolls every param, picks blend modes and amounts, re-rolls the per-slot seeds, re-rolls all three LFO oscillators (shape, period and amp — your BPM on/off choice is left alone) and assigns two to four of them onto random params so the result moves. Switches to SHADER, since the GEN chain is bypassed in SAMPLER and LIVE and you would not see the result otherwise. Blend modes are weighted rather than uniform: multiply, darken and burn each remove light, so a flat random pick would land on a black frame a good share of the time, and the first slot is always normal at full because it composites onto black. Snapping params land exactly on a position, so style selectors give you a real variant rather than something halfway between two. Audio and MIDI bindings are left untouched. It replaces both chains outright — save or share anything you want to keep first</span></div>
-    <div class="hk-row"><span class="hk-key">ZOOM</span><span class="hk-desc">Global zoom slider in the header — scales the canvas output. Useful when the device resolution is larger than the display area. Tap 1:1 to reset</span></div>
-    <div class="hk-row"><span class="hk-key">RES</span><span class="hk-desc">Render scale — &frac12; / &frac34; / 1&times;, at the right of the zoom row. A <em>fraction</em> of the display resolution, so it always tracks the screen you are on. Lower means fewer pixels through the shader chain, which is the first thing to reach for if the frame rate drops on a heavy chain</span></div>
-    <div class="hk-row"><span class="hk-key">RENDER CAP</span><span class="hk-desc">An <em>absolute</em> ceiling on the internal buffer, on the SRC row below — off / 1080 / 4K, defaulting to 4K. Where RES is a fraction of whatever display you plug into, this is a hard pixel budget that does not care how big the screen is. Below the ceiling it does nothing at all; above it, both axes scale down together so the aspect ratio is kept. It exists because the buffers are sized from the display: three are always resident and four more plus a half-float pair are allocated on demand, so an uncapped 5K screen means 169&nbsp;MB resident and 506&nbsp;MB worst case. The 4K default holds that to about 285&nbsp;MB on any display. Saved per device, and deliberately <em>not</em> part of presets or share links — what this machine can hold is nobody else's business</span></div>
-    <div class="hk-row"><span class="hk-key">resolution readout</span><span class="hk-desc">The figure at the end of the SRC row is the buffer size actually in use, after RES and RENDER CAP have both been applied. A &#9660; after it means the cap is currently biting — without that you could not tell a capped picture from a soft one</span></div>
+    <div class="hk-row"><span class="hk-key">RND</span><span class="hk-desc">Randomise, hard left on the top row with a blank slot between it and SRC. Fills the GEN chain with 4 different shaders and the FX chain with 4 different effects, rolls every param, picks blend modes and amounts, re-rolls the per-slot seeds, re-rolls all three LFOs and assigns two to four of them. It is set apart on purpose &mdash; it replaces both chains wholesale, which is not something to hit by accident while reaching for the camera or for OVR</span></div>
+    <div class="hk-row"><span class="hk-key">ZOOM</span><span class="hk-desc">Global zoom slider, in the MISC section near the bottom of the panel &mdash; it scales the canvas output and is useful when the device resolution is larger than the display area. Tap 1:1 to reset. It lives down there rather than with the chains because it is a set-once control, not something you ride mid-set</span></div>
+    <div class="hk-row"><span class="hk-key">RES</span><span class="hk-desc">Render scale &mdash; &frac12; / &frac34; / 1&times;, on the zoom row in the MISC section. A <em>fraction</em> of the display resolution, so it always tracks the screen you are on. Lower means fewer pixels through the shader chain, which is the first thing to reach for when a deep chain drops frames</span></div>
+    <div class="hk-row"><span class="hk-key">RENDER CAP</span><span class="hk-desc">An <em>absolute</em> ceiling on the internal buffer, on its own row in the MISC section &mdash; off / 1080 / 4K, defaulting to 4K. Where RES is a fraction of whatever display you plug into, this is a hard pixel budget that does not care how big the screen is. It bounds GPU memory on large displays and does nothing at all below the ceiling. Saved per device, and deliberately not part of presets or share links</span></div>
+    <div class="hk-row"><span class="hk-key">resolution readout</span><span class="hk-desc">The figure at the end of the RENDER CAP row is the buffer size actually in use, after RES and RENDER CAP have both been applied. A &#9660; after it means the cap is currently biting &mdash; without that you could not tell a capped picture from a small window</span></div>
     <div class="hk-row"><span class="hk-key">param sliders</span><span class="hk-desc">The upper slot shows the active shader's parameters — scroll it independently. The lower body scrolls separately</span></div>
 
     <div class="hk-section">Signal flow strip</div>
-    <div class="hk-row"><span class="hk-key">SRC row</span><span class="hk-desc">Sits <em>above</em> the GEN and FX rows, so the strip reads top-down in the order the signal actually travels: source &rarr; gen &rarr; fx. It holds the camera toggle on the left and the RENDER CAP controls on the right, which have nothing to do with the chain but everything to do with what the chain runs at</span></div>
-    <div class="hk-row"><span class="hk-key">GEN row</span><span class="hk-desc">Shows the active generative shader chain. Each block shows a short abbreviation — hover for the full name. Click to select its params</span></div>
-    <div class="hk-row"><span class="hk-key">FX row</span><span class="hk-desc">Shows the active FX chain. Blocks use abbreviations; hover for full name. A dashed "fx" box means no effects are loaded. Click any block to select its params</span></div>
-    <div class="hk-row"><span class="hk-key">drag to reorder</span><span class="hk-desc">Drag blocks within either row to reorder the chain — a green slot highlights the drop position</span></div>
-    <div class="hk-row"><span class="hk-key">drag from grid</span><span class="hk-desc">Drag a GEN or FX button from the grid below and drop it onto the flow strip to insert it at that position — dragging the same GEN shader multiple times adds duplicate instances, each with a unique random seed so procedural patterns differ</span></div>
+    <div class="hk-row"><span class="hk-key">GEN row</span><span class="hk-desc">Shows the generative shader chain as four fixed boxes on the same column ruler as every other row in the section. A block sits in the box you put it in and stays there &mdash; a single shader can live in box 4 with boxes 1 to 3 empty, so you can lay out a chain before you have filled it. Boxes run left to right in signal order, and empty ones cost nothing: a chain of one renders identically wherever it sits. A filled block carries a short abbreviation &mdash; hover for the full name &mdash; and clicking it selects its params</span></div>
+    <div class="hk-row"><span class="hk-key">FX row</span><span class="hk-desc">Shows the FX chain on the same four boxes as GEN directly above it. Same rules: blocks hold their box, empties are free positions, and the order the boxes run in is the order the effects apply. GEN blocks composite onto each other; FX blocks run in series</span></div>
+    <div class="hk-row"><span class="hk-key">drag to reorder</span><span class="hk-desc">Drag a block onto another box to move it there. If that box is occupied the two <em>swap</em> &mdash; the block you dragged takes the target and the one that was there takes the box you came from. Nothing you did not touch ever moves, which is what makes it possible to lay out a chain deliberately rather than watching everything shuffle</span></div>
+    <div class="hk-row"><span class="hk-key">drag from grid</span><span class="hk-desc">Drag a GEN or FX button from the grid below onto a box in the strip. An empty box takes it; an occupied box is replaced, because with fixed boxes there is no gap to squeeze into and replacing is the only thing that puts the block exactly where you dropped it. Dragging the same GEN shader more than once gives you duplicate instances, each with its own random seed so the procedural patterns differ</span></div>
     <div class="hk-row"><span class="hk-key">double-click</span><span class="hk-desc">Double-click a block to bypass (disable) it — shown dimmed with strikethrough. Double-click again to re-enable. The shader stays in the chain but is skipped during rendering</span></div>
-    <div class="hk-row"><span class="hk-key">BANK row</span><span class="hk-desc">The bottom row of the strip: one block per saved preset, the loaded one lit. Click any block to jump straight to it &mdash; no dialog, no confirmation. <em>[</em> and <em>]</em> step backwards and forwards through the bank, which is the fastest way to work through a set</span></div>
+    <div class="hk-row"><span class="hk-key">top row</span><span class="hk-desc">Everything that is not a chain, on one line: RND hard left in the label column, a blank slot, then SRC and the camera toggle, then another blank slot and BANK, OVR and CLR &mdash; the gap is there because what the source controls do has nothing to do with what the bank controls do. The source controls used to have a row of their own for two blocks, which was a row's worth of height for them. Below it the strip reads top-down in the order the signal actually travels: source &rarr; gen &rarr; fx</span></div>
+    <div class="hk-row"><span class="hk-key">preset row</span><span class="hk-desc">Directly under the top row, one block per saved preset with the loaded one lit. It starts hard left, running under the label column as well &mdash; it is the one row here that is not on the section's shared ruler, because a preset is not a chain position and there is nothing above or below for it to line up with. That buys most of another block per line. Click any block to jump straight to it: no dialog, no confirmation. <em>[</em> and <em>]</em> step backwards and forwards through the bank, which is the fastest way to work through a set. The row wraps to two lines and holds eight; past that it pages</span></div>
+    <div class="hk-row"><span class="hk-key">BANK</span><span class="hk-desc">Reads just BANK while everything fits. Once you have more than eight presets it reads BANK1, BANK2 and so on, and clicking it steps to the next page and wraps. Saving a preset, jumping to one, or stepping with <em>[</em> and <em>]</em> all pull the page to wherever the lit block is, so the loaded preset is never on a page you cannot see</span></div>
+    <div class="hk-row"><span class="hk-key">OVR</span><span class="hk-desc">Overwrite a saved preset with the patch you have now, keeping its name. Three taps, all on the strip &mdash; no dialog. Tap OVR and it lights; tap the preset you mean to replace and <em>it</em> lights, with its name in the toast; tap that same block again to write. Tapping a different preset re-aims instead of writing, so a slip moves the target rather than destroying the wrong one. Escape, a second tap on OVR, or turning the page cancels. While OVR is armed a click on a preset never jumps, so it will not throw away the patch you were about to save</span></div>
+    <div class="hk-row"><span class="hk-key">CLR</span><span class="hk-desc">Deletes <em>every</em> saved preset. It arms rather than firing: the first tap lights it red and names how many it is about to delete, the second does it. Escape, or a tap on any other control, cancels. There is no undo and the bank does not travel with the file, so EXPORT BANK in the SAVE dialog is the only backup &mdash; take one first if you are not certain. Presets you have already loaded stay on screen; it is the saved bank that goes</span></div>
     <div class="hk-row"><span class="hk-key">what a jump restores</span><span class="hk-desc">Everything the preset captured, exactly as saved &mdash; including the mode. A preset saved in LIVE will start the camera when you jump to it, and one saved in SAMPLER will drop you back to the loaded clip. Worth knowing before jumping mid-set</span></div>
-    <div class="hk-row"><span class="hk-key">drag off strip</span><span class="hk-desc">Drag a block out of the strip area and release to remove it from the chain entirely — including the last GEN shader (SHADER mode will output black with an empty chain)</span></div>
+    <div class="hk-row"><span class="hk-key">drag off strip</span><span class="hk-desc">Drag a block out of the strip and release to remove it. The box it was in is <em>left empty</em> and nothing else shifts, so you can pull an effect out, watch without it, and drop it straight back into the same box. The last GEN shader is the exception and cannot be dragged away</span></div>
+    <div class="hk-row"><span class="hk-key">empty box</span><span class="hk-desc">Click an empty box to arm it &mdash; it lights up &mdash; then click any shader or effect in the grid below and it drops into that box. This is the no-dragging route to building a chain in whatever order you like, and it is the easy one on a phone. Clicking the armed box again, or clicking any filled block, cancels it. Without a box armed, the grid buttons behave as they always did: tap to add, tap again to remove</span></div>
 
     <div class="hk-section">Modes</div>
     <div class="hk-row"><span class="hk-key">SAMPLER</span><span class="hk-desc">Plays a loaded video file as the source texture — open file, drag onto canvas, or use a previously recorded export. Arriving here bypasses the whole GEN chain so the video shows straight through: both this and LIVE are about the source, and landing in one with the shader stack painted over the top hides the thing you just switched to look at. The chain is kept intact — the blend button in the source row puts it back in one tap</span></div>
@@ -1440,7 +1525,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">mode label</span><span class="hk-desc">Tap the mode label in the blend row to cycle through compositing modes: normal · add · screen · multiply · difference · lighten · darken · overlay · dodge · burn</span></div>
     <div class="hk-row"><span class="hk-key">FX blend row</span><span class="hk-desc">FX slots have the same two rows, but they mix the effect against its own input rather than against the layer below. The full list of modes is identical</span></div>
     <div class="hk-row"><span class="hk-key">normal vs the rest</span><span class="hk-desc">normal at mix 1.00 is a plain serial effect — nothing is composited, so it costs nothing extra. Any other mode always runs a compositing pass, even at mix 1.00</span></div>
-    <div class="hk-row"><span class="hk-key">◉ CAM</span><span class="hk-desc">Tap the camera block on the SRC row — the top line of the flow strip, left-hand end — to turn the live camera on/off directly. In LIVE mode the camera is the base layer; in SAMPLER mode the loaded video is the base</span></div>
+    <div class="hk-row"><span class="hk-key">◉ CAM</span><span class="hk-desc">Tap the camera block on the top row, just right of SRC, to turn the live camera on/off directly. In LIVE mode the camera is the base layer; in SAMPLER mode the loaded video is the base</span></div>
 
     <div class="hk-section">Source section</div>
     <div class="hk-row"><span class="hk-key">appears automatically</span><span class="hk-desc">A permanent row of source controls appears just below the SAVE/LOAD/SHARE/CAST buttons whenever the camera is on, or LIVE or SAMPLER mode is selected — no need to open anything</span></div>
@@ -1480,13 +1565,13 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">mediump line</span><span class="hk-desc">The one worth understanding. 10&nbsp;bits means the GPU runs <em>mediump</em> as true fp16, which is roughly twice the arithmetic throughput; 23&nbsp;bits means it is promoted to fp32. Apple Silicon gives the former, Windows through ANGLE the latter &mdash; the same shaders, a real speed difference, and not something either machine reports on its own</span></div>
     <div class="hk-row"><span class="hk-key">source line</span><span class="hk-desc">Resolution, duration, estimated frame rate and file size of the loaded clip, also reported to the console on load. RENDER CAP does <em>not</em> bound this: the source texture is whatever the file is, and it is re-uploaded every frame. A clip wider than the GPU's texture limit cannot upload at all and now says so instead of showing black</span></div>
     <div class="hk-section">Save / Load / Share</div>
-    <div class="hk-row"><span class="hk-key">SAVE</span><span class="hk-desc">Store the full current state as a named preset in the browser — shader chain, FX chain, all params, LFO config, blend settings</span></div>
+    <div class="hk-row"><span class="hk-key">SAVE</span><span class="hk-desc">Store the full current state as a named preset in the browser — shader chain, FX chain, all params, LFO config, blend settings. The name is filled in for you as time, then date, then the word preset &mdash; <em>1432-12aug-preset</em>. A block on the strip is only about ten characters wide, so leading with the time is what makes one save tell itself apart from the next at a glance; the trailing word is cut off there but still reads in this list. Type over it with anything you like</span></div>
     <div class="hk-row"><span class="hk-key">LOAD</span><span class="hk-desc">Restore a saved preset — lists all stored presets with timestamps</span></div>
     <div class="hk-row"><span class="hk-key">SHARE</span><span class="hk-desc">Generate a compact URL with all settings encoded — all per-slot parameters, FX blend modes and mix amounts, chain order, LFO/audio/MIDI modulation are preserved. Bookmark or share to reload exact state on any device (video file not included). A real link is a few hundred bytes; anything claiming to be far larger is refused rather than opened, so a malformed or hostile link fails with a message instead of locking up the tab</span></div>
     <div class="hk-row"><span class="hk-key">unplayable files</span><span class="hk-desc">A file the browser cannot decode now says why &mdash; format unsupported, decode failed, network error or aborted &mdash; instead of leaving <em>loading&hellip;</em> up forever. Codec support is checked before the load starts, not after it fails</span></div>
     <div class="hk-row"><span class="hk-key">RST</span><span class="hk-desc">Reset all shader and FX parameters to defaults, keeping the current chain</span></div>
-    <div class="hk-row"><span class="hk-key">EXPORT BANK</span><span class="hk-desc">In the LOAD dialog. Writes every saved preset to a single <em>.json</em> you can copy onto a flash drive next to index.html, mail to someone, or keep in version control. The video files themselves are not included</span></div>
-    <div class="hk-row"><span class="hk-key">IMPORT BANK</span><span class="hk-desc">Loads a bank file back &mdash; or just drag the .json onto the window. It <em>merges</em>: presets already here are kept, and re-importing the same file adds nothing. Nothing a bank file can contain will overwrite what you already have</span></div>
+    <div class="hk-row"><span class="hk-key">EXPORT BANK</span><span class="hk-desc">In the SAVE dialog, in its own block under the preset name &mdash; writing the bank out is a save, the same as writing one preset. Name the file in the box beside the button; it is filled in with the date and you can type over it. Anything a filesystem would object to is replaced with a dash, and the toast names the file it actually wrote. Writes every saved preset to a single <em>.json</em> you can copy onto a flash drive next to index.html, mail to someone, or keep in version control. The video files themselves are not included</span></div>
+    <div class="hk-row"><span class="hk-key">IMPORT BANK</span><span class="hk-desc">In the LOAD dialog &mdash; or just drag the .json onto the window. Loads a bank file back. It <em>merges</em>: presets already here are kept, and re-importing the same file adds nothing. Nothing a bank file can contain will overwrite what you already have</span></div>
     <div class="hk-row"><span class="hk-key">presets and footage</span><span class="hk-desc">A preset saved in SAMPLER records which clip it was built on &mdash; filename, size and length &mdash; and its in / out points, but not the file itself. Load one whose clip is not open and a bar appears naming the file, with LOCATE to point at it. The shaders load instantly either way; the bar never blocks a jump</span></div>
     <div class="hk-row"><span class="hk-key">locate once</span><span class="hk-desc">A located file is remembered for the rest of the session, so a bank of presets built on the same clip only ever asks once. SKIP silences that particular file until you reload &mdash; stepping through presets for footage you did not bring stays quiet</span></div>
     <div class="hk-row"><span class="hk-key">in / out points</span><span class="hk-desc">Saved with the preset and restored once the clip is bound, clamped to its actual length. A preset with no clip attached leaves your loop points alone</span></div>
@@ -1570,6 +1655,15 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
       <button class="sls-btn c-cancel" id="save-cancel">CANCEL</button>
       <button class="sls-btn c-ok" id="save-ok">SAVE</button>
     </div>
+    <!-- Export lives here, not with LOAD: writing the bank out is a save, and
+         reading one in is a load. Its own block below the preset actions, with
+         its own name field — one dialog doing two jobs reads better split than
+         interleaved, and it keeps EXPORT clear of the SAVE button. -->
+    <div class="sls-sub">Bank &mdash; every saved preset in one file</div>
+    <div class="sls-row">
+      <input class="sls-input sls-input-inline" id="bank-name" type="text" placeholder="bank file name">
+      <button class="sls-btn" id="bank-export" title="download every preset as one .json you can carry">EXPORT BANK</button>
+    </div>
   </div>
 </div>
 
@@ -1579,7 +1673,6 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <h3>Load Preset</h3>
     <div class="sls-list" id="load-list"></div>
     <div class="sls-row">
-      <button class="sls-btn" id="bank-export" title="download every preset as one .json you can carry">EXPORT BANK</button>
       <button class="sls-btn" id="bank-import" title="load a bank file — adds to what is already here, never replaces it">IMPORT BANK</button>
       <button class="sls-btn c-cancel" id="load-close">CLOSE</button>
     </div>
@@ -1644,7 +1737,11 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-11p · mandelbox';
+// Budget: 77 characters. It shares the MODE rule with the word MODE, which is
+// 30px of 408px, so at 8px Courier New (0.6em advance) it has 372px to itself.
+// Longer is not broken — the line wraps — but it costs vertical space in a 40vh
+// panel every session, not just the one you named it in.
+const BUILD = '2026-08-12c · header + bank name';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -4326,12 +4423,86 @@ function makeSlot(table, idx, opts = {}) {
     // genChainAmt/fxSlotAmt initialisers differed the same way.
     amt:      opts.amt ?? (table === FX ? 1.0 : 0.5),
     off:      false,
+    // Which of the CHAIN_MAX boxes this slot is drawn in. Left undefined here
+    // and resolved by layoutNormalise, so a caller that does not care about
+    // layout gets the next free box automatically. See "Slot layout" below.
+    pos:      Number.isInteger(opts.pos) ? opts.pos : undefined,
   };
 }
 const makeGenSlot = (i, o) => makeSlot(GEN, i, o);
 const makeFxSlot  = (i, o) => makeSlot(FX,  i, o);
 
-// The only three places a chain changes shape. Nothing else may splice a chain.
+// ── Slot layout ──────────────────────────────────────────────────────────────
+// A chain stays DENSE and in signal order. `pos` says which of the CHAIN_MAX
+// boxes a slot is DRAWN in, so a chain of one can sit in box 4 with three empty
+// boxes ahead of it. Holes cost nothing at render time — [A,_,_,_] and
+// [_,_,_,A] composite identically — which is the whole point: none of the ~195
+// render-path reads of genSlots/fxSlots need to know positions exist, and the
+// wire keeps writing a dense chain that older builds draw identically.
+//
+// Invariant, enforced by layoutNormalise and assumed everywhere else:
+// positions are integers in 0..CHAIN_MAX-1, unique within a chain, and ASCEND
+// with array order. Drawing left to right is therefore drawing in signal order.
+function layoutNormalise(slots) {
+  let next = 0;
+  slots.forEach((sl, i) => {
+    // Everything after this slot still needs a box, so it cannot sit past that.
+    const room = CHAIN_MAX - (slots.length - i);
+    const p = Number.isInteger(sl.pos) ? sl.pos : next;
+    sl.pos = Math.min(Math.max(p, next), room);
+    next = sl.pos + 1;
+  });
+  return slots;
+}
+// The slot drawn in a box, or null when the box is empty.
+function layoutAt(slots, pos) {
+  for (const sl of slots) if (sl.pos === pos) return sl;
+  return null;
+}
+// Where a box falls in the dense array — how many slots sit ahead of it.
+function layoutDenseIndex(slots, pos) {
+  let n = 0;
+  for (const sl of slots) if (sl.pos < pos) n++;
+  return n;
+}
+// Moves the block in box `from` to box `to`. An occupied target SWAPS, so
+// nothing the user did not touch ever moves. Re-sorting is what keeps dense
+// order equal to display order; it is a permutation, so length and contents
+// cannot change.
+function layoutPlace(slots, from, to) {
+  if (from === to) return;
+  const a = layoutAt(slots, from);
+  if (!a) return;
+  const b = layoutAt(slots, to);
+  a.pos = to;
+  if (b) b.pos = from;
+  slots.sort((x, y) => x.pos - y.pos);
+}
+// Drops a NEW block into a box. Empty box fills it; occupied box replaces what
+// is there. With fixed boxes there is no gap to insert into, and replace is the
+// only outcome that puts the block exactly where it was dropped. A full chain
+// therefore always takes the replace branch, so chainInsert's drop-the-oldest
+// path is unreachable from here and cannot shift the box the drop resolved to.
+function layoutPlaceNew(slots, slot, pos) {
+  const old = layoutAt(slots, pos);
+  slot.pos = pos;
+  if (old) {
+    const i = slots.indexOf(old);
+    slots.splice(i, 1, slot);
+    return i;
+  }
+  chainInsert(slots, slot, layoutDenseIndex(slots, pos));
+  layoutNormalise(slots);
+  return slots.indexOf(slot);
+}
+// The lowest empty box, or -1 when the chain is full. Used when something has to
+// land somewhere and the caller has no box in mind.
+function layoutFreePos(slots) {
+  for (let p = 0; p < CHAIN_MAX; p++) if (!layoutAt(slots, p)) return p;
+  return -1;
+}
+
+// The only places a chain changes shape. Nothing else may splice a chain.
 function chainInsert(slots, slot, pos) {
   if (slots.length >= CHAIN_MAX) slots.shift();
   const at = Math.min(Math.max(pos ?? slots.length, 0), slots.length);
@@ -4350,7 +4521,10 @@ function chainMove(slots, fromPos, toPos) {
   return at;
 }
 
-let genSlots = [makeGenSlot(0, { seed: 0 })];
+// Normalised at birth. makeSlot leaves pos undefined for callers that do not
+// care where a slot lands, and layoutAt() matches on pos — so an un-normalised
+// boot chain draws NO block at all: plasma renders, every GEN box reads empty.
+let genSlots = layoutNormalise([makeGenSlot(0, { seed: 0 })]);
 let genIdx   = 0;   // selected CHAIN POSITION (0..genSlots.length-1), not a shader index
 let fxSlots  = [];
 let fxIdx    = -1;  // selected CHAIN POSITION, or -1 when the chain is empty
@@ -4724,8 +4898,11 @@ function genChainToggle(i) {
     chainRemove(genSlots, pos);
     genIdx = Math.min(genIdx, genSlots.length - 1);
   } else if (pos < 0) {
-    genIdx = chainInsert(genSlots, makeGenSlot(i));
+    // Append lands in the lowest free box rather than next to its neighbours —
+    // a tap has no box in mind, so it fills the first gap it sees.
+    genIdx = chainInsert(genSlots, makeGenSlot(i, { pos: layoutFreePos(genSlots) }));
   }
+  layoutNormalise(genSlots);
   syncGenIdx();
   layer = 'gen';
 }
@@ -5370,8 +5547,9 @@ function fxChainToggle(i) {
     chainRemove(fxSlots, pos);
     fxIdx = Math.min(fxIdx, fxSlots.length - 1);
   } else {
-    fxIdx = chainInsert(fxSlots, makeFxSlot(i));
+    fxIdx = chainInsert(fxSlots, makeFxSlot(i, { pos: layoutFreePos(fxSlots) }));
   }
+  layoutNormalise(fxSlots);
   syncFxIdx();
   layer = fxSlots.length > 0 ? 'fx' : 'gen';
   feedbackInit = false;
@@ -5501,6 +5679,11 @@ document.addEventListener('keydown', e => {
 
   // ── ?: help overlay ─────────────────────────────────────────────────────
   if (c === 'Slash' && e.shiftKey) { toggleHelp(); e.preventDefault(); return; }
+
+  // ── ESC: disarm a pending overwrite or clear ────────────────────────────
+  // Falls through when nothing is armed, so Escape keeps whatever else it does.
+  if (c === 'Escape' && _ovrArm) { setOvrArm(false); toast('overwrite cancelled'); e.preventDefault(); return; }
+  if (c === 'Escape' && _clrArm) { setClrArm(false); toast('clear cancelled'); e.preventDefault(); return; }
 
   const mode = MODES[modeIdx];
 
@@ -5803,15 +5986,20 @@ function randomiseAll() {
     params: _rndParams(GEN[gi]),
     mode:   pos === 0 ? 0   : RND_MODES[_rndI(RND_MODES.length)],
     amt:    pos === 0 ? 1.0 : _rnd(0.55, 1.0),
+    pos,
   }));
   genIdx = 0;
 
-  fxSlots = fPick.map(fi => makeFxSlot(fi, {
+  fxSlots = fPick.map((fi, pos) => makeFxSlot(fi, {
     params: _rndParams(FX[fi]),
     mode:   RND_MODES[_rndI(RND_MODES.length)],
     amt:    _rnd(0.5, 1.0),
+    pos,
   }));
   fxIdx = 0;
+  // Four of four, so every box is taken and there is nothing to lay out — but
+  // normalise anyway, so this is not a second place that has to be kept correct.
+  layoutNormalise(genSlots); layoutNormalise(fxSlots);
 
   // Shape, period and amp only. skew/curve stay at their 0.5 identity — warping
   // an already-random shape makes the motion unreadable. Period and beat index
@@ -6777,7 +6965,7 @@ function _spiFoldKey(sec) {
 }
 // Declared here, not in the flow-strip section: initSpiCollapse runs just below
 // and would hit these in the TDZ.
-let _spiViewHidden = false;   // ZOOM & CHAINS folded — skip the strip rebuild
+let _spiViewHidden = false;   // SHADERS AND FX CHAINS folded — skip the rebuild
 let _spiFlowDirty  = false;   // force one rebuild on the way back out
 
 // Folds or unfolds one panel section and remembers it.
@@ -6974,6 +7162,10 @@ document.getElementById('spi-panel').addEventListener('click', e => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const act = btn.dataset.action;
+  // An armed clear consumes the next tap on CLR and nothing else. Reaching for
+  // any other control means you are no longer clearing the bank, and a stale arm
+  // two clicks later is exactly how a bank gets deleted by accident.
+  if (_clrArm && act !== 'bank-clr') setClrArm(false);
   const mode = MODES[modeIdx];
 
   switch (act) {
@@ -6983,7 +7175,21 @@ document.getElementById('spi-panel').addEventListener('click', e => {
     case 'slot':
       handleSlot(parseInt(btn.dataset.n));
       break;
+    case 'slot-arm':
+      setArmSlot({ kind: btn.dataset.armKind, pos: parseInt(btn.dataset.armPos) });
+      break;
     case 'gen-select':
+      // An armed box claims the pick: place it there instead of the usual
+      // append-or-remove toggle, so the same button can build a chain in any
+      // order without dragging.
+      if (_armSlot && _armSlot.kind === 'gen') {
+        genIdx = layoutPlaceNew(genSlots, makeGenSlot(parseInt(btn.dataset.gi)), _armSlot.pos);
+        syncGenIdx(); layer = 'gen'; selParam = 0;
+        setArmSlot(null);
+        _spiFlowDirty = true;
+        toast(GEN[genSlots[genIdx].idx].name + ' → box ' + (genSlots[genIdx].pos + 1));
+        break;
+      }
       genChainToggle(parseInt(btn.dataset.gi));
       // Deliberately does NOT switch to SHADER mode. Forcing the switch dropped
       // the camera/video base entirely, so tapping any gen while in LIVE showed
@@ -7010,6 +7216,14 @@ document.getElementById('spi-panel').addEventListener('click', e => {
       toggleFX();
       break;
     case 'fx-select':
+      if (_armSlot && _armSlot.kind === 'fx') {
+        fxIdx = layoutPlaceNew(fxSlots, makeFxSlot(parseInt(btn.dataset.fi)), _armSlot.pos);
+        syncFxIdx(); layer = 'fx'; selParam = 0; feedbackInit = false;
+        setArmSlot(null);
+        _spiFlowDirty = true;
+        toast(FX[fxSlots[fxIdx].idx].name + ' → box ' + (fxSlots[fxIdx].pos + 1));
+        break;
+      }
       fxChainToggle(parseInt(btn.dataset.fi));
       layer = fxSlots.length > 0 ? 'fx' : 'gen';
       toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
@@ -7081,7 +7295,42 @@ document.getElementById('spi-panel').addEventListener('click', e => {
     }
     case 'preset-jump': {
       const i = parseInt(btn.dataset.preset);
-      if (!isNaN(i)) loadPresetAt(i);
+      if (isNaN(i)) break;
+      // Armed overwrite claims the click instead of jumping — landing on the
+      // preset you meant to replace would otherwise throw away the patch first.
+      // First tap targets, second tap on the SAME block writes. Tapping a
+      // different one re-targets rather than writing, so a slip moves the aim
+      // instead of destroying the wrong preset.
+      if (_ovrArm) {
+        if (_ovrTarget === i) { overwritePresetAt(i); break; }
+        const nm = (loadPresets()[i] || {}).name;
+        if (nm === undefined) { toast('no such preset'); break; }
+        _ovrTarget = i;
+        _spiFlowDirty = true;
+        toast('tap ' + nm + ' again to overwrite');
+        break;
+      }
+      loadPresetAt(i);
+      break;
+    }
+    case 'bank-page': {
+      const n = Math.max(1, Math.ceil(loadPresets().length / BANK_PAGE));
+      bankPage = (bankPage + 1) % n;
+      setOvrArm(false);
+      _spiFlowDirty = true;
+      break;
+    }
+    case 'bank-ovr':
+      if (!loadPresets().length) { toast('no presets to overwrite'); break; }
+      setOvrArm(!_ovrArm);
+      break;
+    case 'bank-clr': {
+      const n = loadPresets().length;
+      if (!n) { toast('no presets to clear'); break; }
+      // First tap arms, second commits. Deliberately not a confirm(): this is a
+      // live control on the strip and a modal mid-set is worse than two taps.
+      if (!_clrArm) { setClrArm(true); break; }
+      clearBank();
       break;
     }
     case 'perf':
@@ -7655,15 +7904,55 @@ function updateExportBtn(recording, remaining) {
 }
 
 // ── Flow strip ────────────────────────────────────────────────────────────────
-// Three rows: GEN, FX and the preset BANK. SRC sits above it in #spi-src-cap-row.
+// The section reads BANK, SRC, GEN, FX down the panel. BANK is #bank-strip and
+// GEN/FX are #flow-strip; the source row between them is static markup.
+// The drag listeners bind to #flow-strip only — the bank is not a drag target,
+// and its clicks come through the #spi-panel data-action delegation instead.
 // presetIdx is which bank slot is lit, -1 for none. Declared here, not with the
 // bank functions — buildFlowStrip() reads it and a `let` further down is in TDZ.
 let presetIdx = -1;
+// The bank row wraps to at most two lines and pages beyond that. 8 is the
+// guaranteed fit, not the typical one: worst case every name hits the 64px
+// ellipsis cap, so a 356px row (400 usable minus the 44px gutter) takes
+// floor((356+3)/(64+3)) = 5 blocks a line. The two controls eat one slot on the
+// first line, leaving 4 + 5. Short names simply fill less of the two lines.
+const BANK_PAGE = 8;
+let bankPage = 0;
+// Overwrite is armed, not immediate: click OVR, then click the target. Cleared
+// on cancel, on commit, and whenever the bank changes underneath it.
+let _ovrArm = false;
+// Clear-the-bank is armed the same way. A modal mid-set is worse than two taps,
+// and this one is unrecoverable — the bank is localStorage only and EXP is the
+// single backup — so it does not get a one-tap path.
+let _clrArm = false;
+// Which preset an armed overwrite is pointed at, or -1. The commit is a second
+// tap on that same block rather than a confirm() — a modal is the wrong thing to
+// put in front of someone mid-set, and naming the target on the block itself
+// says more than a dialog does.
+let _ovrTarget = -1;
+// An empty chain box waiting to be filled: {kind, pos}, or null. While one is
+// armed, picking from the GEN or FX grid drops into that box instead of doing
+// the usual append/toggle.
+let _armSlot = null;
+function setArmSlot(v) {
+  const same = (!v && !_armSlot) ||
+               (v && _armSlot && v.kind === _armSlot.kind && v.pos === _armSlot.pos);
+  if (same && !v) return;
+  _armSlot = same ? null : v;      // clicking the armed box again disarms it
+  _spiFlowDirty = true;
+  if (_armSlot) toast((_armSlot.kind === 'gen' ? 'gen' : 'fx') + ' box ' + (_armSlot.pos + 1) + ' — pick one to place');
+}
+// Keeps the lit preset on screen — stepping with [ ] or jumping from the LOAD
+// dialog must follow the page, or the row lights nothing and looks broken.
+function _bankFollow(idx) {
+  const p = idx < 0 ? bankPage : Math.floor(idx / BANK_PAGE);
+  if (p !== bankPage) { bankPage = p; _spiFlowDirty = true; }
+}
 
 const _flowStrip = document.getElementById('flow-strip');
-// SRC/CAM lives outside the strip now, so it survives every innerHTML rebuild
-// and keeps its panel-level data-action delegation without being re-bound.
-const _flowCamBtn = document.getElementById('flow-cam-btn');
+// The bank sits above the source row, so it is its own element rather than a
+// third row of the strip. Both are rebuilt together and share a column ruler.
+const _bankStrip = document.getElementById('bank-strip');
 const _flowGhost = document.getElementById('flow-ghost');
 let _flowDragging = false;  // set by drag system — skip rebuild during drag
 let _flowLastKey  = '';     // dirty-check: only rebuild when chain changes
@@ -7674,7 +7963,7 @@ const _abbrev = {
   'waves':'WAV','zoom-clouds':'ZMCL','gamma-ray':'GAMR','oscilloscope':'OSC',
   'feature-dots':'DOTS','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
   'vhs':'VHS','glitch':'GLTCH','feedback':'FBCK','mirror':'MIR','posterize':'POST',
-  'invert':'INV','bitcrush':'BTCR','colorizer':'CLR','grain':'GRN',
+  'invert':'INV','bitcrush':'BTCR','colorizer':'COLR','grain':'GRN',
   'hsv-shift':'HSV','hue-cycle':'HUE','kaleido-warp':'KLWP','rotate-zoom':'RTZM',
   'wobble':'WBL','zoom-fx':'ZFX','ascii':'ASCII','halftone':'HLFT','sample-hold':'S/H',
   'scatter':'SCAT',
@@ -7689,81 +7978,123 @@ function _fb_abbr(name) {
 
 // Rebuilds the GEN, FX and BANK rows when the chain changes.
 function buildFlowStrip() {
-  if (!_flowStrip) return;
+  if (!_flowStrip || !_bankStrip) return;
   if (_spiViewHidden) return;   // nothing to see, nothing to build
   if (_spiFlowDirty) { _flowLastKey = ''; _spiFlowDirty = false; }
   if (_flowDragging) return;  // never replace DOM mid-drag — pointer capture would break
 
-  // Updated before the key check, not inside the rebuild: the button is static
-  // markup now, so it must track the camera even on frames where the chain has
-  // not changed and the strip is skipped entirely.
+  // CAM now sits inside the rebuilt row, so its state is EMITTED rather than
+  // patched in place — which means camOn has to be in the dirty key below, or a
+  // camera toggle would not repaint. That is a deliberate reversal: the button
+  // was static markup precisely to avoid this, and the trade is one strip
+  // rebuild per toggle against SRC/CAM sharing the RND line.
   const camOn = !!camStream;
-  if (_flowCamBtn) {
-    const camLabel = camOn ? '◉CAM' : '○CAM';
-    if (_flowCamBtn.textContent !== camLabel) _flowCamBtn.textContent = camLabel;
-    _flowCamBtn.classList.toggle('fb-cam-active', camOn);
-  }
 
   // The bank belongs in the key too, or saving, deleting or importing a preset
   // would not repaint the row it lives in.
   const bank = loadPresets();
-  const key = genSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + genIdx + '|' +
-              fxSlots.map(sl => sl.idx + (sl.off ? '!' : '')).join(',') + '|' + fxIdx + '|' +
-              bank.length + '|' + presetIdx;
+  // Clamped here rather than at every mutation site: deleting the only preset on
+  // the last page would otherwise leave the row paged past the end and empty.
+  const bankPages = Math.max(1, Math.ceil(bank.length / BANK_PAGE));
+  if (bankPage >= bankPages) bankPage = bankPages - 1;
+  // Positions are in the key: dragging a block from box 1 to box 4 changes
+  // nothing about the chain contents, and without them the row would not repaint.
+  const key = genSlots.map(sl => sl.idx + '@' + sl.pos + (sl.off ? '!' : '')).join(',') + '|' + genIdx + '|' +
+              fxSlots.map(sl => sl.idx + '@' + sl.pos + (sl.off ? '!' : '')).join(',') + '|' + fxIdx + '|' +
+              bank.length + '|' + presetIdx + '|' + bankPage + '|' + (camOn ? 'C' : '') +
+              (_ovrArm ? 'o' : '') + (_clrArm ? 'c' : '') + (_ovrTarget >= 0 ? 't' + _ovrTarget : '') +
+              '|' + (_armSlot ? _armSlot.kind + _armSlot.pos : '');
   if (key === _flowLastKey) return;
   _flowLastKey = key;
 
-  // ── GEN row: always visible ───────────────────────────────────────────────
-  const top = [];
-  top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="0"></span>`);
-  genSlots.forEach((sl, pos) => {
-    const gi = sl.idx;
-    top.push(`<span class="fb fb-gen${pos === genIdx ? ' fb-sel' : ''}${genSlots[pos].off ? ' fb-disabled' : ''}" data-fb-type="gen" data-fb-pos="${pos}" data-fb-idx="${gi}" title="${GEN[gi].name}">${_fb_abbr(GEN[gi].name)}</span>`);
-    if (pos < genSlots.length - 1) {
-      top.push(`<span class="fb-arrow">⊕</span>`);
-      top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="${pos + 1}"></span>`);
-    }
-  });
-  top.push(`<span class="fb-insert fb-ins-gen" data-fb-type="gen" data-fb-ins="${genSlots.length}"></span>`);
-
-  // ── FX row: always visible ────────────────────────────────────────────────
-  const bot = [];
-  bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="0"></span>`);
-  if (fxSlots.length === 0) {
-    bot.push(`<span class="fb fb-fx-empty">fx</span>`);
-  } else {
-    fxSlots.forEach((sl, pos) => {
-      const fi = sl.idx;
-      bot.push(`<span class="fb fb-fx${pos === fxIdx ? ' fb-sel' : ''}${fxSlots[pos].off ? ' fb-disabled' : ''}" data-fb-type="fx" data-fb-pos="${pos}" data-fb-idx="${fi}" title="${FX[fi].name}">${_fb_abbr(FX[fi].name)}</span>`);
-      if (pos < fxSlots.length - 1) {
-        bot.push(`<span class="fb-arrow">→</span>`);
-        bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${pos + 1}"></span>`);
+  // ── GEN and FX rows: CHAIN_MAX fixed positions, always ───────────────────
+  // Both rows emit identical geometry — CHAIN_MAX+1 insert points, CHAIN_MAX
+  // slots, CHAIN_MAX-1 arrows — whatever the chains actually hold. Emitting
+  // only the filled positions is what pulled the rows out of line: the insert
+  // count tracked chain length, so a 1-slot FX chain sat a whole block left of
+  // a 3-slot GEN chain.
+  // Nothing between the boxes — no insert spacers, no flow arrows. Every row in
+  // the section is now just boxes on the shared 42px + 3px gap pitch, so column
+  // N lands at the same x on BANK, SRC, GEN and FX alike. The separators were
+  // what pushed these two rows off that ruler.
+  const _row = (kind, slots, sel, table) => {
+    const out = [];
+    for (let pos = 0; pos < CHAIN_MAX; pos++) {
+      // Drawn by BOX, not by array index — a one-slot chain can be sitting in
+      // box 4 with three empties ahead of it.
+      const sl = layoutAt(slots, pos);
+      if (sl) {
+        out.push(`<span class="fb fb-slot fb-${kind}${sl === slots[sel] ? ' fb-sel' : ''}${sl.off ? ' fb-disabled' : ''}" data-fb-type="${kind}" data-fb-pos="${pos}" data-fb-idx="${sl.idx}" title="${table[sl.idx].name}">${_fb_abbr(table[sl.idx].name)}</span>`);
+      } else {
+        const armed = _armSlot && _armSlot.kind === kind && _armSlot.pos === pos;
+        out.push(`<span class="fb fb-slot fb-slot-empty fb-slot-${kind}${armed ? ' fb-slot-armed' : ''}" data-action="slot-arm" data-arm-kind="${kind}" data-arm-pos="${pos}" title="empty ${kind} box — click to arm it, then pick a ${kind === 'gen' ? 'shader' : 'effect'}; or drag one here"></span>`);
       }
-    });
-    bot.push(`<span class="fb-insert fb-ins-fx" data-fb-type="fx" data-fb-ins="${fxSlots.length}"></span>`);
-  }
+    }
+    return out;
+  };
+  const top = _row('gen', genSlots, genIdx, GEN);
+  const bot = _row('fx',  fxSlots,  fxIdx,  FX);
 
   // ── BANK row: saved presets, click to jump ───────────────────────────────
   // No data-fb-type on these: the strip's pointerdown handler matches
   // `.fb[data-fb-type]` for dragging, and a preset is not a chain slot.
+  // Controls on the top row, presets on their own row underneath. Mixing them
+  // put the first preset at a different x from every other row's first block,
+  // which is the one thing the shared ruler exists to prevent.
   const bnk = [];
+  bnk.push(`<span class="fb-spacer"></span>`);
+  // Source first, then the bank controls. SRC and CAM moved up here off their
+  // own row: they are two blocks, and a row of two was a row's worth of height
+  // for them.
+  bnk.push(`<span class="fb fb-src">SRC</span>`);
+  bnk.push(`<span class="fb fb-cam${camOn ? ' fb-cam-active' : ''}" id="flow-cam-btn" data-action="camera" title="camera on/off">${camOn ? '◉CAM' : '○CAM'}</span>`);
+  // One blank position between the two groups. Without it the row reads as a
+  // single run of five controls, and what SRC and CAM do has nothing to do with
+  // what BANK, OVR and CLR do. Same device as the slot after RND.
+  bnk.push(`<span class="fb-spacer"></span>`);
+  // BANK is a block rather than a gutter label — the gutter belongs to RND. It
+  // only becomes a control once there is a second page to reach.
+  bnk.push(bankPages > 1
+    ? `<span class="fb fb-src fb-bank-lbl" data-action="bank-page" title="page ${bankPage + 1} of ${bankPages} — click for the next">BANK${bankPage + 1}</span>`
+    : `<span class="fb fb-src">BANK</span>`);
+  bnk.push(`<span class="fb fb-ctl${_ovrArm ? ' fb-armed' : ''}" data-action="bank-ovr" title="overwrite a preset with the current patch — click this, then the preset, then the preset again">OVR</span>`);
+  // No EXP here: it is EXPORT BANK inside the SAVE dialog, and one route to it
+  // is enough for something you reach for between sets rather than during one.
+  bnk.push(`<span class="fb fb-ctl fb-clr${_clrArm ? ' fb-armed' : ''}" data-action="bank-clr" title="delete every saved preset — click once to arm, again to confirm">CLR</span>`);
+
+  const pre = [];
   if (!bank.length) {
-    bnk.push(`<span class="fb fb-bank-empty">no presets</span>`);
+    pre.push(`<span class="fb fb-bank-empty">no presets</span>`);
   } else {
-    bank.forEach((p, i) => {
+    const from = bankPage * BANK_PAGE;
+    // Absolute index on data-preset, not the position within the page: every
+    // consumer (preset-jump, presetIdx, delete remap) counts from the whole bank.
+    bank.slice(from, from + BANK_PAGE).forEach((p, j) => {
+      const i = from + j;
       const nm = (p.name || 'preset').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-      bnk.push(`<span class="fb fb-bank${i === presetIdx ? ' fb-sel' : ''}" data-action="preset-jump" data-preset="${i}" title="${nm} — ${p.date || ''}">${nm}</span>`);
+      // An armed overwrite target outranks the loaded-preset highlight: it is
+      // about to be written over, which matters more than which one is playing.
+      const cls = i === _ovrTarget ? ' fb-ovr-target' : (i === presetIdx ? ' fb-sel' : '');
+      pre.push(`<span class="fb fb-bank${cls}" data-action="preset-jump" data-preset="${i}" title="${nm} — ${p.date || ''}">${nm}</span>`);
     });
   }
 
-  // SRC is no longer part of the strip — see #spi-src-cap-row in the markup.
+  // Two elements, one ruler. RND leads from the gutter: it is hard left on the
+  // section's first row, one empty slot clear of everything else, because it
+  // replaces both chains wholesale and should not read as part of any group.
+  // Everything on this row is safe inside the rebuild — none of it carries a
+  // direct listener, only data-action delegation on #spi-panel.
+  // Three children, not four: the preset row spans the gutter (see
+  // .flow-row-bank) so it needs no label cell of its own.
+  _bankStrip.innerHTML =
+    `<div class="flow-row-lbl"><button class="spi-hbtn c-rnd" data-action="randomise" id="spi-randomise" title="randomise: 4 shaders, 4 effects, all values, blend modes and LFO movement">RND</button></div>` +
+    `<div class="flow-row">${bnk.join('')}</div>` +
+    `<div class="flow-row flow-row-bank">${pre.join('')}</div>`;
   _flowStrip.innerHTML =
     `<div class="flow-row-lbl"><span class="fb fb-src">GEN</span></div>` +
     `<div class="flow-row flow-row-gen">${top.join('')}</div>` +
     `<div class="flow-row-lbl"><span class="fb fb-src">FX</span></div>` +
-    `<div class="flow-row flow-row-fx">${bot.join('')}</div>` +
-    `<div class="flow-row-lbl"><span class="fb fb-src">BANK</span></div>` +
-    `<div class="flow-row flow-row-bank">${bnk.join('')}</div>`;
+    `<div class="flow-row flow-row-fx">${bot.join('')}</div>`;
 }
 
 // ── Source section ───────────────────────────────────────────────────────────
@@ -8045,43 +8376,50 @@ function renderSourceSection() {
     return x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 20 && y <= r.bottom + 20;
   }
 
-  // Find best insert slot in flow strip for cursor position
-  function findInsertSlot(kind, x) {
-    const insEls = Array.from(_flowStrip.querySelectorAll(`.fb-insert[data-fb-type="${kind}"]`));
-    let best = insEls.length - 1, bestDist = Infinity;
-    insEls.forEach((el, i) => {
+  // The drop target is a BOX, not a gap between blocks. Boxes are drawn in
+  // order and there are always CHAIN_MAX of them, so the element index is the
+  // display position.
+  function findBox(kind, x) {
+    const els = Array.from(_flowStrip.querySelectorAll(`.flow-row-${kind} .fb-slot`));
+    let best = 0, bestDist = Infinity;
+    els.forEach((el, i) => {
       const r = el.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const dist = Math.abs(x - cx);
+      const dist = Math.abs(x - (r.left + r.width / 2));
       if (dist < bestDist) { bestDist = dist; best = i; }
     });
-    return best;  // index into insert slots = insert position in chain
+    return best;
   }
 
   function clearInsertHighlights() {
-    _flowStrip.querySelectorAll('.fb-ins-hot').forEach(el => el.classList.remove('fb-ins-hot'));
+    _flowStrip.querySelectorAll('.fb-box-hot').forEach(el => el.classList.remove('fb-box-hot'));
   }
 
-  function highlightInsert(kind, slotIdx) {
+  function highlightInsert(kind, pos) {
     clearInsertHighlights();
-    const insEls = Array.from(_flowStrip.querySelectorAll(`.fb-insert[data-fb-type="${kind}"]`));
-    if (insEls[slotIdx]) insEls[slotIdx].classList.add('fb-ins-hot');
+    const els = _flowStrip.querySelectorAll(`.flow-row-${kind} .fb-slot`);
+    if (els[pos]) els[pos].classList.add('fb-box-hot');
   }
 
-      // One object moves, so every property of the slot moves with it.
-  function commitReorder(kind, fromPos, toPos) {
-    if (fromPos === toPos || fromPos === toPos - 1) return;
-    if (kind === 'gen') { genIdx = chainMove(genSlots, fromPos, toPos); syncGenIdx(); }
-    else                { fxIdx  = chainMove(fxSlots,  fromPos, toPos); syncFxIdx();  }
+  // One object moves, so every property of the slot moves with it. An occupied
+  // target swaps rather than shifting, so nothing the user did not touch moves.
+  function commitReorder(kind, fromBox, toBox) {
+    const slots = kind === 'gen' ? genSlots : fxSlots;
+    const moved = layoutAt(slots, fromBox);
+    if (!moved || fromBox === toBox) return;
+    layoutPlace(slots, fromBox, toBox);
+    // Follow the block that was dragged: after the sort its array index has
+    // moved, and a stale genIdx would select whatever landed in its place.
+    if (kind === 'gen') { genIdx = slots.indexOf(moved); syncGenIdx(); }
+    else                { fxIdx  = slots.indexOf(moved); syncFxIdx();  }
   }
 
-  function commitInsert(kind, shaderIdx, toPos) {
+  function commitInsert(kind, shaderIdx, toBox) {
     if (kind === 'gen') {
-      genIdx = chainInsert(genSlots, makeGenSlot(shaderIdx), toPos);
+      genIdx = layoutPlaceNew(genSlots, makeGenSlot(shaderIdx), toBox);
       syncGenIdx();
       modeIdx = MODES.indexOf('SHADER'); layer = 'gen'; selParam = 0;
     } else {
-      fxIdx = chainInsert(fxSlots, makeFxSlot(shaderIdx), toPos);
+      fxIdx = layoutPlaceNew(fxSlots, makeFxSlot(shaderIdx), toBox);
       syncFxIdx();
       layer = 'fx'; selParam = 0;
     }
@@ -8107,15 +8445,10 @@ function renderSourceSection() {
     if (!fb || fb.classList.contains('fb-src')) return;
     e.preventDefault();
     const kind = fb.dataset.fbType;
-    const idx  = parseInt(fb.dataset.fbIdx);
     const pos  = parseInt(fb.dataset.fbPos);
-    if (kind === 'gen') {
-      if (genSlots[pos].off) (genSlots[pos].off = false);
-      else (genSlots[pos].off = true);
-    } else {
-      if (fxSlots[pos].off) (fxSlots[pos].off = false);
-      else (fxSlots[pos].off = true);
-    }
+    // data-fb-pos is a BOX now, not an array index — resolve it through layoutAt.
+    const sl = layoutAt(kind === 'gen' ? genSlots : fxSlots, pos);
+    if (sl) sl.off = !sl.off;
     _flowLastKey = '';
   });
 
@@ -8125,15 +8458,14 @@ function renderSourceSection() {
     const fb = e.target.closest('.fb[data-fb-type]');
     if (!fb) return;
     const kind = fb.dataset.fbType;
-    const idx  = parseInt(fb.dataset.fbIdx);
     const pos  = parseInt(fb.dataset.fbPos);
-    if (kind === 'gen') {
-      genIdx = pos; syncGenIdx();
-      layer = 'gen'; selParam = 0;
-    } else {
-      fxIdx = pos; syncFxIdx();
-      layer = 'fx'; selParam = 0;
-    }
+    const slots = kind === 'gen' ? genSlots : fxSlots;
+    const sl = layoutAt(slots, pos);
+    if (!sl) return;
+    if (kind === 'gen') { genIdx = slots.indexOf(sl); syncGenIdx(); layer = 'gen'; }
+    else                { fxIdx  = slots.indexOf(sl); syncFxIdx();  layer = 'fx';  }
+    selParam = 0;
+    setArmSlot(null);          // picking a filled box cancels a pending place
   });
 
   // ── Pointer down: start drag from grid button ──────────────────────────────
@@ -8166,8 +8498,8 @@ function renderSourceSection() {
     ghostShow(_fd.label, e.clientX, e.clientY);
 
     if (overStrip(e.clientX, e.clientY)) {
-      const slot = findInsertSlot(_fd.kind, e.clientX);
-      highlightInsert(_fd.kind, slot);
+      const box = findBox(_fd.kind, e.clientX);
+      highlightInsert(_fd.kind, box);
       // mark dragging source block
       if (_fd.source === 'strip') {
         const srcEl = _flowStrip.querySelector(`.fb[data-fb-type="${_fd.kind}"][data-fb-pos="${_fd.pos}"]`);
@@ -8189,22 +8521,24 @@ function renderSourceSection() {
       if (_fd.source === 'grid') _suppressClick = true;
 
       if (overStrip(e.clientX, e.clientY)) {
-        const slot = findInsertSlot(_fd.kind, e.clientX);
+        const box = findBox(_fd.kind, e.clientX);
         if (_fd.source === 'strip') {
-          commitReorder(_fd.kind, _fd.pos, slot);
+          commitReorder(_fd.kind, _fd.pos, box);
         } else {
-          commitInsert(_fd.kind, _fd.idx, slot);
+          commitInsert(_fd.kind, _fd.idx, box);
         }
       } else if (_fd.source === 'strip') {
-        // dragged off strip — remove from chain
-        if (_fd.kind === 'gen' && genSlots.length > 1) {
-          chainRemove(genSlots, _fd.pos);
-          genIdx = Math.min(genIdx, genSlots.length - 1);
-          syncGenIdx();
-        } else if (_fd.kind === 'fx') {
-          chainRemove(fxSlots, _fd.pos);
-          fxIdx = Math.min(fxIdx, fxSlots.length - 1);
-          syncFxIdx();
+        // Dragged off the strip — remove it and LEAVE THE BOX EMPTY. Nothing
+        // else shifts, so you can pull a block out, listen without it, and drop
+        // it back into the same box. layoutNormalise preserves the hole because
+        // it only ever pushes a position up, never compacts one down.
+        const slots = _fd.kind === 'gen' ? genSlots : fxSlots;
+        const sl = layoutAt(slots, _fd.pos);
+        if (sl && !(_fd.kind === 'gen' && slots.length <= 1)) {
+          chainRemove(slots, slots.indexOf(sl));
+          layoutNormalise(slots);
+          if (_fd.kind === 'gen') { genIdx = Math.min(genIdx, genSlots.length - 1); syncGenIdx(); }
+          else                    { fxIdx  = Math.min(fxIdx,  fxSlots.length  - 1); syncFxIdx();  }
         }
       }
     }
@@ -8682,6 +9016,11 @@ function getState() {
     fxSlotMidiMod:  fxSlots.map(sl => sl.midiMod.map(m => ({ ...m }))),
     fxSlotAmt:      fxSlots.map(sl => sl.amt),
     fxSlotMode:     fxSlots.map(sl => sl.mode),
+    // Additive keys: which box each slot is DRAWN in. The chain above is still
+    // dense and in signal order, so a build that ignores these renders the
+    // identical image and just packs the strip to the left.
+    genSlotPos:     genSlots.map(sl => sl.pos),
+    fxSlotPos:      fxSlots.map(sl => sl.pos),
     lfos: lfos.map(l => ({ ...l })),
     globalBpm, lfoUseBpm: [...lfoUseBpm], lfoBeatIdx: [...lfoBeatIdx]
   };
@@ -8786,6 +9125,9 @@ function applyState(s) {
     mode: gMode[i] ?? 0,
     amt:  gAmt[i]  ?? 0.5,
     off:  gOff.has(i),
+    // Additive: absent on legacy JSON and on any V5 URL written before the
+    // trailing block existed, in which case layoutNormalise packs to the left.
+    pos:  Number.isInteger(s.genSlotPos?.[i]) ? s.genSlotPos[i] : undefined,
   }));
   fxSlots = fChain.map((idx, i) => ({
     idx,
@@ -8794,7 +9136,12 @@ function applyState(s) {
     mode: s.fxSlotMode?.[i] ?? 0,
     amt:  s.fxSlotAmt?.[i]  ?? 1.0,
     off:  fOff.has(i),
+    pos:  Number.isInteger(s.fxSlotPos?.[i]) ? s.fxSlotPos[i] : undefined,
   }));
+  // Positions are clamped to the invariant here, not trusted: a hand-edited or
+  // truncated preset must not leave two slots claiming the same box.
+  layoutNormalise(genSlots);
+  layoutNormalise(fxSlots);
   syncGenIdx();
   syncFxIdx();
   // Legacy state with no bypass field: mirror what entering LIVE by hand does.
@@ -8849,9 +9196,10 @@ const BANK_FORMAT = 'recur-bank';
 const BANK_VERSION = 1;
 
 // Downloads every preset as one portable .json.
-function exportBank() {
+function exportBank(rawName) {
   const list = loadPresets();
   if (!list.length) { toast('no presets to export'); return; }
+  const file = safeBankFile(rawName);
   const bank = {
     format: BANK_FORMAT, version: BANK_VERSION,
     build: BUILD, saved: new Date().toISOString(),
@@ -8861,10 +9209,12 @@ function exportBank() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = 'recur-bank-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = file;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  toast('exported ' + list.length + ' preset' + (list.length === 1 ? '' : 's'));
+  // Name it back: the browser may have saved it somewhere you did not watch, and
+  // a sanitised name can differ from what was typed.
+  toast('exported ' + list.length + ' preset' + (list.length === 1 ? '' : 's') + ' → ' + file);
 }
 
 // Merges, never replaces: an imported bank must not destroy the local set, and a
@@ -8919,9 +9269,73 @@ function loadPresetAt(i) {
   if (!p || !p.state) { toast('empty preset slot'); return; }
   applyState(p.state);
   presetIdx = idx;
+  _bankFollow(idx);
+  setOvrArm(false);
   _spiFlowDirty = true;
   _spiForce = true;
   toast(p.name);
+}
+
+// Arms or clears the overwrite click. Split out because four call sites clear
+// it and every one of them also has to repaint the row.
+function setOvrArm(on) {
+  if (_ovrArm === on) return;
+  _ovrArm = on;
+  // Disarming always drops the target: leaving one behind would let the next
+  // arm commit against a preset chosen several clicks ago.
+  _ovrTarget = -1;
+  _spiFlowDirty = true;
+  // Both arms consume the next click and both act on the bank, so only one can
+  // be live. Disarming is the quiet branch, which is what keeps this from
+  // recursing back through setClrArm.
+  if (on) { setClrArm(false); toast('click a preset to overwrite'); }
+}
+
+// Arms or clears the bank wipe. Same shape as setOvrArm above.
+function setClrArm(on) {
+  if (_clrArm === on) return;
+  _clrArm = on;
+  _spiFlowDirty = true;
+  if (on) {
+    setOvrArm(false);
+    const n = loadPresets().length;
+    toast('tap CLR again to delete all ' + n + ' preset' + (n === 1 ? '' : 's'));
+  }
+}
+
+// Deletes every saved preset. The bank is localStorage only, has no undo and
+// does not travel with index.html, so EXP is the single backup — which is why
+// the button arms rather than firing on one tap.
+function clearBank() {
+  const n = loadPresets().length;
+  setClrArm(false);
+  // savePresets reports its own failure; claiming "cleared" over the top of a
+  // quota warning would say the bank is gone when it is still there.
+  if (!savePresets([])) return;
+  presetIdx = -1;
+  bankPage  = 0;
+  _spiFlowDirty = true;
+  toast('bank cleared — ' + n + ' preset' + (n === 1 ? '' : 's') + ' deleted');
+}
+
+// Replaces a preset's state in place, keeping its name. The guard is the two
+// taps that got here — arm OVR, target the block, tap it again — not a confirm().
+// The bank lives in localStorage with no undo, so this is still unrecoverable;
+// it is just guarded on the strip instead of in a dialog.
+function overwritePresetAt(i) {
+  const list = loadPresets();
+  const p = list[i];
+  setOvrArm(false);
+  if (!p) { toast('no such preset'); return; }
+  list[i] = { name: p.name, date: new Date().toLocaleString(), state: getState() };
+  // savePresets reports its own failure — claiming "overwrote" over the top of a
+  // quota warning is how you lose a preset you thought was replaced.
+  if (savePresets(list)) {
+    presetIdx = i;
+    _bankFollow(i);
+    _spiFlowDirty = true;
+    toast('overwrote: ' + p.name);
+  }
 }
 // Jumps to the previous or next preset, wrapping.
 function stepPreset(d) {
@@ -9022,7 +9436,9 @@ function _stateToBufV5(s) {
   const ubi = s.lfoBeatIdx ?? lfoBeatIdx;
   const ubm = s.lfoUseBpm  ?? lfoUseBpm;
   const genLen = gc.length, fxLen = ch.length;
-  const size = HDR5 + (genLen * N_P * 5) + (fxLen * N_P * 5) + fxLen + fxLen + 6;
+  // ...+ genLen + fxLen for the slot-position block appended at the very end.
+  const size = HDR5 + (genLen * N_P * 5) + (fxLen * N_P * 5) + fxLen + fxLen + 6
+             + genLen + fxLen;
   const buf = new Uint8Array(size);
   buf[0]  = 5;
   buf[1]  = s.modeIdx ?? 0;
@@ -9100,6 +9516,14 @@ function _stateToBufV5(s) {
   for (let i=0;i<fxLen;i++)  buf[o++] = (fsm[i] ?? 0) & 0xf;
   for (let i=0;i<3;i++) buf[o++] = Math.round((lv[i]?.skew  ?? 0.5)*255)&0xff;
   for (let i=0;i<3;i++) buf[o++] = Math.round((lv[i]?.curve ?? 0.5)*255)&0xff;
+  // Slot display positions — which of the CHAIN_MAX boxes each slot is drawn in.
+  // Appended after the LFO curve block, same trick again: length-guarded on
+  // decode, so a URL written before this existed still loads and simply packs
+  // the strip left. The chain itself is unchanged and dense, so a build that
+  // never learns about positions renders the identical image.
+  const gp = s.genSlotPos || [], fp = s.fxSlotPos || [];
+  for (let i=0;i<genLen;i++) buf[o++] = (gp[i] ?? i) & 0xff;
+  for (let i=0;i<fxLen;i++)  buf[o++] = (fp[i] ?? i) & 0xff;
   return buf;
 }
 
@@ -9167,6 +9591,11 @@ function _bufToStateV5(buf) {
   if (o + 6 <= buf.length) {
     for (let i=0;i<3;i++) s.lfos[i].skew  = buf[o++]/255;
     for (let i=0;i<3;i++) s.lfos[i].curve = buf[o++]/255;
+  }
+  if (o + genLen + fxLen <= buf.length) {
+    s.genSlotPos = []; s.fxSlotPos = [];
+    for (let i=0;i<genLen;i++) s.genSlotPos[i] = buf[o++];
+    for (let i=0;i<fxLen;i++)  s.fxSlotPos[i]  = buf[o++];
   }
   return s;
 }
@@ -9856,14 +10285,55 @@ function castBroadcast() {
   showResVal();
 })();
 
+// Time first, then date, then the word. A bank block is 64px wide and shows ten
+// characters before it ellipsises, so whatever leads the name is the whole of
+// what you can read on the strip — 'preset-2026-08-12' showed 'preset-202',
+// which is identical on every preset ever saved. 'hhmm-ddmon' is exactly ten and
+// tells every save in a session apart at a glance; 'preset' trails behind where
+// the strip truncates it away but the LOAD list, the block tooltip and an
+// exported bank all still read it.
+// Month names are a fixed table, not toLocaleString: the ten-character budget
+// only holds if the string is the same length in every locale.
+const _MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const _p2 = v => String(v).padStart(2, '0');
+function defaultPresetName() {
+  const d = new Date();
+  return _p2(d.getHours()) + _p2(d.getMinutes()) + '-' + _p2(d.getDate()) + _MON[d.getMonth()] + '-preset';
+}
+// A bank is a file on disk rather than a block on the strip, so it gets the date
+// the long way round and no ten-character budget.
+function defaultBankName() {
+  const d = new Date();
+  return 'recur-bank-' + d.getFullYear() + '-' + _p2(d.getMonth() + 1) + '-' + _p2(d.getDate());
+}
+// Whatever is typed here becomes a filename, so it cannot be trusted as one.
+// Anything outside [A-Za-z0-9._-] becomes a dash — that covers the path
+// separators and the Windows-reserved set in one rule rather than by blocklist —
+// then runs are collapsed, leading and trailing punctuation trimmed, and the
+// length capped. An empty result falls back rather than writing '.json'.
+function safeBankFile(raw) {
+  let n = String(raw || '').trim().replace(/\.json$/i, '');
+  n = n.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-{2,}/g, '-').replace(/^[-._]+|[-._]+$/g, '');
+  n = n.slice(0, 64).replace(/[-._]+$/, '');
+  return (n || defaultBankName()) + '.json';
+}
 document.getElementById('btn-save').addEventListener('click', () => {
-  document.getElementById('save-name').value = 'preset-' + new Date().toISOString().slice(0,10);
+  document.getElementById('save-name').value = defaultPresetName();
+  document.getElementById('bank-name').value = defaultBankName();
   saveOverlay.classList.add('vis');
 });
+// Bank export is wired here with the rest of the SAVE dialog. It is a plain
+// download and does not close the modal — you can export, then still save.
+// Passing the field explicitly rather than reading it inside exportBank keeps
+// that function callable from anywhere without a DOM dependency.
+document.getElementById('bank-export').addEventListener('click',
+  () => exportBank(document.getElementById('bank-name').value));
 document.getElementById('save-cancel').addEventListener('click', () => saveOverlay.classList.remove('vis'));
 saveOverlay.addEventListener('click', e => { if (e.target === saveOverlay) saveOverlay.classList.remove('vis'); });
 document.getElementById('save-ok').addEventListener('click', () => {
-  const name = document.getElementById('save-name').value.trim() || 'preset';
+  // Emptying the field falls back to the same stamp rather than the bare word,
+  // which would put an unreadable block on the strip for exactly the same reason.
+  const name = document.getElementById('save-name').value.trim() || defaultPresetName();
   const list = loadPresets();
   list.unshift({ name, date: new Date().toLocaleString(), state: getState() });
   // savePresets reports its own failure — claiming "saved" over the top of a
@@ -9871,7 +10341,8 @@ document.getElementById('save-ok').addEventListener('click', () => {
   const ok = savePresets(list);
   saveOverlay.classList.remove('vis');
   // unshift pushes every existing preset down one, and the new one is now live.
-  if (ok) { presetIdx = 0; _spiFlowDirty = true; toast('saved: ' + name); }
+  // Page 0 too, or the block you just saved is on a page you are not looking at.
+  if (ok) { presetIdx = 0; bankPage = 0; setOvrArm(false); _spiFlowDirty = true; toast('saved: ' + name); }
 });
 
 // ── Load modal ────────────────────────────────────────────────────────────────
@@ -9910,6 +10381,9 @@ loadOverlay.addEventListener('click', e => {
     // otherwise point at the wrong preset.
     if (presetIdx === i) presetIdx = -1;
     else if (presetIdx > i) presetIdx--;
+    // buildFlowStrip clamps bankPage against the new length; the arm has to go
+    // because the index it was about to write to has just moved.
+    setOvrArm(false);
     _spiFlowDirty = true;
     renderLoadList();
     return;
@@ -9945,7 +10419,6 @@ locateFileInput.addEventListener('change', e => {
   hideLocate();
 });
 
-document.getElementById('bank-export').addEventListener('click', exportBank);
 const bankFileInput = document.getElementById('bank-file');
 document.getElementById('bank-import').addEventListener('click', () => bankFileInput.click());
 bankFileInput.addEventListener('change', e => {
