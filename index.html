@@ -1643,7 +1643,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // Bump when handing the file over. Shown dim in the panel header and logged, so
 // "is the deployed copy actually the new one?" can be answered in a second
 // instead of by diffing behaviour.
-const BUILD = '2026-08-11l · comments2';
+const BUILD = '2026-08-11m · trim';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -2248,12 +2248,9 @@ void main(){
   else if(st==6){float b=fbmG(wp,g); f=abs(fract(b*4.)-.5)*2.;} // contour
   else           f=fbmG(vec2(wp.x*.35,wp.y*1.6),g);             // streaks
 
-  // relief (uP9): fake lighting from the gradient of the field. Screen-space
-  // derivatives are far cheaper than re-evaluating the fbm at an offset, but
-  // their magnitude scales with pixel size — at half render scale a raw dFdx is
-  // twice as large, so a fixed multiplier would light the scene completely
-  // differently on every device and at every RES setting. Multiplying by uRes
-  // converts to a per-uv-unit gradient, which is resolution-independent.
+  // relief (uP9): fake lighting from the field gradient. Screen-space derivatives
+  // scale with pixel size, so the uRes multiply makes it resolution-independent —
+  // without it, lighting changes with every RES setting.
   if(uP9>.001) f+=clamp((dFdx(f)*uRes.x+dFdy(f)*uRes.y)*mix(0.,.045,uP9),-.45,.45);
 
   // contrast (uP7). The base ramp multiplies f by 2, blowing ~47% of a frame to
@@ -2445,13 +2442,10 @@ float mzVN(float x){
 float mzStairs(float x){
   return floor(x)+smoothstep(.5-HW,.5+HW,fract(x));
 }
-// randomness is fixed at the ISF's shipped 1.0, which drops the unused sine path
-// and four sin() calls from a function that runs on every march, AO and normal
-// tap — the largest single saving in the port.
-//
-// PSTR stretches the path along z. Unstretched, the camera slews laterally up to
-// 4.1x faster than it flies forward, which whips the near walls across a
-// one-cell corridor. Stretching by 3 brings that to 0.74x.
+// randomness fixed at the ISF's shipped 1.0, dropping the unused sine path and
+// four sin() calls from the hottest function in the port.
+// PSTR stretches the path along z: unstretched the camera slews laterally 4.1x
+// faster than it flies forward. Stretching by 3 brings that to 0.74x.
 vec2 mzPath(float zLocal){
   float zc=(zLocal/CELL+gZc)/PSTR;
   float gx=((mzVN(zc/3.5 +3.)-.5)+.5*(mzVN(zc/1.575+9.) -.5))*1.60*mzTurn;
@@ -2461,10 +2455,8 @@ vec2 mzPath(float zLocal){
 
 // ── the maze ─────────────────────────────────────────────────────────────────
 // Corridors reach through any cell face whose hash rolls open. Keyed to the FACE,
-// not the cell: on a doubled lattice the +x face of cell i and the -x face of
-// cell i+1 are both 2i+(1,0,0), so the field stays continuous at the seam.
-// kz is this scale's rebase offset — an exact integer, so the local geometry
-// below is computed entirely from small numbers.
+// not the cell, so adjacent cells agree at the seam and the field is continuous.
+// kz is this scale's rebase offset, an exact integer.
 float mzCarve(vec3 p,float s,float prob,float w,uint salt,int kz){
   vec3 idf=floor(p/s);
   ivec3 id=ivec3(idf)*2; id.z+=kz*2;
@@ -2942,17 +2934,13 @@ void main(){
     // as 0 (off) on older presets.
     def: [.55,.45,.4,.5,.14, .32,.14,.0,.18],
     src: H+`
-// Magnitude-safe hash: pre-wraps inputs into [0,1) so large slice indices
-// (up to per-pixel) and long-running uTime can't overflow mediump float.
+// Magnitude-safe hash: pre-wraps into [0,1) so large indices cannot overflow mediump.
 float rn(vec2 c){c=fract(c*vec2(0.1031,0.1030));c+=dot(c,c.yx+19.19);return fract((c.x+c.y)*c.x);}
 // ── macroblock damage ────────────────────────────────────────────────────────
-// Codec corruption is organised, not scattered: one bad motion vector is reused
-// by a RUN of consecutive macroblocks, so damage arrives as streaks sharing a
-// displacement. An independent random per cell spreads it evenly, which reads as
-// confetti. Walking back to the run start is the stateless equivalent of
-// KinoGlitch's hold-until-reset raster scan.
-// Capped at 8 steps: at a 0.12 break chance the mean run is ~8 cells, so the cap
-// clips only the tail and bounds per-pixel cost on mobile.
+// One bad motion vector is reused by a RUN of consecutive macroblocks, so damage
+// streaks rather than scattering. Walking back to the run start is the stateless
+// form of KinoGlitch's hold-until-reset scan.
+// Capped at 8: mean run is ~8 cells at a 0.12 break chance.
 float runId(vec2 cell,float ts){
   float x=cell.x;
   for(int k=0;k<8;k++){
@@ -3036,11 +3024,9 @@ void main(){
   }
 
   // ── digital dropout (uP7) ──
-  // Real MPEG/JPEG failure modes rather than per-pixel snow: DC-only blocks
-  // (flat average colour), scrambled-AC blocks (a DCT basis showing through as a
-  // directional ripple), chroma desync and channel roll. Same run structure as
-  // above, and biased toward already-displaced blocks so the two stages read as
-  // one fault rather than two unrelated noises.
+  // Real MPEG/JPEG failure modes rather than snow: DC-only blocks, scrambled-AC
+  // blocks (a DCT basis as a directional ripple), chroma desync, channel roll.
+  // Biased toward already-displaced blocks so both stages read as one fault.
   if(uP7>.001){
     float mbpx=mix(30.,10.,uP7);
     vec2 cell=floor(uv*res/mbpx);
@@ -3353,15 +3339,11 @@ void main(){
   float luma=dot(col,vec3(.299,.587,.114));
   // invert (uP2) picks which end of the density-sorted charset maps to bright.
   float lv=uP2>.5?luma:1.-luma;
-  // variation (uP4) jitters the luma BEFORE quantising, which keeps the glyph
-  // index integral by construction. Mixing two indices instead gives a
-  // FRACTIONAL index, and the atlas lookup (idx+pos.x)/N then straddles two
-  // cells — 80% of the frame drew glyph fragments at the default variation.
-  // rate (uP6): how often a cell may re-pick its character. At 0 the per-cell
-  // randomness is fixed, so a glyph changes only when the image does. Above 0 it
-  // re-rolls on a time grid while colour keeps sampling every frame.
-  // Folded with mod(): uTime is unbounded and lands in a hash beside a cell
-  // index, which mediump would swallow whole.
+  // variation (uP4) jitters the luma BEFORE quantising, keeping the glyph index
+  // integral. A fractional index makes the atlas lookup (idx+pos.x)/N straddle
+  // two cells, drawing glyph fragments.
+  // rate (uP6): how often a cell re-picks its character; 0 holds it until the
+  // image changes. Folded with mod() because uTime is unbounded.
   float tq=uP6>.001?mod(floor(uTime*mix(0.4,14.,uP6)),512.):0.;
   // Depth is ADDITIVE, not max() — under max() the rate term is inert whenever
   // variation is at or above 0.12. It also has to be large: the charset is
@@ -3437,13 +3419,10 @@ void main(){
     def: [0.3],
   },
   {
-    // Stipples the frame with dots that cluster on visual features. Cornerness is
-    // Shi-Tomasi (the smaller eigenvalue of the structure tensor), evaluated
-    // densely rather than at selected points. The jittered lattice gives the
-    // minimum-separation that goodFeaturesToTrack() gets from rejection: one
-    // candidate per cell, so dots cannot clump and cell pitch sets density.
-    // The dots do NOT track — a fragment shader has no per-feature storage.
-    // Chain feedback before this one for trails that read as motion.
+    // Stipples the frame with dots clustering on visual features. Cornerness is
+    // Shi-Tomasi, evaluated densely. One candidate per cell, so dots cannot clump
+    // and cell pitch sets density. The dots do NOT track — chain feedback before
+    // this one for trails.
     name: 'feature-dots',
     usesPrev: true,
     params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','track','settle'],
@@ -3569,9 +3548,8 @@ void main(){
     snapVals: [null,null,null,null,null,[0,1,2,3,4],null],
     def: [.35,.35,.0,.55,.2,.0,.0],
     src: H+`
-// Magnitude-safe hash: pre-wraps input into [0,1) so a large cell index or folded
-// time step cannot overflow mediump. The sin(dot())*43758 form used elsewhere in
-// this file produces ~2e6, past fp16's ceiling.
+// Magnitude-safe hash: pre-wraps into [0,1) so a large cell index cannot overflow
+// mediump. The sin(dot())*43758 form used elsewhere reaches ~2e6, past fp16.
 vec2 hash2(vec2 p){
   p=fract(p*vec2(.1031,.1030));
   p+=dot(p,p.yx+33.33);
@@ -4282,12 +4260,10 @@ function stepPlayhead(dt, lo, hi, back) {
   let hitHi = false, hitLo = false;
   if (_stepT >= hi) { _stepT = hi; hitHi = true; }
   else if (_stepT <= lo) { _stepT = lo; hitLo = true; }
-  // Seek only once the previous seek has PRESENTED a frame. One per rAF freezes
-  // the picture: each assignment supersedes the last and nothing is ever
-  // presented. Costs displayed frames, never speed — _stepT advances regardless.
-  // The watchdog overrides vid.seeking on purpose: a seek that never retires
-  // leaves seeking stuck true, which is the exact case it exists for.
-  // Reassigning currentTime mid-seek is legal — it retargets.
+  // Seek only once the previous seek has PRESENTED a frame: one per rAF freezes
+  // the picture, since each assignment supersedes the last. Costs displayed
+  // frames, never speed. The watchdog overrides vid.seeking on purpose — a seek
+  // that never retires leaves it stuck true.
   const stalled = _seekPending && (performance.now() - _seekIssuedMs > SEEK_WATCHDOG_MS);
   if (stalled || (!_seekPending && !vid.seeking)) {
     vid.currentTime = _stepT;
@@ -5707,11 +5683,8 @@ function disableAllGenShaders() {
 }
 
 // Single entry point for every interactive mode change: ENTER, the MODE button,
-// the three set-mode buttons and toggleCamera. Do not add a fourth copy.
-//
-// SAMPLER and LIVE arrive with the gen chain bypassed so the source shows
-// through. The chain is left intact, so the blend button restores it.
-//
+// the set-mode buttons and toggleCamera. Do not add another copy.
+// SAMPLER and LIVE arrive with the gen chain bypassed, chain intact.
 // NOT used by applyState(): a preset carries its own bypass set.
 function setMode(m) {
   const i = MODES.indexOf(m);
@@ -6322,12 +6295,10 @@ async function captureScreen() {
 let blobURL = null;
 
 // ── Source binding ───────────────────────────────────────────────────────────
-// A preset names the clip it was built on but cannot carry it: the file is
-// megabytes against a 5 MB quota and a File handle cannot survive a reload.
-// It stores a fingerprint and the app asks for the file once per session.
-//
+// A preset names its clip but cannot carry it, so it stores a fingerprint and the
+// app asks for the file once per session.
 // The cache holds the File, not an object URL — loadVideo revokes the previous
-// blob URL on every clip change, which would kill a cached URL.
+// blob URL on every clip change.
 const _srcCache    = new Map();   // fingerprint -> File, located this session
 const _srcDeclined = new Set();   // fingerprint -> user said skip, stop asking
 let _pendingInOut  = null;        // in/out waiting for the clip to finish loading
@@ -6603,11 +6574,9 @@ function toggleSPI() {
 spiTab.addEventListener('click', toggleSPI);
 
 // ── Collapsible sections ──────────────────────────────────────────────────────
-// Every section header in the body doubles as a show/hide toggle. Content is
-// found by walking siblings to the next header, so no markup restructuring is
-// needed. State persists in localStorage.
-// The MODE header is excluded: a sibling walk there would swallow the source
-// section, zoom row and flow strip.
+// Section headers double as show/hide toggles. Content is found by walking
+// siblings to the next header; state persists in localStorage.
+// The MODE header is excluded — a walk there would swallow half the panel.
 const SPI_COLLAPSE_KEY = 'recur.spiCollapsed';
 // Closed on a fresh install: the two shader pickers are what you reach for
 // constantly, the rest are set-and-forget. Only applies when nothing has been
@@ -8550,12 +8519,10 @@ function getState() {
 // shader-keyed data by chain lookup, otherwise fills from defaults.
 // `chain` holds shader indices per slot.
 
-// Forces every slot array to the length its shader declares NOW. Both directions
-// occur: a JSON preset predating an appended param arrives SHORT (and the panel
-// reads shader.params.length, so undefined entries throw every frame), a V5 URL
-// arrives LONG with N_P=12 entries and trailing junk.
-// Missing entries fill with 0, NOT def — 0 is the neutral value for an appended
-// param, and def is the fresh-instance value (plasma's detail is 0.45).
+// Forces every slot array to the length its shader declares NOW. Old JSON presets
+// arrive SHORT (undefined entries then throw in the panel every frame), V5 URLs
+// arrive LONG with 12 entries. Missing entries fill with 0, NOT def — 0 is the
+// neutral value for an appended param.
 function _padSlots(slots, chain, table, make) {
   return slots.map((vals, pos) => {
     const want = table[chain[pos]]?.params.length ?? 0;
@@ -8701,12 +8668,11 @@ function loadPresets() {
 }
 
 // ── Preset bank ──────────────────────────────────────────────────────────────
-// Presets live in localStorage: per-browser-profile, per-origin, and not part of
-// index.html, so they do not travel with the file. On file:// Chrome shares one
-// opaque origin across every local file and Safari often refuses outright.
-//
-// A sidecar presets.json cannot be auto-loaded — fetch() on file:// is blocked by
-// CORS in Chrome — so transport is a user-initiated bank export/import.
+// Presets live in localStorage, which belongs to the browser profile and does not
+// travel with index.html. On file:// Chrome shares one opaque origin across every
+// local file and Safari often refuses outright.
+// A sidecar presets.json cannot be auto-loaded (fetch() on file:// is CORS
+// blocked), so transport is a user-initiated bank export/import.
 const BANK_FORMAT = 'recur-bank';
 const BANK_VERSION = 1;
 
