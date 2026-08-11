@@ -1487,7 +1487,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">sample-hold</span><span class="hk-desc">Freezes the screen at random intervals driven by a noise generator — rate slider controls how often a new sample is taken (slow = long freezes, fast = rapid flicker)</span></div>
     <div class="hk-row"><span class="hk-key">glitch</span><span class="hk-desc">Digital corruption stack. intensity = horizontal slice displacement; rate = how fast the glitch state jumps; channel = RGB split; slices = number of horizontal bands, scaling all the way up to one-per-scanline (per-pixel) at max; variation = pulls neighbouring slices together and occasionally stretches a band to a single repeated line. blocks = macroblock corruption, modelled on how a codec actually fails: a run of consecutive blocks along the scan share one wrong motion vector, so damage arrives as coherent horizontal drags of varying length rather than evenly scattered squares, and it runs at two block sizes at once so the chunks are not all the same size. Displacement snaps to the block lattice, which is what makes it tile like block damage instead of smearing. noise = digital dropout, cycling the failure modes a broken MPEG/JPEG frame really shows — DC-only blocks (detail gone, flat average colour), scrambled-AC blocks (a DCT basis wave showing through as a striped ripple), chroma desync (luma survives, colour comes from the wrong place) and channel roll. Dropouts share the run structure and cluster on blocks that are already displaced, so the two read as one fault. crush = colour bit-crush/quantise (down to ~2 levels), wave = analog sine warp / horizontal wobble. New features sit at 0 (off) on presets saved before they existed</span></div>
     <div class="hk-row"><span class="hk-key">scatter</span><span class="hk-desc">Cuts the frame into a square grid and rearranges it. grid sets how many cells across, from a handful of big slabs up to 48 fine tiles. shuffle is how far a cell may travel, up to ten cells away, and amount is how many of them move at all — the rest pass through untouched. pixelate quantises inside each cell, from full detail down to one flat colour per tile. rate re-rolls the arrangement on a timer; at 0 it holds still, so you get a fixed scramble rather than a churn. seam darkens a border inside each cell so the grid reads as laid tiles. mode picks how cells move: 0 scatter (each jumps somewhere random), 1 swap (cells trade in pairs — a true permutation, so nothing is duplicated or lost), 2 rows (whole rows slide sideways), 3 columns (whole columns slide vertically), 4 spin (cells stay put but their contents rotate in 90 degree steps)</span></div>
-    <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Tracks corner features in the image (Shi-Tomasi detection + Lucas-Kanade optical flow) and marks them with coloured dots that move with the structure they're tracking. Pitch sets dot spacing, sensitivity sets how readily a point is treated as a feature, dot-size and jitter shape the dots, tint/backdrop/gamma control colour, track blends tracked motion in, and settle controls how strongly dots relax back toward their grid position each frame — too little and the field shears apart, too much and dots snap back to the lattice</span></div>
+    <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Marks corner features with coloured dots that stay attached to what they mark. Detection is Shi-Tomasi cornerness measured densely across the frame, with one candidate per cell, so pitch alone sets density and dots cannot clump. pitch is the cell spacing and sensitivity how readily a point counts as a feature. dot-size and jitter shape the dots — dot-size follows a straight scale for the lower third of its travel and then eases off, because a dot wider than about two cells cannot be found by the fragments at its own edge and would draw as a square rather than a circle. tint, backdrop and gamma set colour. track lays the lattice out in the motion of the image rather than on the screen, so a dot slides with the thing it marked instead of the grid blinking as features cross it, and settle sets how strongly that field relaxes back toward the grid each frame — too little and it shears apart, too much and dots snap back to the lattice. link joins each dot to its neighbours: link is the line thickness and 0 turns links off, link-style picks mesh (a four-sided net) or web (mesh plus both diagonals), and cohere sets how closely two dots must be carrying the same material in the same direction before they are joined, so a net holds together across a moving object and tears at the edge of one. At track 0 there is no motion to compare and the net simply joins neighbours. Lines take their width from feature strength the same way dots take their radius, and they draw underneath the dots — at a fine pitch with large dots there may be nothing left to see between them, so open the pitch or drop dot-size to read the net. Needs float render targets; without them feature-dots does not draw, which the I overlay reports</span></div>
     <div class="hk-row"><span class="hk-key">maze-flight</span><span class="hk-desc">Endless flight through an infinite fractal maze — a solid universe with corridors carved at three nested scales, so every wall is itself a smaller maze. Ported from a CC0 shader by ksin on glslop. speed sets how fast you travel (0 freezes the frame), fov widens or narrows the lens, turns is how hard the path wanders — at 0 it runs dead straight. width sets corridor size and density how many walls open, so the two together take you from tight warren to open hall. detail switches in the second and third nested scales at a third and three-quarters of its travel, and also buys the extra march steps needed to resolve them — it is the performance control, so drop it first if the frame rate suffers. It ships at 0.6, which leaves the third scale off: those corridors are under a tenth of a unit wide and sweep past the camera faster than a frame, which is most of what reads as sparkle. Push it past 0.75 for the full fractal and expect the near field to get busy. glow lights convex edges, circuits runs light along the wall grooves, windows lights sparse wall panels. hue sets the neon colour and drifts slowly on its own, saturation and fog finish the image. It ignores video entirely, so in LIVE mode set the slot blend to screen or add — the corridors are near black and the footage shows through them while the neon stays lit. Two slots running it land in different parts of the maze</span></div>
     <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in — turn it up to come closer, and the top of the travel puts the eye inside the object, so you fly through the structure rather than orbiting it. Which forms enclose you there varies: at the very top, form around a quarter and around one wrap right around you, form near three quarters opens back out into a gap. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
     <div class="hk-row"><span class="hk-key">mandelbox</span><span class="hk-desc">Folded architecture rather than a creature — infinite slabs, corridors and rounded corners cut out of one solid, raymarched on the same turntable as quaternion. SHAPE: scale is the main form control and runs from stocky and rounded to lacy and spindly; the slider is warped so equal moves give equal change rather than doing most of its work at one end. fold sets the size of the box the space keeps folding back into, which is the strongest shape knob here — but the camera is normalised against it, so the object stays the same size on screen and fold changes only what it looks like. morph drifts scale and fold on a small circle so the structure breathes, and at 0 it holds still. detail sets iterations and march steps together. CAMERA: spin orbits, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in, and at the top of its travel you are inside the folds looking out through them. speed drives the morph and tumble only. COLOUR: hue rotates the palette, palette picks which orbit trap drives it, glow is the rim light, shade balances flat against modelled. The background is black, so on a screen or add blend it floats over video</span></div>
@@ -1503,7 +1503,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-section">Parameters</div>
     <div class="hk-row"><span class="hk-key">param slider</span><span class="hk-desc">Drag horizontally to change value. Tap a row to select it (highlighted). Some params are toggles (☐/☑) — tap to flip</span></div>
     <div class="hk-row"><span class="hk-key">pattern centring</span><span class="hk-desc">Effects built on a repeating grid used to measure that grid out from the bottom-left corner of the frame, because that is where the coordinate origin sits. It looked fine standing still, but animating the size — especially from an LFO — slid the whole pattern diagonally out of that corner instead of scaling in place. bitcrush, ascii, halftone and feature-dots now count their grids out from the CENTRE of the frame, so a size sweep grows and shrinks around the middle and whatever is in the centre of shot stays put. halftone gained the most: its angle sliders rotate about the origin too, so they used to swing the entire screen around the bottom-left corner rather than spinning the dot screen in place. gamma-ray, grain, oscilloscope and scatter are deliberately unchanged — measured, they gain nothing, and scatter's grid has to stay an exact tiling for its swap mode to remain reversible. Existing presets shift by under half a cell standing still; the difference is only obvious in motion</span></div>
-    <div class="hk-row"><span class="hk-key">snapping sliders</span><span class="hk-desc">Some params are selectors rather than continuous values and snap to fixed positions as you drag: style on plasma, flowing-colours and zoom-clouds, charset on ascii, sides on kaleidoscope, and sectors on kaleido-warp. The row shows the position number rather than a decimal, and the help entry for that shader lists what each one is</span></div>
+    <div class="hk-row"><span class="hk-key">snapping sliders</span><span class="hk-desc">Some params are selectors rather than continuous values and snap to fixed positions as you drag: style on plasma, flowing-colours and zoom-clouds, sides on kaleidoscope, sectors on kaleido-warp, charset and invert on ascii, 1-bit on bitcrush, mode on scatter, and link-style on feature-dots. The row shows the position number rather than a decimal, and the help entry for that shader lists what each one is</span></div>
     <div class="hk-row"><span class="hk-key">GEN / FX layer</span><span class="hk-desc">Tap the GEN or FX layer buttons to switch which shader's params are shown in the upper slot</span></div>
     <div class="hk-row"><span class="hk-key">audio badge</span><span class="hk-desc">Each param row has an audio badge (—/B/M/T/V). Tap to cycle: none → bass → mid → treble → volume. The selected band drives that param with audio level</span></div>
     <div class="hk-row"><span class="hk-key">LFO badge</span><span class="hk-desc">Each param row has an LFO badge (—/L1/L2/L3). Tap to assign an LFO to that param — cycles through LFOs then back to none. Audio and LFO modulation add together</span></div>
@@ -1774,7 +1774,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // 30px of 408px, so at 8px Courier New (0.6em advance) it has 372px to itself.
 // Longer is not broken — the line wraps — but it costs vertical space in a 40vh
 // panel every session, not just the one you named it in.
-const BUILD = '2026-08-12g · fragment duration';
+const BUILD = '2026-08-12j · link alpha fix';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -3723,117 +3723,218 @@ void main(){
   {
     // Stipples the frame with dots clustering on visual features. Cornerness is
     // Shi-Tomasi, evaluated densely. One candidate per cell, so dots cannot clump
-    // and cell pitch sets density. The dots do NOT track — chain feedback before
+    // and cell pitch sets density. With track > 0 the lattice is laid out in the
+    // material-coordinate field ADVECT_SRC maintains, so a dot slides with what
+    // it marked; at track 0 it is pinned to the screen. Chain feedback before
     // this one for trails.
     name: 'feature-dots',
     usesPrev: true,
-    params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','track','settle'],
-    def: [0.450, 0.413, 0.280, 0.868, 0.984, 0.000, 0.400, 0.600, 0.160],
+    params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','track','settle','link','link-style','cohere'],
+    snapVals: [null,null,null,null,null,null,null,null,null,null,[0,1],null],
+    def: [0.450, 0.413, 0.280, 0.868, 0.984, 0.000, 0.400, 0.600, 0.160, 0.000, 0.000, 0.500],
     src: H+PAL+`
+// H declares vU under mediump, which is genuine fp16 on Apple Silicon and
+// mobile: the varying arrives pre-quantised, before any field lookup, and the
+// lattice built from it seams at the quantisation steps. A precision statement
+// here cannot promote a varying already declared, so the fragment position is
+// rebuilt from gl_FragCoord instead - declared highp by the ES 3.00 fragment
+// language, exactly the pixel centre, no new varying, no change to H.
+precision highp float;
 uniform sampler2D uMat;
+uniform sampler2D uCorner;
 float fdHash(vec2 p){
   p=fract(p*vec2(123.34,456.21));
   p+=dot(p,p+45.32);
   return fract(p.x*p.y);
 }
-// Lucas-Kanade, dense rather than sparse:
-//   [Jxx Jxy; Jxy Jyy] [u;v] = -[Jxt; Jyt]
-// The tensor is the one cornerness already needs, so the solve is nearly free.
-// Returns pixels of displacement, clamped — near an edge the tensor is singular
-// along the edge direction (the aperture problem) and the solve blows up.
-vec2 fdFlow(vec2 p, vec2 px){
-  highp float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
-  for (int j=-1;j<=1;j++){
-    for (int i=-1;i<=1;i++){
-      vec2 q=clamp(p+vec2(float(i),float(j))*px,0.,1.);
-      highp float c =dot(texture(uTex ,q).rgb,vec3(.299,.587,.114));
-      highp float cx=dot(texture(uTex ,clamp(q+vec2(px.x,0.),0.,1.)).rgb,vec3(.299,.587,.114));
-      highp float cy=dot(texture(uTex ,clamp(q+vec2(0.,px.y),0.,1.)).rgb,vec3(.299,.587,.114));
-      highp float pv=dot(texture(uPrev,q).rgb,vec3(.299,.587,.114));
-      highp float gx=cx-c, gy=cy-c, gt=c-pv;
-      Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy; Jxt+=gx*gt; Jyt+=gy*gt;
-    }
-  }
-  highp float det=Jxx*Jyy-Jxy*Jxy;
-  if (abs(det)<1e-7) return vec2(0.);
-  highp float u=(-Jxt*Jyy+Jyt*Jxy)/det;
-  highp float v=(-Jyt*Jxx+Jxt*Jxy)/det;
-  return clamp(vec2(float(u),float(v)),-6.,6.);
+// The jittered site for a cell, in lattice units. One site per cell, so dots
+// cannot clump and cell pitch alone sets density. Both the dot pass and the
+// link pass go through this - a link has to end exactly where its dot sits, and
+// two copies of the formula would drift apart the first time either is touched.
+vec2 fdSite(vec2 c, float jit, float sd){
+  return c+.5+(vec2(fdHash(c+sd),fdHash(c.yx+sd+7.13))-.5)*jit;
 }
-
-// A single point gives a rank-1 tensor whose smaller eigenvalue is always zero,
-// so gradients are summed over a 3x3 window from a 4x4 patch — 16 taps.
-// highp is required: the gradient products land at 1e-2 to 1e-4, which mediump
-// bands into visible steps.
-float fdCorner(vec2 p, vec2 px){
-  highp float L[16];
-  for (int j=0;j<4;j++)
-    for (int i=0;i<4;i++)
-      L[j*4+i]=dot(texture(uTex,clamp(p+vec2(float(i)-1.5,float(j)-1.5)*px,0.,1.)).rgb,
-                   vec3(.299,.587,.114));
-  highp float Jxx=0.,Jyy=0.,Jxy=0.;
-  for (int j=0;j<3;j++){
-    for (int i=0;i<3;i++){
-      highp float gx=L[j*4+i+1]-L[j*4+i];
-      highp float gy=L[(j+1)*4+i]-L[j*4+i];
-      Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy;
-    }
-  }
-  highp float ht=.5*(Jxx+Jyy);
-  highp float dt=.5*(Jxx-Jyy);
-  return float(max(0.,ht-sqrt(max(0.,dt*dt+Jxy*Jxy))));
+// Cornerness, now one tap: CORNER_SRC bakes the 16-tap Shi-Tomasi once per
+// frame. This used to be evaluated inline per candidate site per fragment - up
+// to 400 taps a fragment at large dot-size, with neighbouring fragments in a
+// cell re-deriving nearly the same value. Making a site cost one tap is what
+// brings the link pass into budget.
+float fdK(vec2 rp, float sens, float gam){
+  return pow(clamp(texture(uCorner,rp).r*sens,0.,1.),gam);
 }
 void main(){
-  vec2 px=1./uRes;
+  vec2 fc=gl_FragCoord.xy;                  // highp, exact, pixel centre
+  vec2 uv=fc/uRes;
   float spacing=mix(4.,40.,uP1*uP1);
-  float sens   =mix(140.,2.,uP2);
-  float dotR   =mix(.06,4.6,uP3);
+  // Recentred x1.8 against the old inline range. The 4x4 patch sits at +-0.5 and
+  // +-1.5 texels, so at a texel centre every tap is a 50/50 blend of two texels
+  // and at a texel corner every tap is exact. Inline, a site landed anywhere in
+  // that range and averaged over it; baked, the phase is fixed at the blurriest
+  // one, and cornerness comes back at 0.54-0.73 of the inline value depending on
+  // content. Measured on the dot RADIUS - which is what is visible, and which the
+  // clamp inside k compresses - that is -8.9% mean, -12.2% worst. x1.8 puts it at
+  // -0.8% mean, -3.0% worst. The residual 4-point spread is content, not
+  // calibration, and no constant closes it.
+  float sens   =mix(252.,3.6,uP2);
+  // dot-size. A fragment only ever tests sites within its own +-2 cell window,
+  // so a radius past ~2 cells draws a truncated dot. Measured on an isolated
+  // site at k=1, the fraction of the dot the window cannot draw is 0.00% at
+  // radius 1.75, 0.21% at 2.0, 4.9% at 2.25, 22% at 3.0 and 62% at the old 4.6
+  // ceiling - where the axial and diagonal extents sit at exactly 1:1.414 and
+  // the dot is a square, not a circle. 2.0 is the largest round number still
+  // under a quarter of a percent.
+  // The map is the OLD linear one up to 0.30, so every preset at or below that
+  // is bit-identical (the default is 0.28), then bends asymptotically to 2.0 so
+  // the top of the slider still moves instead of going dead at 0.43. C1 at the
+  // knee; monotone; never reaches 2.0.
+  float dRk    =.06+4.54*.30;
+  float dotR   =uP3<=.30 ? .06+4.54*uP3
+                         : dRk+(2.-dRk)*(1.-exp(-(4.54/(2.-dRk))*(uP3-.30)));
   float jit    =uP4*2.0;
   float gamma  =mix(.15,1.4,uP7*uP7);
   float track  =uP8;
+  float link   =uP10;
 
-  // Flow is spatially smooth over a cell, so it is solved once per fragment
-  // rather than per candidate site: 4x36 taps becomes 36.
-  // The lattice is laid out in MATERIAL space, not screen space — mv is where
-  // the material under this fragment started, so a dot slides with what it
-  // marked instead of the grid blinking as features cross it.
-  vec2 mv=(track>0.)?texture(uMat,vU).xy:vU;
-  if (mv.x==0.&&mv.y==0.) mv=vU;            // field not seeded yet
+  // The lattice is laid out in MATERIAL space, not screen space, so a dot
+  // slides with what it marked instead of the grid blinking as features cross
+  // it. The field stores DISPLACEMENT (label - position), so a zero-filled or
+  // unbound texture is exactly identity and needs no seeding frame - see
+  // ADVECT_SRC.
+  vec2 dsp=(track>0.)?texture(uMat,uv).xy:vec2(0.);
 
   // Lattice counted from the frame CENTRE: spacing is continuous, so a corner
   // anchor drags the whole dot field diagonally as it changes.
+  //
+  // mv*uRes == fc + dsp*uRes exactly, so writing it this way keeps the fragment
+  // position out of a round trip through uRes - which is mediump in H, and fp16
+  // only holds even integers past 2048, so an odd buffer width over 2048 would
+  // shift every uv by up to half a pixel. uRes now scales only the small
+  // displacement and the shared centre offset, where an error translates the
+  // whole lattice equally and is invisible.
   vec2 shCtr=uRes*.5;
-  vec2 gp=(mv*uRes-shCtr)/spacing;
+  vec2 gp=(fc+dsp*uRes-shCtr)/spacing;
   vec2 base=floor(gp);
 
   vec3 acc=vec3(0.);
   float cov=0.;
-  float reach=dotR+.15;
+  // Edge softness in PIXELS, not cells. A fixed .1 cells is 4px at spacing 40
+  // and .4px at spacing 4 - mush at one end of pitch, aliasing at the other.
+  float soft=max(.02,1.5/spacing);
 
-  // 5x5 sweep around the fragment's cell. Each surviving site costs a 16-tap
-  // tensor, so this is the expensive loop — drop RES to 1/2 if it will not hold.
-  // The +-2 window also bounds jitter: a site displaced more than ~2 cells could
-  // not be found by the fragments it covers. jit maxes at 2.0 (+-1.0 cell).
+  // ---- links ---------------------------------------------------------------
+  // A link joins a site to a forward neighbour that is carrying the same
+  // material in the same direction. link is the half-width in cells; at 0 this
+  // whole block is skipped, which is what makes link-style and cohere neutral
+  // for any preset written before they existed. Neighbours are FORWARD only, so
+  // each edge is generated exactly once however many fragments see it.
+  if (link>0.){
+    int   st  =uP11>.5?1:0;                 // 0 mesh (+x,+y), 1 web (+ diagonals)
+    // Capped to equal ink between the styles: at 0.20 cells the mesh covers 59%
+    // of frame before the cornerness gate and web reaches the same at 0.09, so
+    // changing style changes the pattern rather than the density. Past that
+    // neither reads as a net.
+    float hw  =link*(st==1?.09:.20);
+    // Divergence tolerance, in cells. Measured on an advected field with two
+    // regions moving opposite ways: adjacent material inside one region stays
+    // under ~1px of divergence while across the boundary it reaches ~50px, so
+    // the discriminator has about 50x of headroom and is not delicate. Squared
+    // because the useful band is all at the low end.
+    float tol =mix(.02,4.,(1.-uP12)*(1.-uP12));
+    vec2  g   =gp-base;                     // where in its own cell this fragment sits
+    float jr  =jit*.5+.5;                   // how far a site can stray from its cell
+    float lim =hw+soft;
+    for (int oy=-2;oy<=2;oy++){
+    for (int ox=-2;ox<=2;ox++){
+      vec2 ca=base+vec2(float(ox),float(oy));
+      vec2 oc=vec2(float(ox),float(oy));
+      bool haveA=false; vec2 pa=vec2(0.);
+      for (int e=0;e<4;e++){
+        if (e>=2&&st==0) break;             // mesh is +x and +y only
+        vec2 dxy=e==0?vec2(1,0):e==1?vec2(0,1):e==2?vec2(1,1):vec2(1,-1);
+        // Conservative cell-level reject: integers and jit only, no hashing and
+        // no taps. Bounds the segment by the box its two endpoints can occupy,
+        // which cuts 50 edges to ~15 (mesh) and 100 to ~31 (web) at the default
+        // jitter. It never drops an edge the exact test would have kept.
+        vec2 lo=min(oc,oc+dxy)+.5-jr-g;
+        vec2 hi=max(oc,oc+dxy)+.5+jr-g;
+        vec2 bb=max(lo,max(-hi,vec2(0.)));
+        if (dot(bb,bb)>lim*lim) continue;
+        if (!haveA){ pa=fdSite(ca,jit,uSeed); haveA=true; }
+        vec2 cb=ca+dxy;
+        vec2 pb=fdSite(cb,jit,uSeed);
+        // Exact distance to the segment. Still no taps.
+        vec2 ab=pb-pa, ap=gp-pa;
+        float t=clamp(dot(ap,ab)/max(dot(ab,ab),1e-6),0.,1.);
+        vec2 cp=pa+ab*t;
+        float dl=length(gp-cp);
+        if (dl>lim) continue;
+        // Only survivors reach a texture: about 1.5 edges a fragment at the
+        // default jitter, 21 in the worst fragment measured.
+        vec2 sa=(pa*spacing+shCtr)/uRes, sb=(pb*spacing+shCtr)/uRes;
+        // A link must not run to a dot the dot pass would not have drawn.
+        if (sa.x<0.||sa.x>1.||sa.y<0.||sa.y>1.) continue;
+        if (sb.x<0.||sb.x>1.||sb.y<0.||sb.y>1.) continue;
+        vec2 ra=clamp(sa-dsp,0.,1.), rb=clamp(sb-dsp,0.,1.);
+        // As strong as the weaker end, so links fade out with the dots they join.
+        float k=min(fdK(ra,sens,gamma),fdK(rb,sens,gamma));
+        if (k<.02) continue;
+        // "Moving the same way" is read off the material field, not from raw
+        // per-frame flow - the field is already smoothed by the relax step, and
+        // per-frame flow is exactly the jitter that field exists to suppress.
+        // Divergence breaks a link across a motion boundary and leaves it intact
+        // inside an object. At track 0 there is no field, so the mesh is static
+        // and joins on proximity alone.
+        float coh=1.;
+        if (track>0.){
+          float div=length((texture(uMat,ra).xy-texture(uMat,rb).xy)*uRes)/spacing;
+          coh=1.-smoothstep(tol*.6,tol,div);
+          if (coh<=0.) continue;
+        }
+        // Width tracks feature strength, exactly as the dot radius does -
+        // multiplying alpha by k instead put links at 4% of a dot's brightness
+        // and read as no change at all. main() applies alpha twice (acc is
+        // scaled by a, then FC scales acc by cov), so on the default black
+        // backdrop anything short of a = 1 gets squared. A dot survives that
+        // because its alpha reaches 1 at the centre whatever k is; a link has
+        // to be built the same way.
+        float lw=hw*sqrt(k);
+        float a=(1.-smoothstep(lw-soft,lw+soft,dl))*coh;
+        if (a<=0.) continue;
+        vec3 src=texture(uTex,clamp((cp*spacing+shCtr)/uRes-dsp,0.,1.)).rgb;
+        acc+=mix(src,pal(fract(fdHash(ca+cb+11.3)+uTime*.02),1.),uP5)*a;
+        cov=max(cov,a);
+      }
+    }}
+  }
+
+  // ---- dots ----------------------------------------------------------------
+  // 5x5 sweep around the fragment's cell. The +-2 window bounds jitter too: a
+  // site displaced more than ~2 cells could not be found by the fragments it
+  // covers. jit maxes at 2.0 (+-1.0 cell).
+  float reach=dotR+.15, reach2=reach*reach;
   for (int oy=-2;oy<=2;oy++){
   for (int ox=-2;ox<=2;ox++){
     vec2 c=base+vec2(float(ox),float(oy));
-    vec2 h=vec2(fdHash(c+uSeed),fdHash(c.yx+uSeed+7.13));
-    vec2 ctr=c+.5+(h-.5)*jit;
+    vec2 ctr=fdSite(c,jit,uSeed);
     // Reject on distance first: r never exceeds dotR, so anything further than
-    // reach cannot contribute, and this skips the 16-tap tensor entirely.
-    if (length(gp-ctr)>reach) continue;
+    // reach cannot contribute. Squared - length()'s sqrt bought nothing here,
+    // and the survivor reuses d2.
+    vec2 dv=gp-ctr;
+    float d2=dot(dv,dv);
+    if (d2>reach2) continue;
     vec2 sp=(ctr*spacing+shCtr)/uRes;
     if (sp.x<0.||sp.x>1.||sp.y<0.||sp.y>1.) continue;
 
     // Cornerness and colour are read in screen space: the feature is where it
     // is now, even though the cell that owns it is labelled in material space.
-    vec2 rp=clamp(sp+(vU-mv),0.,1.);
+    // sp+(uv-mv) == sp-dsp, since mv is uv+dsp.
+    vec2 rp=clamp(sp-dsp,0.,1.);
 
-    float k=pow(clamp(fdCorner(rp,px)*sens,0.,1.),gamma);
+    float k=fdK(rp,sens,gamma);
     if (k<.02) continue;
 
     float r=dotR*sqrt(k);
-    float a=1.-smoothstep(r-.1,r+.1,length(gp-ctr));
+    float a=1.-smoothstep(r-soft,r+soft,sqrt(d2));
     if (a<=0.) continue;
 
     vec3 src=texture(uTex,rp).rgb;
@@ -3841,7 +3942,7 @@ void main(){
     cov=max(cov,a);
   }}
 
-  FC=vec4(mix(texture(uTex,vU).rgb*uP6,acc,cov),1.);
+  FC=vec4(mix(texture(uTex,uv).rgb*uP6,acc,cov),1.);
 }`
   },
   {
@@ -3925,39 +4026,102 @@ void main(){
 
 const PASS_SRC = H+`void main(){ FC=texture(uTex,vU); }`;
 
-// Advects a material-coordinate field: each texel stores the uv the material now
-// at this position started from. Dots are laid out on a lattice in THAT space,
-// so a dot stays attached to what it marked.
-// uP1 flow gain, uP2 relax rate. Relaxation is essential — without it the field
-// shears without bound and the lattice tears itself apart within seconds.
+// Dense Shi-Tomasi cornerness for the whole frame, baked once per frame.
+// feature-dots used to evaluate this inline: 16 taps per candidate site per
+// fragment, up to 400 taps a fragment at large dot-size, with neighbouring
+// fragments in a cell re-deriving nearly the same value. One pass here makes a
+// site cost one tap.
+// Like uPrev and uMat this is computed from the FX chain input, so a second
+// feature-dots slot further down the chain reads the chain input's features
+// rather than its own input's.
+const CORNER_SRC = H+`
+precision highp float;
+void main(){
+  vec2 uv=gl_FragCoord.xy/uRes;
+  vec2 px=1./uRes;
+  // A single point gives a rank-1 tensor whose smaller eigenvalue is always
+  // zero, so gradients are summed over a 3x3 window from a 4x4 patch - 16 taps.
+  // highp is required: the gradient products land at 1e-2 to 1e-4, which mediump
+  // bands into visible steps. The global statement above covers it.
+  float L[16];
+  for (int j=0;j<4;j++)
+    for (int i=0;i<4;i++)
+      L[j*4+i]=dot(texture(uTex,clamp(uv+vec2(float(i)-1.5,float(j)-1.5)*px,0.,1.)).rgb,
+                   vec3(.299,.587,.114));
+  float Jxx=0.,Jyy=0.,Jxy=0.;
+  for (int j=0;j<3;j++){
+    for (int i=0;i<3;i++){
+      float gx=L[j*4+i+1]-L[j*4+i];
+      float gy=L[(j+1)*4+i]-L[j*4+i];
+      Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy;
+    }
+  }
+  float ht=.5*(Jxx+Jyy);
+  float dt=.5*(Jxx-Jyy);
+  // Raw, not sensitivity-scaled: sens and gamma are per-slot and modulated, so
+  // they stay in the consuming shader. R16F rather than R8 because the value
+  // lands at 1e-2 to 1e-4 and 8 bits would quantise the low end to zero.
+  FC=vec4(max(0.,ht-sqrt(max(0.,dt*dt+Jxy*Jxy))),0.,0.,1.);
+}`;
+
+// Advects a material-coordinate field. Each texel stores the DISPLACEMENT from
+// this position to the uv the material now here started from - d(x)=label(x)-x -
+// rather than the label itself. Every value therefore sits near zero, where
+// RG16F's ULP is ~3e-5 instead of ~2.4e-4 doubling at each power-of-two binade
+// and stalling the relax step into hard seams. It also makes a zero-filled or
+// unbound texture exactly identity, so no seeding frame is needed: ensureMat()
+// allocates lazily and makeFBO drops the pair on every resize, and the old
+// uFrame<2 seed missed both, leaving the lattice to converge out of the corner
+// over 1/relax frames each time.
+// Dots are laid out on a lattice in THAT space, so a dot stays attached to what
+// it marked. uP1 flow gain, uP2 relax rate. Relaxation is essential - without it
+// the field shears without bound and the lattice tears itself apart in seconds.
 const ADVECT_SRC = H+`
+// gl_FragCoord, not vU: H declares vU mediump, which is fp16 on Apple Silicon,
+// and a half-pixel error in the semi-Lagrangian fetch compounds every frame.
+precision highp float;
 uniform sampler2D uMat;
 void main(){
+  vec2 uv=gl_FragCoord.xy/uRes;
   vec2 px=1./uRes;
-  highp float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
+  float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
   for (int j=-1;j<=1;j++){
     for (int i=-1;i<=1;i++){
-      vec2 q=clamp(vU+vec2(float(i),float(j))*px,0.,1.);
-      highp float c =dot(texture(uTex ,q).rgb,vec3(.299,.587,.114));
-      highp float cx=dot(texture(uTex ,clamp(q+vec2(px.x,0.),0.,1.)).rgb,vec3(.299,.587,.114));
-      highp float cy=dot(texture(uTex ,clamp(q+vec2(0.,px.y),0.,1.)).rgb,vec3(.299,.587,.114));
-      highp float pv=dot(texture(uPrev,q).rgb,vec3(.299,.587,.114));
-      highp float gx=cx-c, gy=cy-c, gt=c-pv;
+      vec2 q=clamp(uv+vec2(float(i),float(j))*px,0.,1.);
+      float c =dot(texture(uTex ,q).rgb,vec3(.299,.587,.114));
+      float cx=dot(texture(uTex ,clamp(q+vec2(px.x,0.),0.,1.)).rgb,vec3(.299,.587,.114));
+      float cy=dot(texture(uTex ,clamp(q+vec2(0.,px.y),0.,1.)).rgb,vec3(.299,.587,.114));
+      float pv=dot(texture(uPrev,q).rgb,vec3(.299,.587,.114));
+      float gx=cx-c, gy=cy-c, gt=c-pv;
       Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy; Jxt+=gx*gt; Jyt+=gy*gt;
     }
   }
-  highp float det=Jxx*Jyy-Jxy*Jxy;
+  float det=Jxx*Jyy-Jxy*Jxy;
   vec2 fl=vec2(0.);
   if (abs(det)>=1e-7){
-    fl=clamp(vec2(float((-Jxt*Jyy+Jyt*Jxy)/det),float((-Jyt*Jxx+Jxt*Jxy)/det)),-6.,6.);
+    fl=clamp(vec2((-Jxt*Jyy+Jyt*Jxy)/det,(-Jyt*Jxx+Jxt*Jxy)/det),-6.,6.);
   }
   fl*=px*uP1*8.;
 
-  // Semi-Lagrangian: what is here now came from vU-fl, so inherit its label.
-  vec2 m=texture(uMat,clamp(vU-fl,0.,1.)).xy;
-  if (uFrame<2) m=vU;                       // seed the field with identity
-  m=mix(m,vU,uP2);                          // relax, or it shears without bound
-  FC=vec4(m,0.,1.);
+  // Semi-Lagrangian: what is here now came from sc, so it inherits that label.
+  // In displacement terms  label(uv) = sc + d(sc)  =>  d(uv) = d(sc) + (sc-uv),
+  // where sc-uv is -fl in the interior and the true step at the border, at which
+  // point the clamp means the material did not come from uv-fl at all.
+  vec2 sc=clamp(uv-fl,0.,1.);
+  // The absolute-label form read that position back out of the field itself, so
+  // within half a texel of the frame edge it got the outermost texel CENTRE
+  // rather than sc. That half texel is REPRODUCED here, not corrected: the relax
+  // recursion amplifies a per-step border error by 1/relax (~25x) and advects it
+  // inward, so quietly improving it would move the lattice by ~9% of frame width
+  // against every existing preset. Differential run, 200 frames: 1.7e-15 against
+  // the old form with this clamp, 9.5e-2 without it. Change it deliberately or
+  // not at all.
+  vec2 sq=clamp(sc,.5*px,1.-.5*px);
+  vec2 d=texture(uMat,sc).xy+(sq-uv);
+  // Relax toward identity, or it shears without bound. mix(m,uv,r) on the
+  // absolute label is exactly d*(1-r) on the displacement.
+  d*=(1.-uP2);
+  FC=vec4(d,0.,1.);
 }`;
 
 // Two-texture blend: uTex=gen, uTex2=video
@@ -4043,7 +4207,7 @@ function makeProgram(fragSrc) {
   }
   // Cache uniform locations on the program object
   p.u = {};
-  ['uTex','uTex2','uAtlas','uPrev','uMat','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
+  ['uTex','uTex2','uAtlas','uPrev','uMat','uCorner','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
    'uP1','uP2','uP3','uP4','uP5','uP6','uP7','uP8','uP9','uP10','uP11','uP12']
     .forEach(n => p.u[n] = gl.getUniformLocation(p, n));
   // Ordered param locations for fast loop upload
@@ -4055,6 +4219,7 @@ function makeProgram(fragSrc) {
 // Rebuilt wholesale on context restore - see buildGLResources().
 let genProgs, fxProgs, passProg, blendProg, transformProg, vao, vbuf, vidTex, asciiAtlasTex;
 let advectProg = null;
+let cornerProg = null;
 let matSeeded = false;
 
 // Lazy program cache. Always go through these rather than indexing the arrays —
@@ -4132,6 +4297,7 @@ function buildGLResources() {
 
   passProg      = makeProgram(PASS_SRC);
   advectProg    = makeProgram(ADVECT_SRC);
+  cornerProg    = makeProgram(CORNER_SRC);
   blendProg     = makeProgram(BLEND_SRC);
   transformProg = makeProgram(TRANSFORM_SRC);
 
@@ -4169,6 +4335,10 @@ let prevSeeded = false;
 let fboMat = [null, null], fboTexMat = [null, null], matIdx = 0;
 let matOK = false;
 let matTried = false;   // extension + completeness resolved lazily, see ensureMat()
+// Baked cornerness for the frame. Single channel, but still float: the value
+// lands at 1e-2 to 1e-4 and R8 would quantise the low end to zero.
+let fboCorner = null, fboTexCorner = null;
+let cornerOK = false, cornerTried = false, cornerSeeded = false;
 let _frameSrcTex = null;
 let fboTexHist = null, fboHist = null;  // persistent trail history
 let fboTexHold = null, fboHold = null;  // sample-and-hold frozen frame
@@ -4291,6 +4461,35 @@ function ensureMat() {
   return matOK;
 }
 
+// Same lazy resolution as ensureMat, and the same reason: it depends on both
+// the extension and a completeness check, and the check needs the texture to
+// exist. Without EXT_color_buffer_float there is no cornerness and feature-dots
+// draws nothing - which is what the I overlay's float-rt line already reports.
+function ensureCorner() {
+  if (cornerTried) return cornerOK;
+  cornerTried = true;
+  cornerOK = !!gl.getExtension('EXT_color_buffer_float');
+  if (!cornerOK) return false;
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, _fbW, _fbH, 0, gl.RED, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // NEAREST, not LINEAR. Cornerness is built from differences between adjacent
+  // texels, so it is a texel-scale function and bilinear reads average away the
+  // peaks: measured, LINEAR doubles the p99 error against the inline version
+  // (0.69 vs 0.38) and the dot-radius error (0.45 vs 0.28).
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) cornerOK = false;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  fboCorner = fb; fboTexCorner = t;
+  return cornerOK;
+}
+
 // Reallocates the three core buffers at w x h. Returns false if the driver refused.
 function makeFBO(w, h) {
   _dropFBO(fbo,     fboTex);     fbo     = fboTex     = null;
@@ -4305,6 +4504,8 @@ function makeFBO(w, h) {
     fboMat[i] = null; fboTexMat[i] = null;
   }
   matTried = false; matOK = false;
+  _dropFBO(fboCorner, fboTexCorner); fboCorner = fboTexCorner = null;
+  cornerTried = false; cornerOK = false; cornerSeeded = false;
 
   _fbW = w; _fbH = h;
   const a = _makeAttached(), b = _makeAttached(), c = _makeAttached();
@@ -4781,6 +4982,12 @@ function setUniforms(prog, tex, params, tex2, seed) {
     gl.uniform1i(u.uMat, 3);
     gl.activeTexture(gl.TEXTURE0);
   }
+  if (u.uCorner !== null && u.uCorner !== undefined) {
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, (cornerSeeded && fboTexCorner) ? fboTexCorner : null);
+    gl.uniform1i(u.uCorner, 6);
+    gl.activeTexture(gl.TEXTURE0);
+  }
   if (u.uAudio !== null && u.uAudio !== undefined) {
     ensureAudioTex();
     gl.activeTexture(gl.TEXTURE4);
@@ -5136,6 +5343,15 @@ function advectMaterial(src, gain, relax) {
   matSeeded = true;
 }
 
+// One pass per frame, only while an effect that reads the field is live. Runs
+// off the same source as advectMaterial, so the two fields always describe the
+// same image.
+function renderCorner(src) {
+  if (!cornerProg || !ensureCorner()) return;
+  drawQuad(cornerProg, src, [], fboCorner);
+  cornerSeeded = true;
+}
+
 // Runs the FX chain over src, including the feedback and prev-frame paths.
 function renderWithFX(src) {
   _frameSrcTex = chainNeedsPrev() ? src : null;
@@ -5156,6 +5372,7 @@ function renderWithFX(src) {
       }
     }
     advectMaterial(src, g, r);
+    renderCorner(src);
   }
   const feedback = isFeedback();
   const { tex, tempFB, tempTex } = applyFXChain(src);
@@ -5509,6 +5726,7 @@ function _bufMB() {
   let bytes = 3 * px * 4;
   for (const t of [fboTexFx, fboTexHist, fboTexHold, fboTexPrev]) if (t) bytes += px * 4;
   if (fboTexMat[0]) bytes += 2 * px * 4;
+  if (fboTexCorner) bytes += px * 2;               // R16F, one channel
   if (_vidTexW) bytes += _vidTexW * _vidTexH * 4;   // the uncapped one
   return bytes / 1048576;
 }

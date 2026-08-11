@@ -3,9 +3,9 @@
 Context document for **recur-recur-browser** (aka **recur_web**). Give this to
 Claude at the start of a session.
 
-*Rebuilt from `index.html` on 2026-08-12 — 10,812 lines / 538,521 bytes /
-sha256 `0f736f6a a109f76e cf59e1b7 050e144f`. `BUILD` reads
-`2026-08-12g · fragment duration`; bump before deploy, and keep the name
+*Rebuilt from `index.html` on 2026-08-12 — 11,031 lines / 552,483 bytes /
+sha256 `c7382bef fc73abdd 7ab07330 10aff3ec`. `BUILD` reads
+`2026-08-12j · link alpha fix`; bump before deploy, and keep the name
 **within 77 characters** — see* Panel header *below.*
 
 **Every claim below is derived from the file itself** — its code, its constants
@@ -138,12 +138,14 @@ end. Formatting across entries is not uniform — `feature-dots` puts
 | 16 | halftone | 7 | centre-anchored lattice and pivot |
 | 17 | levels | 5 | spline curve editor in the panel |
 | 18 | sample-hold | 1 | **no `src:`** — the frozen-frame buffer is the effect |
-| 19 | feature-dots | 9 | `usesPrev`; drives the RG16F material pair |
+| 19 | feature-dots | 12 | `usesPrev`; drives the RG16F material pair and reads the R16F cornerness field; snapped `link-style` |
 | 20 | scatter | 7 | snapped mode selector |
 
-**The widest shader declares 12 params, and `N_P` — the V5 per-slot param byte
-count — is also 12.** A thirteenth param on any shader overflows the share
-format. Check this before adding one.
+**Five shaders declare the full 12 params — `squarewaves`, `maze-flight`,
+`quaternion`, `mandelbox` and `feature-dots` — and `N_P`, the V5 per-slot param
+byte count, is also 12. There is no headroom left on any of them.** A thirteenth
+param on any shader overflows the share format. Check this before adding one,
+and re-derive the count from the file rather than from this table.
 
 ### `src:` prefixes
 
@@ -170,6 +172,20 @@ in vec2 vU; out vec4 FC;
 `quaternion`, `mandelbox`) each `#define` it themselves. A GLSL parser that does
 not run the preprocessor will report it as undeclared in exactly those three —
 that is a false positive, not a bug.
+
+**`H` declares `in vec2 vU;` under `precision mediump float`, and a precision
+statement inside an entry cannot promote a varying that is already declared.**
+The GEN shaders carrying a global `precision highp` therefore promote everything
+*except* `vU`; it does not bite them because none of them builds a lattice out of
+it. Where the fragment position itself has to be exact, rebuild it from
+`gl_FragCoord` — declared `highp` by the ES 3.00 fragment language, exactly the
+pixel centre, no new varying and no change to `H`. `feature-dots`, `CORNER_SRC`
+and `ADVECT_SRC` all do this; `maze-flight` already did.
+
+`uRes` is mediump for the same reason, and fp16 represents only even integers
+past 2048 — an odd render-buffer width above that shifts every derived uv by up
+to half a pixel. Anything needing the fragment position exactly has to stay out
+of a round trip through `uRes`, not just out of `vU`.
 
 ---
 
@@ -290,13 +306,19 @@ whichever source the blend picker names.
 | `fboPrev` | previous frame of the FX-chain *input*, for temporal-difference effects |
 | `fboHist` | persistent trail history |
 | `fboHold` | sample-and-hold frozen frame |
-| `fboMat[2]` | RG16F material-coordinate pair for `feature-dots` |
+| `fboMat[2]` | RG16F material-coordinate pair for `feature-dots`, storing **displacement**, not the absolute label |
+| `fboCorner` | R16F dense cornerness for the frame, `NEAREST`, written by `CORNER_SRC` |
 
 `fbo`/`fbo2`/`fbo3` are needed by every path. The other four RGBA8 buffers and
 the RG16F pair are allocated **on first use** — the file's note is that
 allocating all of them costs 200 MB+ at Retina, enough for iOS Safari to drop
 the tab. Callers null-check, so a failed allocation disables that effect, not
 the frame.
+
+`fboMat` and `fboCorner` are lazy like the rest, both are dropped by `makeFBO` on
+resize, and neither is reaped — their liveness is identical to the one effect
+that reads them. `_bufMB` counts the pair at `2 × px × 4` and `fboCorner` at
+`px × 2`.
 
 `_makeAttached` checks `getError` and `checkFramebufferStatus` and returns `null`
 on failure; `makeFBO` returns a boolean.
@@ -320,6 +342,50 @@ The recurring correctness risk. Three guards worth knowing:
   its output in `fboTex2`.
 
 FX blend gate: `slotAmt < 0.999 || slotMode !== 0`.
+
+### The two per-frame prepasses
+
+`renderWithFX` runs two fullscreen passes before the FX chain, both gated on
+`chainNeedsPrev()` and both taking the **FX chain input** as their source:
+`advectMaterial` advances the material-coordinate field into `fboMat[dst]`, and
+`renderCorner` bakes cornerness into `fboCorner`.
+
+They read the chain input rather than each slot's own input, which is the rule
+`uPrev` and `uMat` already followed. The consequence is worth stating: **a second
+`feature-dots` slot further down the chain sees the chain input's features, not
+the features of whatever the effects above it produced.**
+
+`renderCorner` exists because `fdCorner` used to run inline, 16 taps per candidate
+site per fragment — up to 400 taps a fragment at the old dot-size ceiling, with
+neighbouring fragments in a cell re-deriving nearly the same value. Baking it
+makes a site cost one tap. Measured at the panel defaults:
+
+| | taps/fragment |
+|---|---|
+| inline, dot-size 0.28 | 119 |
+| inline, dot-size 1.0 | 427 |
+| prepass, dots only | 32 |
+| prepass, dots + mesh links | 39 (worst fragment 82) |
+| prepass, dots + web links | 41 (worst fragment 112) |
+
+**A prepass over a texel-scale function is not a transparent optimisation.**
+Cornerness is built from differences between adjacent texels, so baking it fixes
+the sub-texel phase the inline version averaged over. The 4×4 patch sits at ±0.5
+and ±1.5 texels: evaluated at a texel *centre* every tap is a 50/50 blend of two
+texels, at a texel *corner* every tap is exact. The prepass picks the blurry
+phase, and cornerness comes back at **0.54–0.73 of the inline value depending on
+content**. The sensitivity range was rescaled ×1.8 to recentre it — measured on
+the dot *radius*, which is what is visible and which the clamp inside `k`
+compresses, that moves −8.9% mean / −12.2% worst to −0.8% / −3.0%. The residual
+~4-point spread is content, not calibration, and no constant closes it.
+
+`fboCorner` is `NEAREST`. Bilinear reads average across texels and so average away
+exactly the peaks that make a corner a corner: `LINEAR` doubles both the p99 error
+against the inline version (0.69 vs 0.38) and the dot-radius error (0.45 vs 0.28).
+
+`EXT_color_buffer_float` is now required for `feature-dots` to draw at all, not
+only for tracking. The `I` overlay's float-rt line already claimed this; it is now
+true.
 
 ### Uniforms
 
@@ -1139,9 +1205,10 @@ unaffected.
 The shared header is `precision mediump float`, which is **genuine fp16 on
 mobile and Apple Silicon**. Precision is managed at two levels.
 
-**Global `precision highp` — four shaders**, all in GEN. A global precision
-statement applies to everything after it, so it promotes the whole shader
-without touching `H` or any other entry:
+**Global `precision highp` — seven programs.** A global precision statement
+applies to everything after it, so it promotes the whole shader without touching
+`H` or any other entry — but note it cannot reach back to a varying `H` already
+declared, so `vU` stays mediump in all seven. See *The shared header `H`*.
 
 | shader | reason given in the file |
 |---|---|
@@ -1149,9 +1216,12 @@ without touching `H` or any other entry:
 | maze-flight | the camera's z **is** the clock — every value is position-and-time math on an unbounded coordinate |
 | quaternion | the running derivative `md2` reaches ~1e10, five orders past fp16; at mediump the DE returns 0 everywhere and paints a solid block |
 | mandelbox | `dr` compounds as `dr*|scale|+1` and reaches ~4e8 at 16 iterations, four orders past fp16's 65504 |
+| feature-dots | the lattice coordinate chain has to be exact end to end; the shader is texture-bound rather than ALU-bound, so the promotion is close to free |
+| CORNER_SRC | the gradient products land at 1e-2 to 1e-4, which mediump bands into visible steps |
+| ADVECT_SRC | a half-pixel error in the semi-Lagrangian fetch compounds every frame |
 
-**Local `highp` declarations** — thirteen more shaders promote individual
-values, and function params receiving one must be `highp` too:
+**Local `highp` declarations** — twelve more shaders promote individual values,
+and function params receiving one must be `highp` too:
 
 - `plasma` and `flowing-colours` declare `highp float t`, because `uFrame` is
   unbounded: at mediump it stops resolving single frames past ~2048, then
@@ -1159,8 +1229,6 @@ values, and function params receiving one must be `highp` too:
 - `ascii` needs it for the atlas address specifically — a texel index rebuilt
   from a normalised coordinate, where mediump carries ~0.4 texels of error
   against a 640-texel row, enough to sample the neighbouring glyph's column.
-- `feature-dots` needs it for the gradient products, which land at 1e-2 to 1e-4
-  and band into visible steps at mediump.
 - `scatter` needs it for `rate`, then folds the value because it lands beside a
   cell index in a hash where a large number swallows the index.
 
@@ -1282,16 +1350,56 @@ and would otherwise start the flythrough tens of thousands of units downrange.
   fragments. Measured: 1 distinct glyph at 0, 10 at 0.2, 22 at the 0.45 default.
   Charset 0 is `all`, so a preset written before the param existed loads as 0 and
   keeps the look it was saved with; new instances default to block 1.
-- **feature-dots** (FX 19, 9p, `usesPrev`) — dense Shi-Tomasi cornerness, one
-  candidate per cell so dots cannot clump. Flow is Lucas-Kanade, dense rather
-  than sparse, reusing the tensor cornerness already needs. Solved once per
-  fragment rather than per candidate (4×36 taps becomes 36). The lattice lives in
-  **material space**, advected by the RG16F pair: each texel stores the uv the
-  material now at this position started from, so a dot slides with what it
-  marked instead of the grid blinking as features cross it. Relaxation is
-  essential — without it the field shears without bound and the lattice tears
-  itself apart within seconds. The ±2-cell scan window bounds jitter, which maxes
-  at 2.0.
+- **feature-dots** (FX 19, 12p, `usesPrev`) — dense Shi-Tomasi cornerness, baked
+  once per frame by `CORNER_SRC`; one candidate per cell so dots cannot clump.
+  The lattice lives in **material space**, advected by the RG16F pair, so a dot
+  slides with what it marked instead of the grid blinking as features cross it.
+  Relaxation is essential — without it the field shears without bound and the
+  lattice tears itself apart within seconds. The ±2-cell scan window bounds
+  jitter, which maxes at 2.0.
+  - **The field stores displacement, `d(x) = label(x) − x`, not the label.**
+    Values sit near zero where RG16F's ULP is ~3e-5 rather than ~2.4e-4 doubling
+    at each power-of-two binade and stalling the relax step into hard seams. It
+    also makes a zero-filled or unbound texture *exactly* identity, which removed
+    a real bug: `ensureMat` allocates lazily and `makeFBO` drops the pair on every
+    resize, but the old seed fired only at `uFrame < 2`, so enabling the effect
+    mid-session wrote `vU·relax` and converged over 1/relax ≈ 25 frames — the
+    lattice visibly swept out of the bottom-left corner on every enable and every
+    window resize.
+  - The advect step reproduces the absolute-label form's **half-texel edge
+    quantisation** deliberately (`clamp(sc, .5*px, 1.-.5*px)`). The relax
+    recursion amplifies a per-step border error by 1/relax and advects it inward;
+    a differential run over 200 frames puts the rewrite at 1.7e-15 of the old form
+    with that clamp and 9.5e-2 without it. Change it deliberately or not at all.
+  - **`dot-size` is capped at 2.0 cells.** A fragment only tests sites in its own
+    ±2 window, so a larger radius draws a truncated dot: measured on an isolated
+    site, the fraction the window cannot draw is 0.00% at radius 1.75, 0.21% at
+    2.0, 4.9% at 2.25, 22% at 3.0 and **62% at the old 4.6 ceiling**, where the
+    axial and diagonal extents sit at exactly 1 : 1.414 and the dot is a square.
+    The map is the old linear one up to 0.30 — so every preset at or below that is
+    bit-identical, and the default is 0.28 — then bends asymptotically to 2.0 so
+    the top of the slider still moves instead of going dead at 0.43.
+  - Edge softness is **1.5 px at every pitch**, not 0.1 cells, which was 4 px at
+    spacing 40 and 0.4 px at spacing 4.
+  - **`link` / `link-style` / `cohere`** draw a net between neighbouring sites.
+    Neighbours are forward only (+x, +y for mesh; plus both diagonals for web) so
+    each edge is generated exactly once. The source window is ±2, matching the dot
+    pass: ±1 misses 0.09% of mesh ink and 1.35% of web ink at high jitter, and a
+    miss is a link with a nick in it. A conservative cell-level bound — integers
+    and jitter only, no hashing and no taps — cuts 50 edges to ~15 and 100 to ~31
+    before anything is computed, leaving ~1.5 to pay for texture work.
+    - The two styles are capped to **equal ink**: 0.20 cells for mesh, 0.09 for
+      web, both ~59% coverage before the cornerness gate. Changing style changes
+      the pattern, not the density.
+    - Coherence is read off the **material field**, not from per-frame flow — the
+      field is already smoothed by the relax step and raw flow is the jitter that
+      field exists to suppress. Measured on a scene with two regions moving
+      opposite ways, adjacent material inside one region diverges by under a pixel
+      while across the boundary it reaches ~50: about 50× of headroom. At `track`
+      0 there is no field and the net joins on proximity alone.
+    - **Link width is `hw·sqrt(k)` and its alpha reaches 1**, exactly as the dot
+      radius is `dotR·sqrt(k)` with alpha reaching 1. See *Traps* — the first cut
+      multiplied alpha by `k` instead and the links were invisible.
 - **sample-hold** (FX 18, 1p) — the only entry with no `src:`; the frozen-frame
   buffer *is* the effect.
 
@@ -1335,7 +1443,24 @@ and would otherwise start the flythrough tens of thousands of units downrange.
 - **`_padSlots` fills with 0, not `def`.**
 - **A zero duration in a fragmented MP4's `mvhd` is correct, not missing.** The
   same is true of `tkhd` and `mdhd`. "Fixing" them doubles the timeline.
-- **Adding a 13th param to any shader overflows `N_P`.**
+- **Adding a 13th param to any shader overflows `N_P`.** Five are already at 12.
+- **A precision statement cannot promote a varying that is already declared.**
+  `precision highp float;` inside an entry does nothing for `vU`, which `H`
+  declares under mediump. Rebuild the position from `gl_FragCoord` instead.
+  `uRes` is mediump too, and fp16 holds only even integers past 2048.
+- **Never store absolute coordinates in a half-float buffer.** ULP doubles at
+  every power-of-two binade. Store displacement — it also makes a zero-filled
+  texture identity for free.
+- **`feature-dots` applies alpha twice.** `acc` is scaled by `a`, then
+  `FC = mix(backdrop, acc, cov)` scales by `cov`, so on the default black
+  backdrop anything short of `a = 1` is squared. A dot survives that because its
+  alpha reaches 1 at the centre whatever `k` is, and `k` goes into the *radius*.
+  Anything new drawn into `acc` has to be built the same way: the first cut of
+  links used `a = profile · k · coh` and rendered at 4% of a dot at an ordinary
+  `k` of 0.2, which reads as the param doing nothing at all.
+- **Baking a texel-scale function into a prepass is not free.** It fixes the
+  sub-texel phase the inline version averaged over. Cornerness came back at
+  0.54–0.73 of inline, content-dependent, and needed a measured recentre.
 
 ---
 
@@ -1351,7 +1476,7 @@ reproducible without a GPU.
 | element balance | `div`/`span`/`button`/`svg`/`select` open vs close | 399/399, 451/451, 67/67, 33/33, 2/2 |
 | CSS braces | count over the single `<style>` | 349/349 |
 | shader table | walk `GEN`/`FX` with the entry-line boundary regex | 36 entries, 35 with `src:`, `sample-hold` the exception |
-| GLSL parse | `@shaderfrog/glsl-parser`, prefixes resolved, `ASCII_*` **evaluated** in node rather than stubbed | 35/35 parse |
+| GLSL parse | `@shaderfrog/glsl-parser`, prefixes resolved, `ASCII_*` **evaluated** in node rather than stubbed, standalone `H+` programs **discovered by regex** rather than listed | 41/41 parse |
 | GLSL scope audit | walk parser scopes for bindings without a declaration | clean; `TAU` ×3 is a `#define` the parser does not preprocess |
 | layout invariant | extract the `layout*`/`chain*` functions verbatim, drive 20,000 trials × 40 random operations including hostile wire positions up to 255 | 800,000 operations, **0 violations** |
 | arm state machine | extract `setOvrArm`/`setClrArm`/`clearBank`, mock `loadPresets`/`savePresets`/`toast`, fuzz 20,000 arm/disarm calls | never both armed, no recursion; `clearBank` leaves the bank and `presetIdx` untouched when the write fails |
@@ -1362,6 +1487,13 @@ reproducible without a GPU.
 | duration repair | build minimal WebM (3 TimecodeScales) and MP4 (4 timescale pairs) fixtures, run the fixers, read the values back | every case round-trips to 10000 ms; fragmented MP4 leaves `mvhd` at 0 and writes `mehd`; fragmented without `mehd` returns `null`; progressive unchanged |
 | export progress | extract `updateExportBtn`, mock the button and label, drive idle → 0% → mid → 100% → overrun → idle | fill matches elapsed, clamps at 100%, class and `--rec` cleared on stop, longest label (126px) fits the button (192px), ticker reads the clock not a counter |
 | export sizing | extract `exportDims` + `updateExportEstimate` + the tables, stub `gl`/`cv`, vary window size and `MAX_TEXTURE_SIZE` | a 640×360 window still records 1920×1080; "as displayed" follows the window; a 2048 limit gives 2048×1152, **not** 2048×2048; 4K-at-draft warns, 4K-at-max does not; buffer is sized before `captureStream` and restored on all 5 exit paths |
+| displacement rewrite | numpy port of the absolute-label and displacement forms, 200 frames of a divergent flow, compared per texel | 1.7e-15 with the edge clamp; 9.5e-2 without it, which is what caught the border case |
+| dot-size cap | isolated site at k=1, coverage the ±2 window cannot draw, swept over radius and jitter phase | 0.00% at 1.75, 0.21% at 2.0, 62% at 4.6 with diagonal/axial = 1.414 exactly |
+| link window | ±1, ±2, ±3 source windows against a wide reference, mesh and web, jitter 0 to max | ±2 misses exactly 0; ±1 misses 0.09% mesh / 1.35% web at max jitter |
+| link bound | conservative cell-level reject asserted against the exact segment test over the whole sweep | never drops an edge the exact test keeps; 50 edges → ~15, 100 → ~31 |
+| prepass fidelity | cornerness exact-at-site vs baked-and-read, 200k random sub-texel positions, four content types | 0.54–0.73 of inline; NEAREST halves the error against LINEAR; ×1.8 recentre leaves −0.8% mean radius error |
+| 0-is-neutral | brace-match the `if (link>0.)` block, assert `uP11`/`uP12` appear nowhere outside it and nothing but `acc`/`cov` escapes | proven statically |
+| help overlay | snapped params re-derived from the shader table and diffed against the help text | caught the list missing `bitcrush 1-bit`, `ascii invert` and `scatter mode` |
 | bank filename | extract `safeBankFile` + `defaultBankName`, drive 12 hostile literals plus 3,000 fuzzed strings of path separators and shell metacharacters | output always matches `^[A-Za-z0-9._-]+\.json$`, never leads with punctuation, never exceeds 69 chars, `../../etc/passwd` → `etc-passwd.json`, all-punctuation input falls back to the dated default |
 
 Method notes that matter:
@@ -1384,7 +1516,9 @@ Method notes that matter:
   when a test contradicts a careful reading.
 - **Extract the real function and drive it.** Mock the DOM/GL surface, use `var`.
 - **Read the count your tooling reports.** "ALL PASS" over 34 of 36 entries is
-  not a pass.
+  not a pass. The same applies to hand-maintained lists inside a harness: the
+  standalone-program list silently skipped `CORNER_SRC` the first run and still
+  reported 40/40. Discover them from the file.
 - **Differential testing** for any refactor: extract old and new verbatim, drive
   both over the same seeded random operation sequence, diff by differing **field
   path** rather than by a boolean, and patch the old model with exactly the fixes
@@ -1429,10 +1563,27 @@ Each re-verified against this file, this session.
 - **`captureScreen` does not run `assessSource`,** and both `loadVideo` and
   `captureScreen` set SAMPLER directly without the gen bypass that `setMode`
   applies.
+- **`feature-dots` is at the `N_P` ceiling.** 12 of 12, as are `squarewaves`,
+  `maze-flight`, `quaternion` and `mandelbox`. Nothing can be added to any of
+  them without changing the share format.
+- **The prepass changed the look and it cannot be calibrated away.** Cornerness
+  is 0.54–0.73 of the inline value depending on content; the ×1.8 sensitivity
+  recentre moves the distribution onto the old look, but the ~4-point spread is
+  content, not calibration.
+- **Links draw underneath the dots.** They share `acc`/`cov`, and at the default
+  pitch the dot radius is larger than the cell spacing, so a densely featured
+  region is solid dots with nothing visible between them. If that turns out to be
+  the common case rather than the exception, drawing links over dots is a
+  one-line change.
+- **`feature-dots` now needs `EXT_color_buffer_float` outright**, not only for
+  tracking. Without it the effect draws nothing at all.
 - **Not GPU-verified** — which is to say all of it, but specifically: the
   `onResize` halve-and-retry path, `reapFBOs` timing, the render cap,
   `texSubImage2D` on the video upload, the quaternion and mandelbox camera rigs,
-  and every measured range in this document that is attributed to a CPU port.
+  every measured range in this document that is attributed to a CPU port, the
+  cornerness prepass and its `NEAREST` read, the ×1.8 sensitivity recentre, both
+  `feature-dots` loop nests compiling within driver limits on mobile, and every
+  link constant above.
 
 ---
 
