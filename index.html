@@ -8,6 +8,13 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 #c { display:block; position:fixed; inset:0; width:100%; height:100%; }
+/* While a sized take runs, the preview takes the take's aspect instead of the
+   window's. Without it the canvas stretches to fill and you would be composing
+   against a framing that is not the one going into the file. */
+#c.exporting {
+  width:auto; height:auto; max-width:100%; max-height:100%;
+  margin:auto; aspect-ratio:var(--ex-ar, 16/9);
+}
 
 #hud {
   display:none;
@@ -73,7 +80,16 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
   padding:6px 8px; width:100%; outline:none;
   letter-spacing:1px;
 }
-#export-filename:focus { border-color:#0f0; }
+#export-filename:focus, #export-length:focus, #export-dialog-box select:focus { border-color:#0f0; }
+/* Same skin as the filename field, so the four inputs read as one form. */
+#export-length, #export-dialog-box select {
+  background:#000; border:1px solid #0a0; color:#0f0;
+  font-family:'Courier New',monospace; font-size:13px;
+  padding:6px 8px; width:100%; outline:none; letter-spacing:1px;
+  box-sizing:border-box;
+}
+.export-note { font-size:10px; color:#062; letter-spacing:.5px; min-height:12px; }
+.export-note.warn { color:#fa0; }
 .export-dialog-row { display:flex; gap:8px; justify-content:flex-end; }
 .export-dialog-btn {
   font-family:'Courier New',monospace; font-size:11px;
@@ -444,6 +460,18 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 .sk:hover { background:rgba(0,80,0,.95); border-color:#0f0; }
 .sk:active { background:rgba(0,150,0,.95); border-color:#fff; }
 .sk.sk-active { background:rgba(0,80,0,.95); border-color:#0ff; color:#0ff; }
+/* Recording. The progress bar IS the button: during a take the panel may be the
+   only thing on screen that is not the output, and a bar read at a glance beats
+   a number that has to be parsed. Hard colour stop rather than a gradient blur,
+   so the edge marks the exact position. */
+.sk.sk-rec {
+  border-color:#0ff; color:#0ff;
+  background:linear-gradient(to right,
+    rgba(0,190,170,.55) 0 var(--rec, 0%),
+    rgba(0,60,0,.95)    var(--rec, 0%) 100%);
+}
+.sk.sk-rec .sk-label { color:#0ff; }
+.sk.sk-rec:hover { border-color:#fff; }
 .sk.sk-selected { outline:1px solid #ff0; }
 .fx-badge { position:absolute; top:2px; right:3px; font-size:8px; color:#ff0; line-height:1; pointer-events:none; }
 .sp-blend-hdr { opacity:.8; }
@@ -1124,16 +1152,9 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
       <div class="sk" data-action="rot90">
         <span class="sk-label">rot 90°</span>
       </div>
-    </div>
-    <div class="spi-blend-row" style="margin-top:4px">
-      <span class="spi-blend-label">EXPORT</span>
-      <div class="spi-blend-track" id="export-len-track">
-        <div class="spi-blend-fill" id="export-len-fill" style="width:21%"></div>
-        <div class="spi-blend-thumb" id="export-len-thumb" style="left:21%"></div>
-      </div>
-      <span class="spi-blend-val" id="export-len-val">10s</span>
-    </div>
-    <div class="spi-grid g2" style="margin-top:4px">
+      <!-- Record sits with the transform keys rather than under a slider of its
+           own. Size, quality and length are all asked for in the dialog now, so
+           there is nothing left out here to set first. -->
       <div class="sk" data-action="export-record" id="sk-export-btn">
         <span class="sk-label" id="sk-export-label">record</span>
       </div>
@@ -1545,7 +1566,10 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">blend toggle</span><span class="hk-desc">The rightmost icon in the SRC row, marked blend. One switch: either the source plays straight through, or the whole generative stack is composited over it. It only appears in SAMPLER and LIVE, the two modes that bypass the gen chain by default so the shaders don't hide your footage — SHADER bypasses nothing so it isn't needed there. For per-slot control, double-click blocks in the flow strip</span></div>
 
     <div class="hk-section">Export video</div>
-    <div class="hk-row"><span class="hk-key">EXPORT slider</span><span class="hk-desc">Set the recording duration (5s – 120s)</span></div>
+    <div class="hk-row"><span class="hk-key">record</span><span class="hk-desc">Sits with flip V and rot 90&deg; in the VIDEO section. Everything a take needs is asked for when you press it, so there is nothing to set up first. While a take runs the button becomes the progress bar &mdash; it fills left to right and reads elapsed, total and percentage, so you can see how far in you are without leaving the output. Tap it again to stop early; the file keeps whatever was recorded</span></div>
+    <div class="hk-row"><span class="hk-key">export size</span><span class="hk-desc">The one that matters. A recording used to be whatever the canvas happened to be &mdash; your window, times device pixel ratio, times RES, capped by RENDER CAP &mdash; so a take from a half-height window at RES &frac12; came out a few hundred pixels wide and looked it. Pick a size and the render buffer is pinned to exactly that for the take, ignoring all four. 720p, 1080p, 4K, 1080&times;1920 vertical and 1080&times;1080 square, or <em>as displayed</em> for the old behaviour. While a sized take runs the preview letterboxes to that shape, so you are composing against the framing that will be in the file rather than your window&rsquo;s</span></div>
+    <div class="hk-row"><span class="hk-key">export quality</span><span class="hk-desc">draft 5, good 10, high 25 or max 50 Mbps. It was fixed at 8 for every size before, which is generous at 720p and starved at 4K &mdash; the reason a 4K take came back looking worse than a small one. The line under the fields gives the buffer, the frame rate and the file size, and says so when the bitrate is thin for the size you picked</span></div>
+    <div class="hk-row"><span class="hk-key">export length</span><span class="hk-desc">Seconds, 1 to 120, typed rather than dragged. The estimate updates as you type &mdash; two minutes of 4K at max is about 750 MB, which is worth knowing before rather than after. The completion dialog names the length actually recorded next to the filename, so a file whose timeline disagrees with its footage shows up straight away</span></div>
     <div class="hk-row"><span class="hk-key">record btn</span><span class="hk-desc">Opens filename dialog — enter a name and tap record. Button counts down; tap again to stop early</span></div>
     <div class="hk-row"><span class="hk-key">save dialog</span><span class="hk-desc">Tap SAVE to trigger the platform save/share sheet (iOS: Files or AirDrop; desktop: choose location). Tap DISCARD to delete</span></div>
     <div class="hk-row"><span class="hk-key">format</span><span class="hk-desc">Saves as mp4 where supported, webm otherwise — both can be reloaded as SAMPLER sources</span></div>
@@ -1609,8 +1633,17 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 
 <div id="export-dialog">
   <div id="export-dialog-box">
-    <label>EXPORT FILENAME</label>
+    <label>FILENAME</label>
     <input id="export-filename" type="text" value="recur-export" autocomplete="off" spellcheck="false">
+    <label>SIZE</label>
+    <select id="export-size"></select>
+    <label>QUALITY</label>
+    <select id="export-quality"></select>
+    <label>LENGTH &mdash; SECONDS</label>
+    <input id="export-length" type="number" min="1" max="120" step="1" value="10">
+    <!-- Live estimate. Nothing used to warn before a 4K take, and a minute of it
+         is most of a gigabyte. -->
+    <div class="export-note" id="export-estimate"></div>
     <div class="export-dialog-row">
       <button class="export-dialog-btn" id="export-cancel-btn">cancel</button>
       <button class="export-dialog-btn primary" id="export-start-btn">record</button>
@@ -1741,7 +1774,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // 30px of 408px, so at 8px Courier New (0.6em advance) it has 372px to itself.
 // Longer is not broken — the line wraps — but it costs vertical space in a 40vh
 // panel every session, not just the one you named it in.
-const BUILD = '2026-08-12c · header + bank name';
+const BUILD = '2026-08-12g · fragment duration';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -4210,6 +4243,20 @@ function reapFBOs() {
     _reapHold = 0;
   }
 }
+// Which shaders actually sample the source texture. DERIVED from the GLSL, not
+// declared on the entry: a hand-maintained flag drifts from the source the first
+// time someone edits a shader and forgets it. Computed once per table.
+for (const t of [GEN, FX]) for (const e of t) e._usesTex = !!e.src && /\buTex\b/.test(e.src);
+// True if any live GEN slot reads uTex. renderGenChain binds vidTex as uTex for
+// every slot whether it is read or not, so binding is free — uploading is not.
+function chainNeedsVidTex() {
+  for (let i = 0; i < genSlots.length; i++) {
+    if (genSlots[i].off) continue;
+    if (GEN[genSlots[i].idx]?._usesTex) return true;
+  }
+  return false;
+}
+
 // True if any live FX slot is sample-hold.
 function chainNeedsHold() {
   for (let i = 0; i < fxSlots.length; i++) {
@@ -4347,12 +4394,27 @@ function effectiveDpr() {
   return (isCoarsePointer ? Math.min(raw, MAX_DPR_TOUCH) : raw) * renderScale;
 }
 
+// Set while a sized take is recording: the render buffer is pinned to exactly
+// this, and window size, dpr, RES and the pixel cap are all ignored for the
+// duration. captureStream reads the backing store, so this IS the export
+// resolution — which is why an export used to come out at whatever the window
+// happened to be.
+let _exportSize = null;
+
 // Resizes canvas and buffers, halving and retrying if allocation fails.
 function onResize(force) {
-  const dpr  = effectiveDpr();
-  const rect = cv.getBoundingClientRect();
-  let [w, h] = capDims(Math.max(1, Math.round(rect.width  * dpr)),
-                       Math.max(1, Math.round(rect.height * dpr)));
+  let w, h;
+  if (_exportSize) {
+    // Already clamped by exportDims(), aspect intact — taken as given here so
+    // there is only one place that decides an export's dimensions.
+    w = _exportSize.w;
+    h = _exportSize.h;
+  } else {
+    const dpr  = effectiveDpr();
+    const rect = cv.getBoundingClientRect();
+    [w, h] = capDims(Math.max(1, Math.round(rect.width  * dpr)),
+                     Math.max(1, Math.round(rect.height * dpr)));
+  }
   if (!force && w === cv.width && h === cv.height) return;   // nothing changed
   // Halve and retry rather than carry on with a black frame. The canvas is
   // resized in lockstep with the buffers because the viewport calls throughout
@@ -4568,23 +4630,25 @@ const SEEK_WATCHDOG_MS = 150;
 let _vidHasFrame = false;
 // Set when the frame callback has already uploaded this frame, so render() does
 // not repeat the upload.
-let _vidTexFresh = false;
 
 // Frame-arrival hook. This is load-bearing, not diagnostic: clearing
 // _seekPending here is what paces the reverse stepper. Registered once from
 // loop(), which always runs, so it survives a clip being loaded later.
 let _framePresentHooked = false;
+// True once rVFC is installed and owns the upload. render() defers to it.
+let _rvfcDriving = false;
 // Installs the rVFC upload hook. Idempotent.
 function hookFramePresented() {
   if (_framePresentHooked) return;
   _framePresentHooked = true;
   if (vid.requestVideoFrameCallback) {
+    _rvfcDriving = true;
     const tick = () => {
       _seekPending = false;
       _vidHasFrame = true;
       // Upload here: the one instant a fresh frame is guaranteed to exist.
       // From render() alone, every upload lands mid-seek with readyState at 1.
-      if (!contextLost && uploadVideoFrame(vid)) _vidTexFresh = true;
+      if (!contextLost) uploadVideoFrame(vid);
       vid.requestVideoFrameCallback(tick);
     };
     vid.requestVideoFrameCallback(tick);
@@ -5148,16 +5212,24 @@ function render() {
   // whichever source the blend picker names.
   let base = null;
   if (mode === 'SAMPLER') {
-    // The frame callback may already have uploaded this frame at the moment it
-    // was presented, which is a better instant than here — see hookFramePresented.
-    if (!_vidTexFresh) uploadVideoFrame(vid);
-    _vidTexFresh = false;
+    // rVFC uploads at the instant a frame is presented: the right moment, and
+    // exactly once per frame. Uploading here as well re-sent a frame already in
+    // the texture whenever the clip runs slower than the display — 30fps content
+    // on a 60Hz panel doubled the upload rate for nothing — and re-sent the same
+    // still frame every rAF while paused. Only the no-rVFC path needs this.
+    if (!_rvfcDriving) uploadVideoFrame(vid);
     base = effectiveVidTex();
   } else if (mode === 'LIVE') {
     base = uploadVideoFrame(cam) ? effectiveVidTex() : null;
   } else {
     if (blendActive) base = getBlendTex();   // uploads its own source
-    if (!base) uploadVideoFrame(vid);        // keep uTex fed for gens that sample it
+    // Only when something actually reads it. This used to upload unconditionally
+    // "to keep uTex fed for gens that sample it" — but no GEN shader in the table
+    // samples uTex at all, so with a clip loaded and blend off it was pushing a
+    // full-resolution frame to the GPU 60 times a second into a sampler nothing
+    // reads: 8 MB/frame at 1080p, 33 MB at 4K. chainNeedsVidTex() is derived from
+    // the GLSL, so a future shader that does sample uTex turns it back on itself.
+    if (!base && chainNeedsVidTex()) uploadVideoFrame(vid);
   }
 
   // With no base (pure generative, or the source isn't ready yet) slot 0 is drawn
@@ -6816,7 +6888,6 @@ function loadVideo(url, name, file) {
   _stepT       = null;
   _seekPending = false;
   _vidHasFrame = false;   // new clip: nothing presented yet, so nothing to upload
-  _vidTexFresh = false;
   stopCamera();
   vid.crossOrigin = '';
   vid.src = url;
@@ -7473,10 +7544,6 @@ document.getElementById('spi-panel').addEventListener('click', e => {
     () => audioHold,
     v  => { audioHold = v; }
   );
-  makeSlider('export-len-track',
-    () => exportLenNorm,
-    v  => { exportLenNorm = v; updateExportLen(); }
-  );
 })();
 
 // ── Recording duration repair ─────────────────────────────────────────────────
@@ -7633,7 +7700,19 @@ function fixWebmDuration(bytes, durationMs) {
 }
 
 // ── MP4 ──────────────────────────────────────────────────────────────────────
-// Chrome's MP4 recording is fragmented, so moov carries zero durations.
+// Chrome's MP4 recording is FRAGMENTED, and that changes what a repair means.
+//
+// In a fragmented file the samples live in moof fragments, each carrying its own
+// timing, and moov describes only the initialisation. A zero in mvhd/tkhd/mdhd
+// duration there is not a missing value — it is the correct one, and it means
+// "the movie box itself contains no samples". Writing the real length into those
+// fields tells a player the movie is 10s long AND then hands it 10s of fragments
+// to append: the timeline reads 20s with footage only in the first half, which
+// is exactly the symptom this used to produce.
+//
+// The overall length of a fragmented file belongs in mvex > mehd instead. When
+// there is no mehd, the fragments already carry the timing between them and the
+// correct repair is NONE — return null and leave the recording untouched.
 
 function u32(dv, o) { return dv.getUint32(o, false); }
 
@@ -7659,9 +7738,11 @@ function findBoxes(bytes, start, end) {
   return out;
 }
 
-// Writes the true duration into a recorded MP4's mvhd/tkhd/mdhd.
+// Writes the true duration into a recorded MP4. Which field that is depends on
+// whether the file is fragmented — see the note above.
 function fixMp4Duration(bytes, durationMs) {
-  const moovTop = findBoxes(bytes, 0, bytes.length).find(b => b.type === 'moov');
+  const top = findBoxes(bytes, 0, bytes.length);
+  const moovTop = top.find(b => b.type === 'moov');
   if (!moovTop) return null;
   const out = bytes.slice();
   const dv = new DataView(out.buffer, out.byteOffset, out.byteLength);
@@ -7670,6 +7751,26 @@ function fixMp4Duration(bytes, durationMs) {
   // mvhd sets the movie timescale; each trak's mdhd has its own.
   const moovKids = findBoxes(out, moovTop.dataStart, moovTop.end);
   const mvhd = moovKids.find(b => b.type === 'mvhd');
+
+  // Either a fragment is already present, or moov declares that fragments follow.
+  const mvex = moovKids.find(b => b.type === 'mvex');
+  const fragmented = !!mvex || top.some(b => b.type === 'moof');
+  if (fragmented) {
+    // Read the movie timescale without writing anything: mehd is expressed in it.
+    let scale = 1000;
+    if (mvhd) {
+      const v = out[mvhd.dataStart];
+      scale = u32(dv, mvhd.dataStart + (v === 1 ? 20 : 12)) || 1000;
+    }
+    const mehd = mvex && findBoxes(out, mvex.dataStart, mvex.end).find(b => b.type === 'mehd');
+    if (!mehd) return null;          // nothing safe to write; the fragments say it
+    const ver = out[mehd.dataStart];
+    const ticks = Math.round(durationMs * scale / 1000);
+    if (ver === 1) dv.setBigUint64(mehd.dataStart + 4, BigInt(ticks), false);
+    else           dv.setUint32(mehd.dataStart + 4, ticks, false);
+    return out;
+  }
+
   let movieScale = 1000;
   if (mvhd) {
     const ver = out[mvhd.dataStart];
@@ -7723,32 +7824,85 @@ async function fixRecordingDuration(blob, mimeType, durationMs) {
 }
 
 // ── Export / MediaRecorder ────────────────────────────────────────────────────
-let exportLenNorm      = 0.209;
+let exportSizeIdx      = 2;   // 1920x1080
+let exportQualityIdx   = 1;   // good
+let exportSeconds      = 10;
 let exportRecorder     = null;
 let exportChunks       = [];
-let exportCountdown    = null;
+let exportTicker       = null;
 let _exportStartedAt   = 0;
 let _exportPendingBlob = null;
 let _exportPendingName = 'recur-export';
 
-const EXPORT_LENGTHS = [5,10,15,20,30,45,60,90,120]; // seconds options mapped linearly
+// 'as displayed' keeps the old behaviour — whatever the window, dpr and RES
+// happen to produce — and is deliberately not the default, because that is what
+// made an export come back at the size of a browser window.
+const EXPORT_SIZES = [
+  { label: 'as displayed',              w: 0,    h: 0    },
+  { label: '1280 × 720   ·  720p',      w: 1280, h: 720  },
+  { label: '1920 × 1080  ·  1080p',     w: 1920, h: 1080 },
+  { label: '3840 × 2160  ·  4K',        w: 3840, h: 2160 },
+  { label: '1080 × 1920  ·  vertical',  w: 1080, h: 1920 },
+  { label: '1080 × 1080  ·  square',    w: 1080, h: 1080 },
+];
+// Literal bitrates rather than a bits-per-pixel figure, so what the encoder is
+// handed is the number that was chosen. It was fixed at 8 Mbps for every size:
+// generous at 720p, starved at 4K, which is why a 4K take came back looking
+// worse than a small one.
+const EXPORT_QUALITY = [
+  { label: 'draft  ·   5 Mbps', mbps:  5 },
+  { label: 'good   ·  10 Mbps', mbps: 10 },
+  { label: 'high   ·  25 Mbps', mbps: 25 },
+  { label: 'max    ·  50 Mbps', mbps: 50 },
+];
+const EXPORT_FPS = 30;
 
-// Export length from the slider, 5-120s on a sqrt curve.
-function exportLenSeconds() {
-  // map 0-1 to 5-120s on a sqrt curve for finer control at short durations
-  const t = exportLenNorm;
-  return Math.round(5 + (120 - 5) * t * t);
+// The buffer a take will actually record, after MAX_TEXTURE_SIZE. 'as displayed'
+// reports what the canvas is right now.
+function exportDims() {
+  const p = EXPORT_SIZES[exportSizeIdx] || EXPORT_SIZES[0];
+  if (!p.w) return { w: cv.width, h: cv.height, sized: false };
+  // Scale BOTH axes by the same factor, as capDims does. Clamping them
+  // independently turns a 16:9 request into a square on any device whose
+  // MAX_TEXTURE_SIZE lands between the two — a silently distorted export.
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  const s = Math.min(1, maxTex / p.w, maxTex / p.h);
+  return { w: Math.max(1, Math.round(p.w * s)), h: Math.max(1, Math.round(p.h * s)), sized: true };
 }
 
-function updateExportLen() {
-  const s = exportLenSeconds();
-  const fill  = document.getElementById('export-len-fill');
-  const thumb = document.getElementById('export-len-thumb');
-  const val   = document.getElementById('export-len-val');
-  const pct   = (exportLenNorm * 100).toFixed(0) + '%';
-  if (fill)  fill.style.width = pct;
-  if (thumb) thumb.style.left = pct;
-  if (val)   val.textContent  = s + 's';
+// Fills the dialog's two selects once, then keeps the estimate line current.
+function buildExportDialog() {
+  const sz = document.getElementById('export-size');
+  const ql = document.getElementById('export-quality');
+  if (sz && !sz.options.length)
+    sz.innerHTML = EXPORT_SIZES.map((p, i) => `<option value="${i}">${p.label}</option>`).join('');
+  if (ql && !ql.options.length)
+    ql.innerHTML = EXPORT_QUALITY.map((p, i) => `<option value="${i}">${p.label}</option>`).join('');
+  if (sz) sz.value = exportSizeIdx;
+  if (ql) ql.value = exportQualityIdx;
+  const len = document.getElementById('export-length');
+  if (len) len.value = exportSeconds;
+  updateExportEstimate();
+}
+
+// Bitrate x seconds is the file size, near enough. Nothing warned before a 4K
+// take and a minute of one is most of a gigabyte.
+function updateExportEstimate() {
+  const el = document.getElementById('export-estimate');
+  if (!el) return;
+  const d  = exportDims();
+  const q  = EXPORT_QUALITY[exportQualityIdx] || EXPORT_QUALITY[1];
+  const mb = q.mbps * exportSeconds / 8;
+  const px = d.w * d.h;
+  // A rough legibility check, not a rule: this many bits per pixel per frame is
+  // where H.264 starts to visibly fall apart on the kind of high-motion,
+  // high-detail output this thing makes.
+  const bpp = (q.mbps * 1e6) / (px * EXPORT_FPS);
+  const thin = bpp < 0.05;
+  el.className = 'export-note' + (thin || mb > 500 ? ' warn' : '');
+  el.textContent = `${d.w}×${d.h} @ ${EXPORT_FPS}fps · about ${mb < 1 ? mb.toFixed(1) : Math.round(mb)} MB` +
+    (thin ? ' · thin for this size, expect blocking' : '') +
+    (d.sized && (d.w !== (EXPORT_SIZES[exportSizeIdx].w)) ? ' · clamped by MAX_TEXTURE_SIZE' : '');
 }
 
 // Opens the export dialog; recording starts once confirmed.
@@ -7758,8 +7912,28 @@ function startExport() {
   const dialog = document.getElementById('export-dialog');
   const input  = document.getElementById('export-filename');
   input.value  = 'recur-export';
+  buildExportDialog();
   dialog.classList.add('on');
   setTimeout(() => input.select(), 80);
+}
+
+// Pins the render buffer to the take's size and letterboxes the preview to its
+// aspect, so what is on screen during a take is what lands in the file.
+function beginSizedTake(d) {
+  if (!d.sized) return false;
+  _exportSize = { w: d.w, h: d.h };
+  cv.style.setProperty('--ex-ar', d.w + '/' + d.h);
+  cv.classList.add('exporting');
+  onResize(true);
+  return true;
+}
+// Hands the buffer back to the window. Feedback history is a different size
+// again, and onResize already clears it.
+function endSizedTake() {
+  if (!_exportSize) return;
+  _exportSize = null;
+  cv.classList.remove('exporting');
+  onResize(true);
 }
 
 async function _doExport(filename) {
@@ -7771,20 +7945,27 @@ async function _doExport(filename) {
                  : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm'
                  : null;
 
-  let stream;
-  try { stream = cv.captureStream(30); }
-  catch(e) { toast('capture failed'); return; }
+  // Size the buffer BEFORE captureStream: the track takes its dimensions from
+  // the canvas at the moment it is captured, and resizing afterwards would leave
+  // the recording at whatever the window was.
+  const dims = exportDims();
+  const sized = beginSizedTake(dims);
 
+  let stream;
+  try { stream = cv.captureStream(EXPORT_FPS); }
+  catch(e) { toast('capture failed'); endSizedTake(); return; }
+
+  const bitrate = (EXPORT_QUALITY[exportQualityIdx] || EXPORT_QUALITY[1]).mbps * 1e6;
   exportChunks = [];
   let recorder;
   try {
     // Try with explicit mimeType; fall back to browser default if it throws
     recorder = mimeType
-      ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 })
-      : new MediaRecorder(stream);
+      ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate })
+      : new MediaRecorder(stream, { videoBitsPerSecond: bitrate });
   } catch(e) {
     try { recorder = new MediaRecorder(stream); }
-    catch(e2) { toast('recorder failed'); return; }
+    catch(e2) { toast('recorder failed'); endSizedTake(); return; }
   }
 
   const ext = recorder.mimeType && recorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
@@ -7797,7 +7978,8 @@ async function _doExport(filename) {
     let blob = new Blob(exportChunks, { type: mime });
     exportRecorder = null;
     exportChunks  = [];
-    updateExportBtn(false, 0);
+    endSizedTake();
+    updateExportBtn(false, 0, 0);
     // Wall-clock elapsed, not the requested length: recording can start late or
     // be stopped early, and writing a duration longer than the frames produces
     // a file that appears to hang at the end.
@@ -7805,29 +7987,58 @@ async function _doExport(filename) {
     blob = await fixRecordingDuration(blob, mime, elapsed);
     _exportPendingBlob = blob;
     _exportPendingName = fullname;
-    document.getElementById('export-save-name').textContent = fullname;
+    // The measured length, so "the file says 20s" can be checked against what was
+    // actually recorded without opening it in anything.
+    document.getElementById('export-save-name').textContent =
+      `${fullname}  ·  ${(elapsed / 1000).toFixed(1)}s`;
+    console.log(`recur: export ${fullname} — asked ${exportSeconds}s, recorded ${(elapsed/1000).toFixed(2)}s, ${(blob.size/1048576).toFixed(1)} MB`);
     document.getElementById('export-save-dialog').classList.add('on');
   };
 
   try { recorder.start(100); _exportStartedAt = performance.now(); }
-  catch(e) { toast('start failed'); exportRecorder = null; return; }
+  catch(e) { toast('start failed'); exportRecorder = null; endSizedTake(); return; }
 
-  const secs = exportLenSeconds();
-  let remaining = secs;
+  toast(`recording ${dims.w}×${dims.h} · ${bitrate / 1e6} Mbps · ${exportSeconds}s`);
+  // Driven by the wall clock, not by counting interval fires. setInterval is not
+  // a clock: under the load a 4K take puts on the main thread it arrives late and
+  // the error accumulates, so a decrementing counter both mis-reports progress
+  // and stops the recorder late. Reading the elapsed time each tick means a
+  // stalled frame costs a skipped update, never a wrong length.
+  const secs = exportSeconds;
   function tick() {
-    remaining--;
-    updateExportBtn(true, remaining);
-    if (remaining <= 0) {
-      clearInterval(exportCountdown);
-      exportCountdown = null;
+    const elapsed = (performance.now() - _exportStartedAt) / 1000;
+    updateExportBtn(true, Math.min(elapsed, secs), secs);
+    if (elapsed >= secs) {
+      clearInterval(exportTicker);
+      exportTicker = null;
       exportRecorder && exportRecorder.stop();
     }
   }
-  updateExportBtn(true, remaining);
-  exportCountdown = setInterval(tick, 1000);
+  updateExportBtn(true, 0, secs);
+  // ~10Hz: fast enough that the bar moves rather than steps, slow enough to be
+  // nothing next to the take itself.
+  exportTicker = setInterval(tick, 100);
 }
 
 // Export dialog buttons
+document.getElementById('export-size').addEventListener('change', e => {
+  exportSizeIdx = parseInt(e.target.value) || 0;
+  updateExportEstimate();
+});
+document.getElementById('export-quality').addEventListener('change', e => {
+  exportQualityIdx = parseInt(e.target.value) || 0;
+  updateExportEstimate();
+});
+document.getElementById('export-length').addEventListener('input', e => {
+  // Clamped on the way in rather than on submit: the estimate below the field
+  // has to describe a take that can actually happen.
+  const v = Math.round(Number(e.target.value));
+  exportSeconds = Number.isFinite(v) ? Math.min(120, Math.max(1, v)) : 10;
+  updateExportEstimate();
+});
+document.getElementById('export-length').addEventListener('blur', e => {
+  e.target.value = exportSeconds;
+});
 document.getElementById('export-start-btn').addEventListener('click', () => {
   _doExport(document.getElementById('export-filename').value);
 });
@@ -7884,21 +8095,26 @@ document.getElementById('export-save-discard').addEventListener('click', () => {
 // Stops recording, repairs the container duration and downloads it.
 function stopExport() {
   if (!exportRecorder) return;
-  clearInterval(exportCountdown);
-  exportCountdown = null;
+  clearInterval(exportTicker);
+  exportTicker = null;
   exportRecorder.stop();
 }
 
 // Updates the record button and countdown.
-function updateExportBtn(recording, remaining) {
+// elapsed and total are seconds. Both are shown: the fraction answers "how far
+// in", the total answers "of what", and neither is much use without the other.
+function updateExportBtn(recording, elapsed, total) {
   const btn   = document.getElementById('sk-export-btn');
   const label = document.getElementById('sk-export-label');
   if (!btn || !label) return;
   if (recording) {
-    btn.classList.add('sk-active');
-    label.textContent = remaining + 's…';
+    const pct = total > 0 ? Math.min(100, elapsed / total * 100) : 0;
+    btn.classList.add('sk-rec');
+    btn.style.setProperty('--rec', pct.toFixed(1) + '%');
+    label.textContent = `${elapsed.toFixed(1)}s / ${total}s · ${Math.round(pct)}%`;
   } else {
-    btn.classList.remove('sk-active');
+    btn.classList.remove('sk-rec');
+    btn.style.removeProperty('--rec');
     label.textContent = 'record';
   }
 }
@@ -8798,7 +9014,7 @@ function updateSPI() {
     _setW(r.holdFill, hpct); _setL(r.holdThumb, hpct); _setTxt(r.holdVal, hpct);
   }
 
-  updateExportLen();
+  buildExportDialog();
 
   if (!spiParamsEl._dragBound) {
     spiParamsEl._dragBound = true;

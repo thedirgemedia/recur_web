@@ -3,9 +3,9 @@
 Context document for **recur-recur-browser** (aka **recur_web**). Give this to
 Claude at the start of a session.
 
-*Rebuilt from `index.html` on 2026-08-12 — 10,596 lines / 525,264 bytes /
-sha256 `e6103e81 e37ba645 b0c49c3d fa18fd06`. `BUILD` reads
-`2026-08-12c · header + bank name`; bump before deploy, and keep the name
+*Rebuilt from `index.html` on 2026-08-12 — 10,812 lines / 538,521 bytes /
+sha256 `0f736f6a a109f76e cf59e1b7 050e144f`. `BUILD` reads
+`2026-08-12g · fragment duration`; bump before deploy, and keep the name
 **within 77 characters** — see* Panel header *below.*
 
 **Every claim below is derived from the file itself** — its code, its constants
@@ -383,15 +383,36 @@ playback with a manual reverse leg.
 `uploadVideoFrame` must **never gate on `readyState` alone**: an in-flight seek
 drops it to 1, and the reverse stepper seeks every frame, so every upload would
 be skipped and reverse would show a static frame. The right question is whether
-a frame has been presented. Upload happens inside `requestVideoFrameCallback`;
-`render()` skips the repeat via `_vidTexFresh`.
+a frame has been presented. Upload happens inside `requestVideoFrameCallback`,
+and `render()` defers to it entirely via `_rvfcDriving` — see *Source texture*.
 
 ---
 
 ## Source texture and assessment
 
 `uploadVideoFrame` uploads at the video's **native** resolution every frame.
-RENDER CAP does not bound it: 1080p 8 MB, 4K 33 MB, 8K 132 MB.
+RENDER CAP does not bound it: 1080p 8 MB, 4K 33 MB, 8K 132 MB. It is the single
+most expensive per-frame operation in the app and the one whose cost is decided
+by the browser rather than the GPU — see *Cross-browser performance*.
+
+**It is called from exactly two places, and neither is unconditional:**
+
+- `hookFramePresented`'s rVFC tick, which is authoritative when rVFC exists.
+  `_rvfcDriving` is set there, and `render()` defers to it — uploading from both
+  re-sent a frame already in the texture whenever the clip ran slower than the
+  display (30fps content on a 60Hz panel doubled the upload rate) and re-sent the
+  same still frame every rAF while paused.
+- `render()`, for the no-rVFC fallback, for LIVE, and in SHADER mode **only when
+  `chainNeedsVidTex()`**. That last one used to be unconditional, "to keep uTex
+  fed for gens that sample it" — but **no GEN shader in the table samples
+  `uTex`** (0 of 15; 20 of 21 FX do, since it is their chain input). With a clip
+  loaded and blend off it was pushing a full-resolution frame to the GPU 60 times
+  a second into a sampler nothing reads.
+
+`_usesTex` is **derived** from each entry's GLSL at startup
+(`/\buTex\b/.test(e.src)`), not declared on the entry — a hand-maintained flag
+drifts from the source the first time someone edits a shader and forgets it. A
+future GEN shader that samples `uTex` turns the upload back on by itself.
 
 - `texSubImage2D` once dimensions are known, `texImage2D` on a size change.
   `texImage2D` reallocates storage each call; `texSubImage2D` reuses it.
@@ -934,17 +955,102 @@ to be kept correct.
 
 ## Export
 
-MediaRecorder at `videoBitsPerSecond: 8_000_000`, MP4 (`avc1`) where supported
-and WebM otherwise. `EXPORT_LENGTHS` = 5, 10, 15, 20, 30, 45, 60, 90, 120
-seconds, mapped linearly on the slider. Peak memory is roughly 2×: 8 Mbps × 120 s
-≈ 120 MB of chunks, doubled transiently by `new Blob()`.
+MediaRecorder, MP4 (`avc1`) where supported and WebM otherwise. The `record`
+button sits with `flip V` and `rot 90°` in the VIDEO grid; **size, quality and
+length are all asked for in the dialog**, so nothing has to be set up first.
 
-**Duration repair** is the substantial part. MediaRecorder writes container
-metadata before it knows the recording length, so no duration is stored and
-players report a few seconds regardless — the frames are all present, only the
-header is wrong. `fixWebmDuration` writes a Duration element into WebM's Segment
-Info (EBML walk via `readVint`/`readId`/`findBox`); `fixMp4Duration` patches
-`mvhd`, `tkhd` and `mdhd`.
+### An export is the render buffer, not a video size
+
+`captureStream` records the canvas backing store. That used to be window ×
+`devicePixelRatio` × RES, capped by RENDER CAP — so a take from a small window at
+RES ½ came out a few hundred pixels wide, which is what "the exported quality was
+very low" turned out to mean.
+
+`_exportSize` pins the buffer for the duration of a take. `onResize` short-circuits
+to it and ignores window, dpr, RES and the pixel cap; `beginSizedTake` /
+`endSizedTake` set and clear it, and **every** early-return path in `_doExport`
+calls `endSizedTake` or the app stays stuck at the take's resolution.
+
+Order matters: **size the buffer before `captureStream`.** The track takes its
+dimensions from the canvas at the moment of capture, so resizing afterwards
+records the old size.
+
+`EXPORT_SIZES` — as displayed / 720p / 1080p / 4K / 1080×1920 vertical /
+1080×1080 square. Default is **1080p, not "as displayed"**. `exportDims()`
+clamps to `MAX_TEXTURE_SIZE` by scaling **both axes by one factor**, as `capDims`
+does — clamping them independently turns a 16:9 request into a square on any
+device whose limit lands between the two, which a test caught.
+
+While a sized take runs, `#c.exporting` letterboxes the preview to the take's
+aspect via `aspect-ratio: var(--ex-ar)`. Without it the canvas stretches to fill
+the window and you compose against a framing that is not the one in the file.
+Note that `onResize` clears `feedbackInit`, so **feedback history resets at both
+ends of a sized take**.
+
+### Quality
+
+`EXPORT_QUALITY` — draft 5, good 10, high 25, max 50 Mbps, passed straight to
+`videoBitsPerSecond`. It was fixed at 8 Mbps for every size: 0.16 bits/pixel at
+1080p30 but **0.032 at 4K30**, which is why a 4K take looked worse than a small
+one. Literal rates rather than a bits-per-pixel figure, so the encoder is handed
+the number that was chosen.
+
+`updateExportEstimate` reports buffer, frame rate and file size as the fields
+change, warns when the file passes 500 MB, and warns when the bitrate falls below
+0.05 bpp for the chosen size. That closes the old "nothing warns before a 4K
+take" thread — two minutes of 4K at max is about 750 MB.
+
+### Progress, and why it is a clock and not a counter
+
+The record button **is** the progress bar while a take runs: `.sk-rec` fills it
+left to right from a `--rec` custom property, with a hard colour stop rather than
+a gradient so the edge marks the exact position, and the label reads
+`4.3s / 10s · 43%`. During a take the panel may be the only thing on screen that
+is not the output, so it has to be readable at a glance.
+
+`exportTicker` runs at 100 ms and **reads `performance.now() - _exportStartedAt`
+every tick**. It does not count interval fires. `setInterval` is not a clock:
+under the load a 4K take puts on the main thread it arrives late and the error
+accumulates, so the old decrement-a-counter version both mis-reported progress
+and stopped the recorder late — at 12% late fires, a 10 s take ran 11.2 s while
+the button had already reached zero. Reading elapsed time means a stalled frame
+costs a skipped update, never a wrong length.
+
+The bar clamps at 100%, so an overrun cannot run it past the end.
+
+Peak memory is still roughly 2×: chunks plus a transient doubling in `new Blob()`.
+
+### Duration repair — and what "repair" means depends on the container
+
+MediaRecorder writes container metadata before it knows the recording length, so
+no duration is stored and players report a few seconds regardless. The frames are
+all present; only the header is wrong.
+
+`fixWebmDuration` writes a Duration element into WebM's Segment Info (EBML walk
+via `readVint` / `readId` / `children`), in TimecodeScale units.
+
+`fixMp4Duration` **branches on whether the file is fragmented**, and this is the
+part that bit:
+
+- **Progressive MP4** — patch `mvhd`, `tkhd` and `mdhd`. `mvhd`/`tkhd` are in the
+  movie timescale, `mdhd` in its own media timescale; using the movie scale for
+  `mdhd` would be wrong wherever the two differ (90000 vs 1000 is typical).
+- **Fragmented MP4** — Chrome's MediaRecorder output. The samples live in `moof`
+  fragments carrying their own timing, and moov describes only initialisation.
+  **A zero in `mvhd`/`tkhd`/`mdhd` duration is the correct value there**, meaning
+  "the movie box contains no samples". Writing the real length into those fields
+  tells a player the movie is 10 s long *and then* hands it 10 s of fragments to
+  append — **a 10 s take reads as 20 s with footage only in the first half.**
+  The overall length belongs in `mvex` > `mehd` instead; when there is no `mehd`
+  the fragments already carry it between them and the correct repair is **none**,
+  so the function returns `null` and the recording is left untouched.
+
+Detection is `mvex` in moov, or a top-level `moof` — `mvex` alone is enough,
+since it declares that fragments follow whether or not one has been written yet.
+
+The completion dialog names the **measured** length beside the filename, and the
+same figure goes to the console with the requested length and file size. A file
+whose timeline disagrees with its footage is then visible without opening it.
 
 The duration written is **wall-clock elapsed, not the requested length**:
 recording can start late or be stopped early, and writing a duration longer than
@@ -980,6 +1086,41 @@ levels.
 `updateHUD` behind a visibility check — **not** an early return, because
 `updateHUD` also dispatches `updateSPI`. The check reads computed `display`
 once, into `_hudLive`.
+
+### Cross-browser performance
+
+When the same machine runs the app fast in one browser and slow in another, the
+render path is not where to look. It holds no per-frame `getUniformLocation`,
+`getParameter`, `getError`, `readPixels` or layout read — verified by extracting
+`render`, `loop`, `renderWithFX`, `renderGenChain`, `drawQuad` and `setUniforms`
+and scanning each body. What differs is the **video upload path**, which is
+entirely the browser's business:
+
+- **`UNPACK_FLIP_Y_WEBGL`.** `vidFlipV` defaults **on**, and with no rotation or
+  mirror the flip is folded into the upload rather than a shader pass — a real
+  saving where the implementation flips on the GPU, and a full readback plus
+  row-reversed copy where it does not. 8 MB a frame at 1080p, 33 MB at 4K.
+  Toggling the source flip off in the SRC row is a one-tap A/B.
+- **Pixel format.** `RGBA` and `RGB` are not equally fast in every browser; the
+  app uses `RGBA`.
+- **`texSubImage2D` vs `texImage2D`.** The app uses `texSubImage2D` once
+  dimensions are known; `USE_TEXSUBIMAGE = false` reverts.
+- **rVFC availability.** Without it the fallback cannot tell a new frame from a
+  repeat and re-sends every rAF.
+- **mediump precision.** 10 bits = true fp16, 23 = promoted to fp32 — roughly a
+  2× difference on identical shaders. The `I` overlay reports it.
+
+**`ff-check.html` measures all of these** and separates them from fill rate.
+Open it in both browsers on the same machine, feed it the same clip, compare.
+Fill rate is the control: if seven fullscreen passes cost the same in both but
+the upload does not, the difference is the video path and no amount of shader
+tuning will touch it. It syncs with a 1-pixel `readPixels` after each batch —
+without that the driver just queues the calls and every measurement comes back
+as the cost of queueing.
+
+Do not assert a particular browser's internals from memory. They change, and the
+published bug reports contradict each other across versions. The probe reports
+what this machine does today.
 
 ### `?dev` hot-reload
 
@@ -1192,6 +1333,8 @@ and would otherwise start the flythrough tens of thousands of units downrange.
   at all — it must wrap, or the panel's `overflow:hidden` eats the last one.
 - **`#spi-panel` clips; it never scrolls.** Any new row has to reflow on its own.
 - **`_padSlots` fills with 0, not `def`.**
+- **A zero duration in a fragmented MP4's `mvhd` is correct, not missing.** The
+  same is true of `tkhd` and `mdhd`. "Fixing" them doubles the timeline.
 - **Adding a 13th param to any shader overflows `N_P`.**
 
 ---
@@ -1216,6 +1359,9 @@ reproducible without a GPU.
 | flow strip | drive the real `buildFlowStrip` against a mocked DOM | 3 grid children, RND in the gutter, preset row has no gutter cell, control order SRC→CAM→BANK→OVR→CLR, EXP absent, 8 presets a page, none on the control row, dirty key reacts to `camOn`, `_clrArm` and `_ovrTarget`, target block lights |
 | boot layout | `eval` the real `let genSlots = …` declaration read out of the file | `pos === 0`, `layoutAt(genSlots, 0)` resolves |
 | preset naming | extract `defaultPresetName` + `_MON` + `_p2`, stub `Date` at fixed instants, truncate to the measured 10-character block width | correct at midnight, single-digit months and days; the word `preset` is what gets cut, never the timestamp; 207 distinct visible names across a day |
+| duration repair | build minimal WebM (3 TimecodeScales) and MP4 (4 timescale pairs) fixtures, run the fixers, read the values back | every case round-trips to 10000 ms; fragmented MP4 leaves `mvhd` at 0 and writes `mehd`; fragmented without `mehd` returns `null`; progressive unchanged |
+| export progress | extract `updateExportBtn`, mock the button and label, drive idle → 0% → mid → 100% → overrun → idle | fill matches elapsed, clamps at 100%, class and `--rec` cleared on stop, longest label (126px) fits the button (192px), ticker reads the clock not a counter |
+| export sizing | extract `exportDims` + `updateExportEstimate` + the tables, stub `gl`/`cv`, vary window size and `MAX_TEXTURE_SIZE` | a 640×360 window still records 1920×1080; "as displayed" follows the window; a 2048 limit gives 2048×1152, **not** 2048×2048; 4K-at-draft warns, 4K-at-max does not; buffer is sized before `captureStream` and restored on all 5 exit paths |
 | bank filename | extract `safeBankFile` + `defaultBankName`, drive 12 hostile literals plus 3,000 fuzzed strings of path separators and shell metacharacters | output always matches `^[A-Za-z0-9._-]+\.json$`, never leads with punctuation, never exceeds 69 chars, `../../etc/passwd` → `etc-passwd.json`, all-punctuation input falls back to the dated default |
 
 Method notes that matter:
@@ -1273,9 +1419,12 @@ Each re-verified against this file, this session.
 - **Every control on the top row is delegation-only, by necessity.** Nothing
   enforces it — adding one with an `addEventListener` would work until the next
   rebuild and then silently stop. See *Everything on the top row is rebuilt*.
-- **Nothing warns before a long export take at full resolution.**
 - **The perf overlay measures wall-clock frame time** and cannot separate GPU
-  from main thread. `disjoint_timer_query` would.
+  from main thread. `disjoint_timer_query` would; `ff-check.html` probes for the
+  extension and reports whether this browser exposes it.
+- **The video upload is still unbounded by RENDER CAP.** It is now only issued
+  when something reads it, but when it is issued it is at the source's native
+  resolution. A 4K clip costs 33 MB a frame however small the render buffer is.
 - **Legacy `_bufToState` (pre-V4) is not length-checked** the way V5 is.
 - **`captureScreen` does not run `assessSource`,** and both `loadVideo` and
   `captureScreen` set SAMPLER directly without the gen bypass that `setMode`
@@ -1331,4 +1480,4 @@ verified fact.*
 
 ## Files
 
-`index.html` · `recur-web-project.md` · `README.md`
+`index.html` · `recur-web-project.md` · `README.md` · `ff-check.html`
