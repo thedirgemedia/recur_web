@@ -3,9 +3,9 @@
 Context document for **recur-recur-browser** (aka **recur_web**). Give this to
 Claude at the start of a session.
 
-*Rebuilt from `index.html` on 2026-08-12 — 11,031 lines / 552,483 bytes /
-sha256 `c7382bef fc73abdd 7ab07330 10aff3ec`. `BUILD` reads
-`2026-08-12j · link alpha fix`; bump before deploy, and keep the name
+*Rebuilt from `index.html` on 2026-08-12 — 11,363 lines / 570,057 bytes /
+sha256 `6eceb37c 77907327 2055444b 9839155f`. `BUILD` reads
+`2026-08-12n · blend off on shader/load`; bump before deploy, and keep the name
 **within 77 characters** — see* Panel header *below.*
 
 **Every claim below is derived from the file itself** — its code, its constants
@@ -87,7 +87,7 @@ lighten, darken, overlay, dodge, burn`.
 
 ## Shader tables
 
-**GEN 15 entries, FX 21 — 36 total, 35 with GLSL.** The one entry without `src:`
+**GEN 15 entries, FX 22 — 37 total, 36 with GLSL.** The one entry without `src:`
 is `sample-hold`; that is the durable invariant, and the counts should be
 re-derived from the file rather than trusted here.
 
@@ -140,17 +140,19 @@ end. Formatting across entries is not uniform — `feature-dots` puts
 | 18 | sample-hold | 1 | **no `src:`** — the frozen-frame buffer is the effect |
 | 19 | feature-dots | 12 | `usesPrev`; drives the RG16F material pair and reads the R16F cornerness field; snapped `link-style` |
 | 20 | scatter | 7 | snapped mode selector |
+| 21 | flow-dots | 12 | `usesPrev`; Lagrangian particles — own state texture, reads the flow and cornerness fields |
 
-**Five shaders declare the full 12 params — `squarewaves`, `maze-flight`,
-`quaternion`, `mandelbox` and `feature-dots` — and `N_P`, the V5 per-slot param
-byte count, is also 12. There is no headroom left on any of them.** A thirteenth
+**Six shaders declare the full 12 params — `squarewaves`, `maze-flight`,
+`quaternion`, `mandelbox`, `feature-dots` and `flow-dots` — and `N_P`, the V5
+per-slot param byte count, is also 12. There is no headroom left on any of
+them.** A thirteenth
 param on any shader overflows the share format. Check this before adding one,
 and re-derive the count from the file rather than from this table.
 
 ### `src:` prefixes
 
 The prefix is **not** always `H`. Measured across the tables: `H+` 21 entries,
-`H+PAL+` 6, `H+HUESHIFT+` 3, `H+HSV+` 4, `H+PAL+HUESHIFT+` 1. Any tool that
+`H+PAL+` 7, `H+HUESHIFT+` 3, `H+HSV+` 4, `H+PAL+HUESHIFT+` 1. Any tool that
 anchors on `` src: H+` `` silently skips a third of the table while still
 reporting "no failures". Match `src:\s*((?:[A-Z][A-Z0-9_]*\s*\+\s*)+)` and
 resolve each name.
@@ -307,7 +309,9 @@ whichever source the blend picker names.
 | `fboHist` | persistent trail history |
 | `fboHold` | sample-and-hold frozen frame |
 | `fboMat[2]` | RG16F material-coordinate pair for `feature-dots`, storing **displacement**, not the absolute label |
-| `fboCorner` | R16F dense cornerness for the frame, `NEAREST`, written by `CORNER_SRC` |
+| `fboCorner` | RG16F written by `CORNER_SRC`, `NEAREST` — `.r` corner, `.g` edge |
+| `fboFlow` | RG16F per-texel optical flow in uv/frame, written by `FLOW_SRC` |
+| `fboPart[2]` | RGBA16F particle state for `flow-dots`, `PART_TEX` square and **canvas-independent** |
 
 `fbo`/`fbo2`/`fbo3` are needed by every path. The other four RGBA8 buffers and
 the RG16F pair are allocated **on first use** — the file's note is that
@@ -315,10 +319,15 @@ allocating all of them costs 200 MB+ at Retina, enough for iOS Safari to drop
 the tab. Callers null-check, so a failed allocation disables that effect, not
 the frame.
 
-`fboMat` and `fboCorner` are lazy like the rest, both are dropped by `makeFBO` on
-resize, and neither is reaped — their liveness is identical to the one effect
-that reads them. `_bufMB` counts the pair at `2 × px × 4` and `fboCorner` at
-`px × 2`.
+`fboMat`, `fboCorner` and `fboFlow` are lazy like the rest, all are dropped by
+`makeFBO` on resize, and none is reaped — their liveness is identical to the
+effect that reads them.
+
+**`fboPart` is the exception and is deliberately not dropped on resize.** It is
+`PART_TEX` square whatever the canvas is, because the cell index wraps into it
+rather than indexing it directly, so a resize cannot invalidate it — and throwing
+it away would restart every particle's life on a window drag. It is also why a
+pitch change costs a remap and nothing else.
 
 `_makeAttached` checks `getError` and `checkFramebufferStatus` and returns `null`
 on failure; `makeFBO` returns a boolean.
@@ -343,17 +352,29 @@ The recurring correctness risk. Three guards worth knowing:
 
 FX blend gate: `slotAmt < 0.999 || slotMode !== 0`.
 
-### The two per-frame prepasses
+### The per-frame prepasses
 
-`renderWithFX` runs two fullscreen passes before the FX chain, both gated on
-`chainNeedsPrev()` and both taking the **FX chain input** as their source:
-`advectMaterial` advances the material-coordinate field into `fboMat[dst]`, and
-`renderCorner` bakes cornerness into `fboCorner`.
+`renderWithFX` runs up to four passes before the FX chain, all taking the **FX
+chain input** as their source:
+
+| pass | writes | wanted by |
+|---|---|---|
+| `renderCorner` | `fboCorner` | both dot effects — always run when either is live |
+| `advectMaterial` | `fboMat[dst]` | `feature-dots` only |
+| `renderFlow` | `fboFlow` | `flow-dots` only |
+| `updateParticles` | `fboPart[dst]` | `flow-dots` only |
+
+**They are gated per effect, not by `chainNeedsPrev()` alone.** The single loop
+over `fxSlots` collects both the material params and the particle params in one
+walk and sets a flag for each; running all four whenever either effect is live
+would pay for both. `updateParticles` also runs at `PART_TEX` square rather than
+canvas size and therefore sets its own viewport instead of going through
+`drawQuad` — about 260k texels against 2M.
 
 They read the chain input rather than each slot's own input, which is the rule
 `uPrev` and `uMat` already followed. The consequence is worth stating: **a second
-`feature-dots` slot further down the chain sees the chain input's features, not
-the features of whatever the effects above it produced.**
+dot slot further down the chain sees the chain input's features, not the features
+of whatever the effects above it produced.**
 
 `renderCorner` exists because `fdCorner` used to run inline, 16 taps per candidate
 site per fragment — up to 400 taps a fragment at the old dot-size ceiling, with
@@ -374,18 +395,42 @@ the sub-texel phase the inline version averaged over. The 4×4 patch sits at ±0
 and ±1.5 texels: evaluated at a texel *centre* every tap is a 50/50 blend of two
 texels, at a texel *corner* every tap is exact. The prepass picks the blurry
 phase, and cornerness comes back at **0.54–0.73 of the inline value depending on
-content**. The sensitivity range was rescaled ×1.8 to recentre it — measured on
-the dot *radius*, which is what is visible and which the clamp inside `k`
-compresses, that moves −8.9% mean / −12.2% worst to −0.8% / −3.0%. The residual
-~4-point spread is content, not calibration, and no constant closes it.
+content**, which is dots about 9% smaller in radius.
+
+**Do not recentre the sensitivity range to compensate.** It was tried and
+reverted. `k = pow(clamp(c*sens,0,1),gamma)` saturates, so extra gain lands as
+more cells pinned at `k = 1`, not as bigger dots — a ×1.8 recentre matched the
+mean radius to −0.8% while taking the share of *background* cells at `k > 0.5`
+from 7.6% to 31.4%. Those are full-size dots on flat areas, and a flat area has
+no image gradient, so Lucas-Kanade returns no flow there and the dot cannot
+track anything: it sits still and recolours. The effect reads as having stopped
+following the image altogether. Mean radius is the wrong metric here precisely
+because the clamp compresses it — the compression *is* the saturation.
 
 `fboCorner` is `NEAREST`. Bilinear reads average across texels and so average away
 exactly the peaks that make a corner a corner: `LINEAR` doubles both the p99 error
 against the inline version (0.69 vs 0.38) and the dot-radius error (0.45 vs 0.28).
 
-`EXT_color_buffer_float` is now required for `feature-dots` to draw at all, not
-only for tracking. The `I` overlay's float-rt line already claimed this; it is now
-true.
+**`fboCorner` carries two channels.** `.r` is the smaller eigenvalue of the
+structure tensor — Shi-Tomasi cornerness, which is corner-selective *by
+construction*: on a straight edge one eigenvalue is large and the other collapses,
+measured at **880× apart**, so an edge scores near zero and no amount of gain
+recovers it. `.g` is the larger eigenvalue, which is what does respond to an edge,
+stored at ×0.125 because that is the measured frame-wide ratio between the two, so
+one sensitivity setting means roughly the same thing at either end of a blend.
+`feature-dots` reads `.r` only and is unaffected; `flow-dots` blends with `edge`.
+
+`FLOW_SRC` is not `ADVECT_SRC` with the accumulator removed — it also samples
+**two texels apart rather than one**. Lucas-Kanade linearises the image between
+its gradient taps, so the tap spacing is what bounds the largest displacement it
+can resolve, roughly 1.5 px per texel of spacing. At step 1 that is about 2 px a
+frame, which a hand-held pan passes easily, and everything beyond it reads as *no
+motion at all* rather than as fast motion. Step 2 buys the range for spatial
+detail a dot lattice does not need. The clamp scales with the step, and the
+singularity gate is 1e-9 rather than 1e-7 so weak-gradient areas still report.
+
+`EXT_color_buffer_float` is required for both dot effects to draw at all, not only
+for tracking. The `I` overlay's float-rt line reports it.
 
 ### Uniforms
 
@@ -404,6 +449,10 @@ the three set-mode buttons, `toggleCamera`. Do not add another copy.
 - SHADER clears an **all-off** bypass set on arrival; a partial per-slot bypass
   is kept.
 - `applyState` does **not** use `setMode` — a preset carries its own bypass set.
+- **Arriving in SHADER clears `blendActive`.** Landing on a shader half-mixed
+  with whatever clip was loaded reads as the shader being broken. Because this
+  lives in `setMode` and `applyState` does not route through it, a preset still
+  keeps the blend state it saved.
 
 Tapping a gen button deliberately does **not** force SHADER mode: forcing the
 switch dropped the camera/video base entirely, so tapping any gen while in LIVE
@@ -521,7 +570,12 @@ for the file once per session. A SAMPLER preset stores
 - `requestSource` runs **last** in `applyState` and never blocks; a missing clip
   raises a dismissible bar with a LOCATE button. `_srcDeclined` is per-session.
   Locating a file once covers every preset using it for the rest of the session.
-- `bindSourceFile` restores `modeIdx` after `loadVideo`, which forces SAMPLER.
+- `loadVideo` clears `blendActive` as well as forcing SAMPLER: a clip you just
+  opened is the thing you want to look at, not a half-mix of it with the gen
+  stack. **`bindSourceFile` therefore stashes and restores both** — it already
+  did so for `modeIdx`, and without the same treatment for the blend, locating a
+  preset's missing clip would silently discard the value the preset saved. That
+  is the same failure `applyState` once had when it hardcoded `blendActive` true.
 - in/out are applied in `assessSource`, not `applyState`, and clamped to the real
   duration. `_pendingInOut` carries them across.
 
@@ -1205,7 +1259,7 @@ unaffected.
 The shared header is `precision mediump float`, which is **genuine fp16 on
 mobile and Apple Silicon**. Precision is managed at two levels.
 
-**Global `precision highp` — seven programs.** A global precision statement
+**Global `precision highp` — nine programs.** A global precision statement
 applies to everything after it, so it promotes the whole shader without touching
 `H` or any other entry — but note it cannot reach back to a varying `H` already
 declared, so `vU` stays mediump in all seven. See *The shared header `H`*.
@@ -1219,6 +1273,8 @@ declared, so `vU` stays mediump in all seven. See *The shared header `H`*.
 | feature-dots | the lattice coordinate chain has to be exact end to end; the shader is texture-bound rather than ALU-bound, so the promotion is close to free |
 | CORNER_SRC | the gradient products land at 1e-2 to 1e-4, which mediump bands into visible steps |
 | ADVECT_SRC | a half-pixel error in the semi-Lagrangian fetch compounds every frame |
+| FLOW_SRC | same tensor maths as ADVECT_SRC, same reason |
+| PART_SRC | a particle integrates its position over hundreds of frames, so the step has to be exact |
 
 **Local `highp` declarations** — twelve more shaders promote individual values,
 and function params receiving one must be `highp` too:
@@ -1400,6 +1456,37 @@ and would otherwise start the flythrough tens of thousands of units downrange.
     - **Link width is `hw·sqrt(k)` and its alpha reaches 1**, exactly as the dot
       radius is `dotR·sqrt(k)` with alpha reaching 1. See *Traps* — the first cut
       multiplied alpha by `k` instead and the links were invisible.
+- **flow-dots** (FX 21, 12p, `usesPrev`) — the Lagrangian counterpart to
+  `feature-dots`, and the reason both exist. `feature-dots` lays a lattice out in
+  an advected coordinate field, which is **Eulerian**: one continuous field, one
+  clock, and a relax term that pulls every point back toward rest every frame. A
+  dot there stretches away and settles back rather than travelling — at the
+  default settle that is a 0.42 s round trip — and turning the relax off is not
+  an option, because the field then shears without bound and the local area ratio
+  runs to zero within seconds. **A field has nowhere to put a per-dot lifetime.**
+  - `flow-dots` gives every dot its own position and age in a state texture, one
+    texel per particle. It spawns on a feature, is carried by the measured flow
+    for its life, and respawns. Nothing pulls it home.
+  - State is `(pos.xy, t, str)`. `pos` is the position **within its cell**, so
+    values stay small and RGBA16F is enough, and the draw pass reconstructs the
+    world position as `cell + pos` and never needs the spawn hash — there is no
+    second copy of it to drift. `t` is age normalised to `[0,1)` so the draw pass
+    can fade without recomputing the staggered lifetime. `str` is cornerness
+    sampled **once at spawn and held**: re-read every frame it would fade a dot
+    out as the feature it is following moves off the point it started from, which
+    is the opposite of tracking. `str = 0` means "never spawned", so a zero-filled
+    texture seeds itself on the first frame and needs no seed pass.
+  - Lifetimes are staggered by a per-particle hash, so the field never blinks as
+    one, and `fade` softens both ends so a respawn does not pop.
+  - **Travel is bounded by the sweep, not by anything physical** — a fragment
+    cannot draw a particle it does not look at. The window has to cover
+    `drift + dot-size + jitter/2 + soft`, which at the maxima is
+    `2.0 + 1.5 + 0.5 + 0.375 = 4.375`, so the sweep is ±5 and `drift` respawns a
+    particle early if it wanders further. A cell-centre reject runs before the
+    state tap, so only settings that need the reach pay for the 121 cells.
+  - `edge` blends `fboCorner.r` toward `.g`, corner-selective toward
+    edge-responsive. `flow` 0.25 is exactly the measured speed; the range runs to
+    4× because Lucas-Kanade over a 3×3 window systematically under-reads.
 - **sample-hold** (FX 18, 1p) — the only entry with no `src:`; the frozen-frame
   buffer *is* the effect.
 
@@ -1451,6 +1538,22 @@ and would otherwise start the flythrough tens of thousands of units downrange.
 - **Never store absolute coordinates in a half-float buffer.** ULP doubles at
   every power-of-two binade. Store displacement — it also makes a zero-filled
   texture identity for free.
+- **A displacement field cannot express a per-particle lifetime.** It is one
+  continuous field sharing one clock. "Spawn here, follow the motion, respawn
+  after a set time" is per-particle state and needs a particle, not a field. The
+  symptom of asking a field to do it is dots that stretch away and snap back.
+- **Shi-Tomasi ignores edges on purpose.** It is the *smaller* eigenvalue, and on
+  a straight edge that collapses to ~1/880 of the larger one. If edges need to
+  register, take the larger eigenvalue — do not turn the gain up on a number that
+  is already zero.
+- **Lucas-Kanade's tap spacing bounds the motion it can measure**, at roughly
+  1.5 px per texel of spacing. Past that it does not read fast motion as fast, it
+  reads it as none at all.
+- **Mean radius is the wrong metric for `feature-dots` gain.** `k` saturates, so
+  a gain change that matches the mean can be entirely made of newly-saturated
+  cells. Check the share of cells at `k = 1`, and the share of *featureless* ones
+  drawing strong dots — those cannot track, because there is no gradient for the
+  flow solve to work on.
 - **`feature-dots` applies alpha twice.** `acc` is scaled by `a`, then
   `FC = mix(backdrop, acc, cov)` scales by `cov`, so on the default black
   backdrop anything short of `a = 1` is squared. A dot survives that because its
@@ -1460,7 +1563,8 @@ and would otherwise start the flythrough tens of thousands of units downrange.
   `k` of 0.2, which reads as the param doing nothing at all.
 - **Baking a texel-scale function into a prepass is not free.** It fixes the
   sub-texel phase the inline version averaged over. Cornerness came back at
-  0.54–0.73 of inline, content-dependent, and needed a measured recentre.
+  0.54–0.73 of inline, content-dependent, and the obvious compensation — more
+  gain — made it worse rather than better. See the entry above.
 
 ---
 
@@ -1491,9 +1595,14 @@ reproducible without a GPU.
 | dot-size cap | isolated site at k=1, coverage the ±2 window cannot draw, swept over radius and jitter phase | 0.00% at 1.75, 0.21% at 2.0, 62% at 4.6 with diagonal/axial = 1.414 exactly |
 | link window | ±1, ±2, ±3 source windows against a wide reference, mesh and web, jitter 0 to max | ±2 misses exactly 0; ±1 misses 0.09% mesh / 1.35% web at max jitter |
 | link bound | conservative cell-level reject asserted against the exact segment test over the whole sweep | never drops an edge the exact test keeps; 50 edges → ~15, 100 → ~31 |
-| prepass fidelity | cornerness exact-at-site vs baked-and-read, 200k random sub-texel positions, four content types | 0.54–0.73 of inline; NEAREST halves the error against LINEAR; ×1.8 recentre leaves −0.8% mean radius error |
+| prepass fidelity | cornerness exact-at-site vs baked-and-read, 200k random sub-texel positions, four content types | 0.54–0.73 of inline; NEAREST halves the error against LINEAR |
+| sensitivity recentre | share of cells saturating `k`, and of *background* cells at k > 0.5, textured subject over a soft background | ×1.8 matched mean radius but took background k > 0.5 from 7.6% to 31.4% — rejected |
 | 0-is-neutral | brace-match the `if (link>0.)` block, assert `uP11`/`uP12` appear nowhere outside it and nothing but `acc`/`cov` escapes | proven statically |
 | help overlay | snapped params re-derived from the shader table and diffed against the help text | caught the list missing `bitcrush 1-bit`, `ascii invert` and `scatter mode` |
+| eigenvalue split | structure tensor on a frame with straight, oblique and curved edges plus corner-rich texture | smaller/larger differ 880× on a straight edge, 10× at a corner, 7.6× frame-wide — the ×0.125 store scale |
+| particle travel | port of `PART_SRC`, steady 1.26 px/frame pan, per-cell staggered lifetimes | particles travel and respawn; at default drift they hit the cap in ~12 frames against a 45–54 frame life, so `drift` is what limits, not `life` |
+| sweep bound | `drift + dot-size + jitter/2 + soft` at every maximum, across the whole pitch range | 4.375 worst case at the finest pitch, inside the ±5 window |
+| blendActive writes | every assignment in the file enumerated and classified | six: declaration, manual toggle, `applyState`, `setMode`, `loadVideo`, `bindSourceFile` restore — `applyState` untouched |
 | bank filename | extract `safeBankFile` + `defaultBankName`, drive 12 hostile literals plus 3,000 fuzzed strings of path separators and shell metacharacters | output always matches `^[A-Za-z0-9._-]+\.json$`, never leads with punctuation, never exceeds 69 chars, `../../etc/passwd` → `etc-passwd.json`, all-punctuation input falls back to the dated default |
 
 Method notes that matter:
@@ -1563,13 +1672,32 @@ Each re-verified against this file, this session.
 - **`captureScreen` does not run `assessSource`,** and both `loadVideo` and
   `captureScreen` set SAMPLER directly without the gen bypass that `setMode`
   applies.
-- **`feature-dots` is at the `N_P` ceiling.** 12 of 12, as are `squarewaves`,
-  `maze-flight`, `quaternion` and `mandelbox`. Nothing can be added to any of
-  them without changing the share format.
+- **Six shaders are at the `N_P` ceiling.** `squarewaves`, `maze-flight`,
+  `quaternion`, `mandelbox`, `feature-dots` and `flow-dots`, 12 of 12. Nothing
+  can be added to any of them without changing the share format.
+- **`feature-dots` and `flow-dots` overlap and neither is retired.** They share
+  the cornerness field and answer the same brief two different ways — a lattice
+  in a field, and particles. `feature-dots` is the one with presets behind it;
+  `flow-dots` is the one that actually travels. If `flow-dots` wins, the material
+  field, `ADVECT_SRC` and roughly a third of `feature-dots` come out with it.
+- **`flow-dots` travel is capped by the sweep, not by the footage.** At the
+  default pitch `drift` limits before `life` does on anything but slow motion.
+  Raising it means widening the sweep, which is quadratic in cells. A scatter
+  write — particles registered in the cell they currently occupy rather than the
+  one they came from — would remove the cap, and is not expressible in a fragment
+  shader.
+- **The flow step is fixed at 2 texels.** That bounds resolvable motion at about
+  3 px a frame. A pyramid — measuring at half and quarter resolution and
+  combining — is what actually removes the ceiling; widening the step further
+  trades away the spatial detail the lattice sits on.
+- **`captureScreen` does not clear `blendActive`,** where `loadVideo` does. It
+  already diverges from `loadVideo` in not running `assessSource`.
 - **The prepass changed the look and it cannot be calibrated away.** Cornerness
-  is 0.54–0.73 of the inline value depending on content; the ×1.8 sensitivity
-  recentre moves the distribution onto the old look, but the ~4-point spread is
-  content, not calibration.
+  is 0.54–0.73 of the inline value depending on content, so dots run about 9%
+  smaller in radius than the inline version. Recentring the sensitivity range was
+  tried and reverted — it restores the mean by saturating `k`, which puts
+  full-size dots on featureless areas that have no flow to follow. See *The two
+  per-frame prepasses*.
 - **Links draw underneath the dots.** They share `acc`/`cov`, and at the default
   pitch the dot radius is larger than the cell spacing, so a densely featured
   region is solid dots with nothing visible between them. If that turns out to be
@@ -1581,9 +1709,11 @@ Each re-verified against this file, this session.
   `onResize` halve-and-retry path, `reapFBOs` timing, the render cap,
   `texSubImage2D` on the video upload, the quaternion and mandelbox camera rigs,
   every measured range in this document that is attributed to a CPU port, the
-  cornerness prepass and its `NEAREST` read, the ×1.8 sensitivity recentre, both
-  `feature-dots` loop nests compiling within driver limits on mobile, and every
-  link constant above.
+  cornerness prepass and its `NEAREST` read, both `feature-dots` loop nests
+  compiling within driver limits on mobile, every link constant above, and the
+  whole of `flow-dots` — the particle state round-tripping through RGBA16F, the
+  121-cell sweep compiling and running within budget, and whether the 2-texel
+  flow step reads real camera motion as well as it reads a synthetic pan.
 
 ---
 
@@ -1632,3 +1762,6 @@ verified fact.*
 ## Files
 
 `index.html` · `recur-web-project.md` · `README.md` · `ff-check.html`
+
+*This document was spliced section by section against a file it did not write.
+Where it and `index.html` disagree, the file wins — re-derive rather than trust.*

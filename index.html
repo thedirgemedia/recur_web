@@ -1488,6 +1488,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">glitch</span><span class="hk-desc">Digital corruption stack. intensity = horizontal slice displacement; rate = how fast the glitch state jumps; channel = RGB split; slices = number of horizontal bands, scaling all the way up to one-per-scanline (per-pixel) at max; variation = pulls neighbouring slices together and occasionally stretches a band to a single repeated line. blocks = macroblock corruption, modelled on how a codec actually fails: a run of consecutive blocks along the scan share one wrong motion vector, so damage arrives as coherent horizontal drags of varying length rather than evenly scattered squares, and it runs at two block sizes at once so the chunks are not all the same size. Displacement snaps to the block lattice, which is what makes it tile like block damage instead of smearing. noise = digital dropout, cycling the failure modes a broken MPEG/JPEG frame really shows — DC-only blocks (detail gone, flat average colour), scrambled-AC blocks (a DCT basis wave showing through as a striped ripple), chroma desync (luma survives, colour comes from the wrong place) and channel roll. Dropouts share the run structure and cluster on blocks that are already displaced, so the two read as one fault. crush = colour bit-crush/quantise (down to ~2 levels), wave = analog sine warp / horizontal wobble. New features sit at 0 (off) on presets saved before they existed</span></div>
     <div class="hk-row"><span class="hk-key">scatter</span><span class="hk-desc">Cuts the frame into a square grid and rearranges it. grid sets how many cells across, from a handful of big slabs up to 48 fine tiles. shuffle is how far a cell may travel, up to ten cells away, and amount is how many of them move at all — the rest pass through untouched. pixelate quantises inside each cell, from full detail down to one flat colour per tile. rate re-rolls the arrangement on a timer; at 0 it holds still, so you get a fixed scramble rather than a churn. seam darkens a border inside each cell so the grid reads as laid tiles. mode picks how cells move: 0 scatter (each jumps somewhere random), 1 swap (cells trade in pairs — a true permutation, so nothing is duplicated or lost), 2 rows (whole rows slide sideways), 3 columns (whole columns slide vertically), 4 spin (cells stay put but their contents rotate in 90 degree steps)</span></div>
     <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Marks corner features with coloured dots that stay attached to what they mark. Detection is Shi-Tomasi cornerness measured densely across the frame, with one candidate per cell, so pitch alone sets density and dots cannot clump. pitch is the cell spacing and sensitivity how readily a point counts as a feature. dot-size and jitter shape the dots — dot-size follows a straight scale for the lower third of its travel and then eases off, because a dot wider than about two cells cannot be found by the fragments at its own edge and would draw as a square rather than a circle. tint, backdrop and gamma set colour. track lays the lattice out in the motion of the image rather than on the screen, so a dot slides with the thing it marked instead of the grid blinking as features cross it, and settle sets how strongly that field relaxes back toward the grid each frame — too little and it shears apart, too much and dots snap back to the lattice. link joins each dot to its neighbours: link is the line thickness and 0 turns links off, link-style picks mesh (a four-sided net) or web (mesh plus both diagonals), and cohere sets how closely two dots must be carrying the same material in the same direction before they are joined, so a net holds together across a moving object and tears at the edge of one. At track 0 there is no motion to compare and the net simply joins neighbours. Lines take their width from feature strength the same way dots take their radius, and they draw underneath the dots — at a fine pitch with large dots there may be nothing left to see between them, so open the pitch or drop dot-size to read the net. Needs float render targets; without them feature-dots does not draw, which the I overlay reports</span></div>
+    <div class="hk-row"><span class="hk-key">flow-dots</span><span class="hk-desc">The same idea as feature-dots but built the other way round, and the one to reach for if you want dots that actually travel. feature-dots lays a grid out in a field that follows the image and is pulled back toward its rest state every frame, so dots stretch away and settle back rather than going anywhere. Here each dot is its own thing: it spawns on a feature, is carried by the measured motion for its lifetime, and then respawns. Nothing pulls it home. flow scales how closely it follows the motion — 0.5 is exactly the measured speed, higher overdrives it. life is how long a dot lasts before respawning, staggered per dot so the field never blinks all at once, and fade softens the ends so a respawn does not pop. drift caps how far a dot may wander before it is respawned early; it exists because a dot can only be drawn by fragments that look for it, and the search is five cells wide. edge blends what counts as a feature: at 0 only corners register, which is what corner detection is for and why a plain straight edge scores almost nothing; wind it up and contours, outlines and long edges start carrying dots too. pitch, sensitivity, dot-size, jitter, tint, backdrop and gamma work as they do on feature-dots. Needs float render targets, as feature-dots does</span></div>
     <div class="hk-row"><span class="hk-key">maze-flight</span><span class="hk-desc">Endless flight through an infinite fractal maze — a solid universe with corridors carved at three nested scales, so every wall is itself a smaller maze. Ported from a CC0 shader by ksin on glslop. speed sets how fast you travel (0 freezes the frame), fov widens or narrows the lens, turns is how hard the path wanders — at 0 it runs dead straight. width sets corridor size and density how many walls open, so the two together take you from tight warren to open hall. detail switches in the second and third nested scales at a third and three-quarters of its travel, and also buys the extra march steps needed to resolve them — it is the performance control, so drop it first if the frame rate suffers. It ships at 0.6, which leaves the third scale off: those corridors are under a tenth of a unit wide and sweep past the camera faster than a frame, which is most of what reads as sparkle. Push it past 0.75 for the full fractal and expect the near field to get busy. glow lights convex edges, circuits runs light along the wall grooves, windows lights sparse wall panels. hue sets the neon colour and drifts slowly on its own, saturation and fog finish the image. It ignores video entirely, so in LIVE mode set the slot blend to screen or add — the corridors are near black and the footage shows through them while the neon stays lit. Two slots running it land in different parts of the maze</span></div>
     <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in — turn it up to come closer, and the top of the travel puts the eye inside the object, so you fly through the structure rather than orbiting it. Which forms enclose you there varies: at the very top, form around a quarter and around one wrap right around you, form near three quarters opens back out into a gap. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
     <div class="hk-row"><span class="hk-key">mandelbox</span><span class="hk-desc">Folded architecture rather than a creature — infinite slabs, corridors and rounded corners cut out of one solid, raymarched on the same turntable as quaternion. SHAPE: scale is the main form control and runs from stocky and rounded to lacy and spindly; the slider is warped so equal moves give equal change rather than doing most of its work at one end. fold sets the size of the box the space keeps folding back into, which is the strongest shape knob here — but the camera is normalised against it, so the object stays the same size on screen and fold changes only what it looks like. morph drifts scale and fold on a small circle so the structure breathes, and at 0 it holds still. detail sets iterations and march steps together. CAMERA: spin orbits, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in, and at the top of its travel you are inside the folds looking out through them. speed drives the morph and tumble only. COLOUR: hue rotates the palette, palette picks which orbit trap drives it, glow is the rim light, shade balances flat against modelled. The background is black, so on a screen or add blend it floats over video</span></div>
@@ -1563,7 +1564,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">FACING</span><span class="hk-desc">Switch between front and rear camera — only shown on touch devices, since desktops generally ignore facing mode</span></div>
     <div class="hk-row"><span class="hk-key">rotate / flip / mirror</span><span class="hk-desc">The last three icons in the SRC row: rotate the source 90° at a time (the icon shows the current angle), flip it vertically, mirror it horizontally. Each lights when active</span></div>
     <div class="hk-row"><span class="hk-key">BLEND row</span><span class="hk-desc">Only appears in SHADER mode, since that is the only mode that composites generated output against footage. The two overlapping circles mark the row; the two icons pick what it blends against — a play symbol for the loaded video, a camera for the live camera. The on/off button toggles the blend, and the text beside it shows the current mode and amount, which are set from the BLEND row in the params above</span></div>
-    <div class="hk-row"><span class="hk-key">blend toggle</span><span class="hk-desc">The rightmost icon in the SRC row, marked blend. One switch: either the source plays straight through, or the whole generative stack is composited over it. It only appears in SAMPLER and LIVE, the two modes that bypass the gen chain by default so the shaders don't hide your footage — SHADER bypasses nothing so it isn't needed there. For per-slot control, double-click blocks in the flow strip</span></div>
+    <div class="hk-row"><span class="hk-key">blend toggle</span><span class="hk-desc">The rightmost icon in the SRC row, marked blend. One switch: either the source plays straight through, or the whole generative stack is composited over it. It only appears in SAMPLER and LIVE, the two modes that bypass the gen chain by default so the shaders don't hide your footage — SHADER bypasses nothing so it isn't needed there. For per-slot control, double-click blocks in the flow strip It starts off in two places: arriving in SHADER, and loading a clip. Landing on a shader half-mixed with whatever was already loaded reads as the shader being broken, and a clip you just opened is the thing you want to look at. A preset keeps whatever it saved — loading one does not go through the mode switch, and locating a preset's missing clip restores the saved setting after the load.</span></div>
 
     <div class="hk-section">Export video</div>
     <div class="hk-row"><span class="hk-key">record</span><span class="hk-desc">Sits with flip V and rot 90&deg; in the VIDEO section. Everything a take needs is asked for when you press it, so there is nothing to set up first. While a take runs the button becomes the progress bar &mdash; it fills left to right and reads elapsed, total and percentage, so you can see how far in you are without leaving the output. Tap it again to stop early; the file keeps whatever was recorded</span></div>
@@ -1774,7 +1775,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // 30px of 408px, so at 8px Courier New (0.6em advance) it has 372px to itself.
 // Longer is not broken — the line wraps — but it costs vertical space in a 40vh
 // panel every session, not just the one you named it in.
-const BUILD = '2026-08-12j · link alpha fix';
+const BUILD = '2026-08-12n · blend off on shader/load';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -3766,16 +3767,17 @@ void main(){
   vec2 fc=gl_FragCoord.xy;                  // highp, exact, pixel centre
   vec2 uv=fc/uRes;
   float spacing=mix(4.,40.,uP1*uP1);
-  // Recentred x1.8 against the old inline range. The 4x4 patch sits at +-0.5 and
-  // +-1.5 texels, so at a texel centre every tap is a 50/50 blend of two texels
-  // and at a texel corner every tap is exact. Inline, a site landed anywhere in
-  // that range and averaged over it; baked, the phase is fixed at the blurriest
-  // one, and cornerness comes back at 0.54-0.73 of the inline value depending on
-  // content. Measured on the dot RADIUS - which is what is visible, and which the
-  // clamp inside k compresses - that is -8.9% mean, -12.2% worst. x1.8 puts it at
-  // -0.8% mean, -3.0% worst. The residual 4-point spread is content, not
-  // calibration, and no constant closes it.
-  float sens   =mix(252.,3.6,uP2);
+  // NOT recentred against the old inline range, deliberately. Baking cornerness
+  // costs 0.54-0.73 of the inline value, and scaling sens back up to match the
+  // mean dot radius was a mistake: k = pow(clamp(c*sens,0,1),gamma) saturates,
+  // so the extra gain lands as MORE CELLS PINNED AT k = 1 rather than as bigger
+  // dots. Measured on a textured subject over a soft background, x1.8 took the
+  // share of background cells at k > 0.5 from 7.6% to 31.4% - full-size dots on
+  // flat areas, which have no image gradient, so Lucas-Kanade finds no flow
+  // there and those dots cannot track anything. They sit still and recolour,
+  // which reads as the whole effect having stopped following the image.
+  // The honest cost of the prepass is dots ~9% smaller in radius. Pay it.
+  float sens   =mix(140.,2.,uP2);
   // dot-size. A fragment only ever tests sites within its own +-2 cell window,
   // so a radius past ~2 cells draws a truncated dot. Measured on an isolated
   // site at k=1, the fraction of the dot the window cannot draw is 0.00% at
@@ -4022,6 +4024,81 @@ void main(){
   }
   FC=vec4(col,1.);}`
   },
+  {
+    // Lagrangian counterpart to feature-dots. Where that one lays a lattice out
+    // in an advected coordinate field - which is Eulerian, so every point shares
+    // one clock and the relax term drags them all back to where they started -
+    // this one gives every dot its own position and its own age. A dot spawns on
+    // a feature, is carried by the flow for its lifetime, and respawns. Nothing
+    // pulls it home, so there is no stretch-and-snap.
+    // Travel is bounded by the +-5 cell sweep, not by anything physical: a
+    // fragment cannot draw a particle it does not look at. The window has to
+    // cover drift + dot-size + jitter/2 + soft, which at the maxima is
+    // 2.0 + 1.5 + 0.5 + 0.375 = 4.375, so 5 is the smallest that fits.
+    name: 'flow-dots',
+    usesPrev: true,
+    params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','flow','life','drift','fade','edge'],
+    def: [0.450, 0.413, 0.350, 0.700, 0.984, 0.000, 0.400, 0.500, 0.400, 0.600, 0.250, 0.350],
+    src: H+PAL+`
+precision highp float;
+uniform sampler2D uPart;
+uniform vec2 uCells;
+float pHash(vec2 p){
+  p=fract(p*vec2(123.34,456.21));
+  p+=dot(p,p+45.32);
+  return fract(p.x*p.y);
+}
+void main(){
+  vec2 fc=gl_FragCoord.xy;
+  vec2 uv=fc/uRes;
+  float spacing=mix(4.,40.,uP1*uP1);
+  float dotR   =mix(.04,1.5,uP3);
+  float drift  =mix(.25,2.,uP10);
+  float fade   =clamp(uP11,.02,.49);
+  vec2  shCtr  =uRes*.5;
+  // No material field here: the lattice is plain screen space and the particles
+  // do the moving. That is the whole difference.
+  vec2 gp=(fc-shCtr)/spacing;
+  vec2 base=floor(gp);
+  float soft=max(.02,1.5/spacing);
+  float lim=dotR+soft;
+  float reach=drift+lim;                    // furthest a cell's particle can reach
+  vec2 hc=floor(uCells*.5);
+
+  vec3 acc=vec3(0.);
+  float cov=0.;
+
+  for (int oy=-5;oy<=5;oy++){
+  for (int ox=-5;ox<=5;ox++){
+    vec2 cell=base+vec2(float(ox),float(oy));
+    // Reject on the cell centre before the state tap - the particle is somewhere
+    // within drift of it, so anything further than reach cannot contribute.
+    // This is what keeps the 121-cell window affordable: only the settings that
+    // need the reach pay for it, and at the defaults most cells never get read.
+    vec2 cv=gp-(cell+.5);
+    if (dot(cv,cv)>reach*reach) continue;
+    vec4 st=texture(uPart,(mod(cell+hc,uCells)+.5)/uCells);
+    if (st.w<=0.) continue;                 // never spawned
+    vec2 dv=gp-(cell+st.xy);
+    float d2=dot(dv,dv);
+    if (d2>lim*lim) continue;
+    // Fade in and out across the life so a respawn does not pop.
+    float k=st.w*min(smoothstep(0.,fade,st.z),1.-smoothstep(1.-fade,1.,st.z));
+    if (k<.02) continue;
+    // Strength sets the RADIUS and alpha still reaches 1, as in feature-dots -
+    // main() applies alpha twice (acc is scaled by a, then FC scales by cov), so
+    // anything short of 1 gets squared on a black backdrop.
+    float r=dotR*sqrt(k);
+    float a=1.-smoothstep(r-soft,r+soft,sqrt(d2));
+    if (a<=0.) continue;
+    vec2 rp=clamp(((cell+st.xy)*spacing+shCtr)/uRes,0.,1.);
+    acc+=mix(texture(uTex,rp).rgb,pal(fract(pHash(cell+3.7)+uTime*.02),1.),uP5)*a;
+    cov=max(cov,a);
+  }}
+
+  FC=vec4(mix(texture(uTex,uv).rgb*uP6,acc,cov),1.);
+}`
+  },
 ];
 
 const PASS_SRC = H+`void main(){ FC=texture(uTex,vU); }`;
@@ -4058,10 +4135,123 @@ void main(){
   }
   float ht=.5*(Jxx+Jyy);
   float dt=.5*(Jxx-Jyy);
-  // Raw, not sensitivity-scaled: sens and gamma are per-slot and modulated, so
-  // they stay in the consuming shader. R16F rather than R8 because the value
-  // lands at 1e-2 to 1e-4 and 8 bits would quantise the low end to zero.
-  FC=vec4(max(0.,ht-sqrt(max(0.,dt*dt+Jxy*Jxy))),0.,0.,1.);
+  float rad=sqrt(max(0.,dt*dt+Jxy*Jxy));
+  // .r is the SMALLER eigenvalue - Shi-Tomasi cornerness, which is corner-
+  // selective by construction: on a straight edge one eigenvalue is large and
+  // the other collapses, measured at 880x apart, so edges score near zero.
+  // .g is the LARGER one, which is what does respond to an edge. Scaled by 1/8
+  // because that is the measured frame-wide ratio between them, so one
+  // sensitivity setting means roughly the same thing at either end of a blend
+  // between the two.
+  // Raw otherwise, not sensitivity-scaled: sens and gamma are per-slot and
+  // modulated, so they stay in the consuming shader. Float rather than 8-bit
+  // because the value lands at 1e-2 to 1e-4 and 8 bits would quantise the low
+  // end to zero.
+  FC=vec4(max(0.,ht-rad),max(0.,ht+rad)*.125,0.,1.);
+}`;
+
+// Per-texel Lucas-Kanade flow for the frame, in uv per frame. The material field
+// ADVECT_SRC maintains is an accumulator with a relax term, which is the right
+// shape for a lattice and the wrong shape for particles: a particle carries its
+// own position and its own age, so it wants the instantaneous velocity and
+// nothing else. No accumulation means no relax, no shear, and no half-float
+// binade problem - flow is a small number by construction.
+const FLOW_SRC = H+`
+precision highp float;
+void main(){
+  vec2 uv=gl_FragCoord.xy/uRes;
+  vec2 px=1./uRes;
+  // Gradient taps sit STEP texels apart, not one. Lucas-Kanade linearises the
+  // image between its taps, so the tap spacing is what sets the largest motion
+  // it can still resolve - roughly 1.5 px per texel of spacing. At step 1 that
+  // is about 2 px a frame, which a hand-held pan passes easily and everything
+  // beyond it reads as no motion at all. Step 2 buys the range for a little
+  // spatial detail, which a dot lattice does not need.
+  const float STEP=2.;
+  vec2 sx=vec2(px.x,0.)*STEP, sy=vec2(0.,px.y)*STEP;
+  float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
+  for (int j=-1;j<=1;j++){
+    for (int i=-1;i<=1;i++){
+      vec2 q=clamp(uv+(sx*float(i)+sy*float(j)),0.,1.);
+      float c =dot(texture(uTex ,q).rgb,vec3(.299,.587,.114));
+      float cx=dot(texture(uTex ,clamp(q+sx,0.,1.)).rgb,vec3(.299,.587,.114));
+      float cy=dot(texture(uTex ,clamp(q+sy,0.,1.)).rgb,vec3(.299,.587,.114));
+      float pv=dot(texture(uPrev,q).rgb,vec3(.299,.587,.114));
+      float gx=cx-c, gy=cy-c, gt=c-pv;
+      Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy; Jxt+=gx*gt; Jyt+=gy*gt;
+    }
+  }
+  float det=Jxx*Jyy-Jxy*Jxy;
+  vec2 fl=vec2(0.);
+  // Near an edge the tensor is singular along the edge direction - the aperture
+  // problem - and the solve blows up, so it is gated and then clamped. The clamp
+  // is in tap-spacings, so it scales with STEP.
+  if (abs(det)>=1e-9){
+    fl=clamp(vec2((-Jxt*Jyy+Jyt*Jxy)/det,(-Jyt*Jxx+Jxt*Jxy)/det),-6.,6.)*STEP;
+  }
+  FC=vec4(fl*px,0.,1.);
+}`;
+
+// One particle per texel. PART_TEX is fixed and the cell index wraps into it, so
+// this never reallocates on resize and a pitch change costs a remap and nothing
+// else. State is (pos.xy, t, str):
+//   pos - the particle's position WITHIN ITS CELL, in cell units, free to drift
+//         outside [0,1]. Relative, so the values stay small and RGBA16F is
+//         plenty; the draw pass reconstructs world position as cell + pos and
+//         never needs the spawn hash, so there is no second copy of it to drift.
+//   t   - age normalised to [0,1). Stored normalised rather than in frames so
+//         the draw pass can fade without recomputing the staggered lifetime.
+//   str - cornerness sampled once AT SPAWN and held for the whole life. Re-read
+//         every frame it would fade a dot out as the feature it is following
+//         moves off the point the dot started from, which is the opposite of
+//         tracking. A zero here means "never spawned", so a zero-filled texture
+//         seeds itself on the first frame with no explicit seed pass.
+// uP1 spacing(px) uP2 gain uP3 life(frames) uP4 jitter uP5 drift cap(cells)
+// uP6 sensitivity uP7 gamma uP8 edge blend
+const PART_SRC = H+`
+precision highp float;
+uniform sampler2D uPart;
+uniform sampler2D uFlow;
+uniform sampler2D uCorner;
+uniform vec2 uCells;
+float pHash(vec2 p){
+  p=fract(p*vec2(123.34,456.21));
+  p+=dot(p,p+45.32);
+  return fract(p.x*p.y);
+}
+void main(){
+  vec2 tp=floor(gl_FragCoord.xy);            // this texel IS one particle
+  vec4 st=texelFetch(uPart,ivec2(tp),0);
+  vec2 pos=st.xy; float t=st.z; float str=st.w;
+
+  vec2 cell=tp-floor(uCells*.5);             // signed cell index about the centre
+  vec2 shCtr=uRes*.5;
+  vec2 world=cell+pos;
+  vec2 sp=(world*uP1+shCtr)/uRes;
+
+  // Lifetime is staggered per particle, so the field does not blink as one.
+  float life=max(4.,uP3*(.5+pHash(cell+3.1)));
+  vec2 drift=pos-.5;
+
+  bool dead = str<=0.                        // never spawned - seeds a zero texture
+           || t>=1.
+           || dot(drift,drift)>uP5*uP5       // drifted past what the sweep can find
+           || sp.x<0.||sp.x>1.||sp.y<0.||sp.y>1.;
+  if (dead){
+    pos=.5+(vec2(pHash(cell+.17),pHash(cell.yx+7.13))-.5)*uP4;
+    t=0.;
+    vec2 hs=((cell+pos)*uP1+shCtr)/uRes;
+    // .r is corner-selective Shi-Tomasi, .g responds to edges. Blending rather
+    // than switching, so a dot field can sit anywhere between marking corners
+    // only and following every contour.
+    vec2 ce=texture(uCorner,clamp(hs,0.,1.)).rg;
+    str=max(1e-4,pow(clamp(mix(ce.r,ce.g,uP8)*uP6,0.,1.),uP7));
+  } else {
+    // Flow is uv per frame; convert to cells and step.
+    pos+=texture(uFlow,clamp(sp,0.,1.)).xy*uRes/uP1*uP2;
+    t+=1./life;
+  }
+  FC=vec4(pos,t,str);
 }`;
 
 // Advects a material-coordinate field. Each texel stores the DISPLACEMENT from
@@ -4207,7 +4397,7 @@ function makeProgram(fragSrc) {
   }
   // Cache uniform locations on the program object
   p.u = {};
-  ['uTex','uTex2','uAtlas','uPrev','uMat','uCorner','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
+  ['uTex','uTex2','uAtlas','uPrev','uMat','uCorner','uFlow','uPart','uCells','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
    'uP1','uP2','uP3','uP4','uP5','uP6','uP7','uP8','uP9','uP10','uP11','uP12']
     .forEach(n => p.u[n] = gl.getUniformLocation(p, n));
   // Ordered param locations for fast loop upload
@@ -4220,6 +4410,8 @@ function makeProgram(fragSrc) {
 let genProgs, fxProgs, passProg, blendProg, transformProg, vao, vbuf, vidTex, asciiAtlasTex;
 let advectProg = null;
 let cornerProg = null;
+let flowProg = null;
+let partProg = null;
 let matSeeded = false;
 
 // Lazy program cache. Always go through these rather than indexing the arrays —
@@ -4298,6 +4490,8 @@ function buildGLResources() {
   passProg      = makeProgram(PASS_SRC);
   advectProg    = makeProgram(ADVECT_SRC);
   cornerProg    = makeProgram(CORNER_SRC);
+  flowProg      = makeProgram(FLOW_SRC);
+  partProg      = makeProgram(PART_SRC);
   blendProg     = makeProgram(BLEND_SRC);
   transformProg = makeProgram(TRANSFORM_SRC);
 
@@ -4339,6 +4533,15 @@ let matTried = false;   // extension + completeness resolved lazily, see ensureM
 // lands at 1e-2 to 1e-4 and R8 would quantise the low end to zero.
 let fboCorner = null, fboTexCorner = null;
 let cornerOK = false, cornerTried = false, cornerSeeded = false;
+// Per-texel optical flow, and the particle state for flow-dots. PART_TEX is
+// FIXED: the cell index wraps into it, so neither a resize nor a pitch change
+// reallocates, and two cells far enough apart to share a particle never appear
+// in the same +-4 sweep. 512x512 RGBA16F is 2 MB a side.
+const PART_TEX = 512;
+let fboFlow = null, fboTexFlow = null;
+let fboPart = [null, null], fboTexPart = [null, null], partIdx = 0;
+let flowOK = false, flowTried = false, flowSeeded = false;
+let partOK = false, partTried = false, partSeeded = false;
 let _frameSrcTex = null;
 let fboTexHist = null, fboHist = null;  // persistent trail history
 let fboTexHold = null, fboHold = null;  // sample-and-hold frozen frame
@@ -4472,7 +4675,7 @@ function ensureCorner() {
   if (!cornerOK) return false;
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, _fbW, _fbH, 0, gl.RED, gl.HALF_FLOAT, null);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, _fbW, _fbH, 0, gl.RG, gl.HALF_FLOAT, null);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   // NEAREST, not LINEAR. Cornerness is built from differences between adjacent
@@ -4488,6 +4691,54 @@ function ensureCorner() {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   fboCorner = fb; fboTexCorner = t;
   return cornerOK;
+}
+
+function ensureFlow() {
+  if (flowTried) return flowOK;
+  flowTried = true;
+  flowOK = !!gl.getExtension('EXT_color_buffer_float');
+  if (!flowOK) return false;
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, _fbW, _fbH, 0, gl.RG, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) flowOK = false;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  fboFlow = fb; fboTexFlow = t;
+  return flowOK;
+}
+
+// NEAREST and never filtered: each texel is one particle, and interpolating
+// between two particles' positions is meaningless. Zero-filled is the correct
+// initial state - strength 0 reads as "never spawned" and PART_SRC seeds it on
+// the first frame, so there is no seed pass.
+function ensurePart() {
+  if (partTried) return partOK;
+  partTried = true;
+  partOK = !!gl.getExtension('EXT_color_buffer_float');
+  if (!partOK) return false;
+  for (let i = 0; i < 2; i++) {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, PART_TEX, PART_TEX, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) partOK = false;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    fboPart[i] = fb; fboTexPart[i] = t;
+  }
+  return partOK;
 }
 
 // Reallocates the three core buffers at w x h. Returns false if the driver refused.
@@ -4506,6 +4757,10 @@ function makeFBO(w, h) {
   matTried = false; matOK = false;
   _dropFBO(fboCorner, fboTexCorner); fboCorner = fboTexCorner = null;
   cornerTried = false; cornerOK = false; cornerSeeded = false;
+  _dropFBO(fboFlow, fboTexFlow); fboFlow = fboTexFlow = null;
+  flowTried = false; flowOK = false; flowSeeded = false;
+  // fboPart is NOT dropped: it is PART_TEX square whatever the canvas is, and
+  // throwing it away would restart every particle's life on a window drag.
 
   _fbW = w; _fbH = h;
   const a = _makeAttached(), b = _makeAttached(), c = _makeAttached();
@@ -4988,6 +5243,19 @@ function setUniforms(prog, tex, params, tex2, seed) {
     gl.uniform1i(u.uCorner, 6);
     gl.activeTexture(gl.TEXTURE0);
   }
+  if (u.uFlow !== null && u.uFlow !== undefined) {
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, (flowSeeded && fboTexFlow) ? fboTexFlow : null);
+    gl.uniform1i(u.uFlow, 7);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+  if (u.uPart !== null && u.uPart !== undefined) {
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, (partSeeded && fboTexPart[partIdx]) ? fboTexPart[partIdx] : null);
+    gl.uniform1i(u.uPart, 8);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+  if (u.uCells !== null && u.uCells !== undefined) gl.uniform2f(u.uCells, PART_TEX, PART_TEX);
   if (u.uAudio !== null && u.uAudio !== undefined) {
     ensureAudioTex();
     gl.activeTexture(gl.TEXTURE4);
@@ -5352,27 +5620,77 @@ function renderCorner(src) {
   cornerSeeded = true;
 }
 
+// Per-texel optical flow for the frame. Full render resolution, so drawQuad's
+// viewport is already right.
+function renderFlow(src) {
+  if (!flowProg || !ensureFlow()) return;
+  drawQuad(flowProg, src, [], fboFlow);
+  flowSeeded = true;
+}
+
+// Advances every particle by one frame. Runs at PART_TEX square, not at canvas
+// size, so it sets its own viewport rather than going through drawQuad - about
+// 260k texels against 2M for a fullscreen pass.
+function updateParticles(pr) {
+  if (!partProg || !flowSeeded || !cornerSeeded) return;
+  if (!ensurePart()) return;
+  const spacing = 4 + 36 * pr[0] * pr[0];
+  // Wider than feature-dots' 140: the low end of this slider is where an edge
+  // blend needs to sit, and the whole point of this entry is that it reacts.
+  const sens    = 500 + (2 - 500) * pr[1];
+  const gamma   = 0.15 + 1.25 * pr[6] * pr[6];
+  // 0.25 is exactly the measured flow. The range runs to 4x because Lucas-Kanade
+  // over a 3x3 window systematically under-reads real motion.
+  const gain    = pr[7] * 4;
+  const life    = 6 + 294 * pr[8] * pr[8];   // frames, squared: short lives are the interesting end
+  const drift   = 0.25 + 1.75 * pr[9];
+  const dst = partIdx ^ 1;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[dst]);
+  gl.viewport(0, 0, PART_TEX, PART_TEX);
+  setUniforms(partProg, null, [spacing, gain, life, pr[3], drift, sens, gamma, pr[11] ?? 0], null, 0);
+  // setUniforms bound the CURRENT front buffer; the update has to read the one
+  // it is not writing, so rebind after it rather than before.
+  gl.activeTexture(gl.TEXTURE8);
+  gl.bindTexture(gl.TEXTURE_2D, fboTexPart[partIdx]);
+  gl.uniform1i(partProg.u.uPart, 8);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindVertexArray(null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, cv.width, cv.height);
+  partIdx = dst;
+  partSeeded = true;
+}
+
 // Runs the FX chain over src, including the feedback and prev-frame paths.
 function renderWithFX(src) {
   _frameSrcTex = chainNeedsPrev() ? src : null;
   if (_frameSrcTex) {
-    // Gain and relax come from the first enabled effect that wants the field.
-    let g = 0.6, r = 0.04;
+    // Which fields are actually wanted, and with what params. Both usesPrev
+    // effects need cornerness, but the material field belongs to feature-dots
+    // and the flow field and particles belong to flow-dots — running all four
+    // whenever either effect is live would pay for both.
+    let g = 0.6, r = 0.04, matWanted = false, partPr = null;
     for (let i = 0; i < fxSlots.length; i++) {
       if (fxSlots[i].off) continue;
       const d = FX[fxSlots[i].idx];
-      if (d && d.usesPrev) {
-        // Signature is (base, audioMod, lfoMod, midiMod) — an older call site
-        // passed the descriptor/index/kind here, which silently resolved to
-        // undefined and left gain/settle unmodulated.
-        const pr = effParams(fxSlots[i].params, fxSlots[i].audioMod, fxSlots[i].lfoMod, fxSlots[i].midiMod);
+      if (!d || !d.usesPrev) continue;
+      // Signature is (base, audioMod, lfoMod, midiMod) — an older call site
+      // passed the descriptor/index/kind here, which silently resolved to
+      // undefined and left gain/settle unmodulated.
+      const pr = effParams(fxSlots[i].params, fxSlots[i].audioMod, fxSlots[i].lfoMod, fxSlots[i].midiMod);
+      if (d.name === 'flow-dots') {
+        if (!partPr) partPr = pr;
+      } else if (!matWanted) {
+        matWanted = true;
         g = pr[7] !== undefined ? pr[7] : g;
         r = pr[8] !== undefined ? Math.max(0.005, pr[8] * 0.25) : r;
-        break;
       }
     }
-    advectMaterial(src, g, r);
     renderCorner(src);
+    if (matWanted) advectMaterial(src, g, r);
+    if (partPr) { renderFlow(src); updateParticles(partPr); }
   }
   const feedback = isFeedback();
   const { tex, tempFB, tempTex } = applyFXChain(src);
@@ -5726,7 +6044,9 @@ function _bufMB() {
   let bytes = 3 * px * 4;
   for (const t of [fboTexFx, fboTexHist, fboTexHold, fboTexPrev]) if (t) bytes += px * 4;
   if (fboTexMat[0]) bytes += 2 * px * 4;
-  if (fboTexCorner) bytes += px * 2;               // R16F, one channel
+  if (fboTexCorner) bytes += px * 4;               // RG16F: cornerness and edge
+  if (fboTexFlow)   bytes += px * 4;               // RG16F
+  if (fboTexPart[0]) bytes += 2 * PART_TEX * PART_TEX * 8;   // RGBA16F, canvas-independent
   if (_vidTexW) bytes += _vidTexW * _vidTexH * 4;   // the uncapped one
   return bytes / 1048576;
 }
@@ -5778,7 +6098,7 @@ function diagReport() {
     ['highp',      hp ? hp.precision + ' bits' : 'n/a'],
     ['max tex',    gl.getParameter(gl.MAX_TEXTURE_SIZE)],
     ['max rbuf',   gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)],
-    ['float rt',   gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO (feature-dots/advect off)'],
+    ['float rt',   gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO (feature-dots and flow-dots off)'],
     ['dpr',        (window.devicePixelRatio || 1) + (Number.isInteger(window.devicePixelRatio) ? '' : '  (fractional - compositor resamples)')],
     ['screen',     `${screen.width}\u00d7${screen.height}`],
     ['canvas',     `${cv.width}\u00d7${cv.height}`],
@@ -6355,6 +6675,12 @@ function setMode(m) {
       genSlots.forEach(sl => { sl.off = false; });
     }
   }
+  // Arriving in SHADER shows the gen stack, so the source blend starts off:
+  // landing on a shader half-mixed with whatever clip was loaded reads as the
+  // shader being broken. Turning it back on is one tap on the SRC row.
+  // Only from here, which is the interactive path — applyState deliberately
+  // does not route through setMode, so a preset keeps the blend state it saved.
+  if (m === 'SHADER') blendActive = false;
   layer = m === 'SHADER' ? 'gen' : (fxIdx >= 0 ? 'fx' : 'gen');
   toast(m);
   return started;
@@ -6975,11 +7301,13 @@ function currentSrcDescriptor() {
 function bindSourceFile(file, desc) {
   const fp = srcFingerprint(desc);
   if (fp) _srcCache.set(fp, file);
-  // loadVideo forces SAMPLER, which is wrong for a preset saved in SHADER with a
-  // sampler blend source. Restore whatever applyState had already chosen.
-  const wantMode = modeIdx;
+  // loadVideo forces SAMPLER and clears the blend, both of which are wrong for a
+  // preset saved in SHADER with a sampler blend source. Restore whatever
+  // applyState had already chosen.
+  const wantMode = modeIdx, wantBlend = blendActive;
   loadVideo(URL.createObjectURL(file), file.name, file);
   modeIdx = wantMode;
+  blendActive = wantBlend;
 }
 
 // Dismisses the missing-source bar.
@@ -7099,6 +7427,10 @@ function loadVideo(url, name, file) {
   }
   if (file?.size > 2 * 1024 ** 3) toast('very large file (' + (file.size / 1024 ** 3).toFixed(1) + 'GB)');
   modeIdx  = 0;
+  // A new clip is the thing you want to see, not a half-mix of it with the gen
+  // stack. bindSourceFile restores this alongside modeIdx, so locating a
+  // preset's missing clip keeps whatever the preset saved.
+  blendActive = false;
   paused   = false;
   reversed = false;
   inPt     = null;
@@ -8395,7 +8727,7 @@ const _abbrev = {
   'plasma':'PLM','kaleidoscope':'KLID','tunnel':'TUN','flowing-colours':'FLWC',
   'hypnotic-rings':'HYPR','squarewaves':'SQRW','starfield':'STRF','voronoi':'VOR',
   'waves':'WAV','zoom-clouds':'ZMCL','gamma-ray':'GAMR','oscilloscope':'OSC',
-  'feature-dots':'DOTS','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
+  'feature-dots':'DOTS','flow-dots':'FLOW','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
   'vhs':'VHS','glitch':'GLTCH','feedback':'FBCK','mirror':'MIR','posterize':'POST',
   'invert':'INV','bitcrush':'BTCR','colorizer':'COLR','grain':'GRN',
   'hsv-shift':'HSV','hue-cycle':'HUE','kaleido-warp':'KLWP','rotate-zoom':'RTZM',
