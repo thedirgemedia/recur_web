@@ -1487,8 +1487,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">sample-hold</span><span class="hk-desc">Freezes the screen at random intervals driven by a noise generator — rate slider controls how often a new sample is taken (slow = long freezes, fast = rapid flicker)</span></div>
     <div class="hk-row"><span class="hk-key">glitch</span><span class="hk-desc">Digital corruption stack. intensity = horizontal slice displacement; rate = how fast the glitch state jumps; channel = RGB split; slices = number of horizontal bands, scaling all the way up to one-per-scanline (per-pixel) at max; variation = pulls neighbouring slices together and occasionally stretches a band to a single repeated line. blocks = macroblock corruption, modelled on how a codec actually fails: a run of consecutive blocks along the scan share one wrong motion vector, so damage arrives as coherent horizontal drags of varying length rather than evenly scattered squares, and it runs at two block sizes at once so the chunks are not all the same size. Displacement snaps to the block lattice, which is what makes it tile like block damage instead of smearing. noise = digital dropout, cycling the failure modes a broken MPEG/JPEG frame really shows — DC-only blocks (detail gone, flat average colour), scrambled-AC blocks (a DCT basis wave showing through as a striped ripple), chroma desync (luma survives, colour comes from the wrong place) and channel roll. Dropouts share the run structure and cluster on blocks that are already displaced, so the two read as one fault. crush = colour bit-crush/quantise (down to ~2 levels), wave = analog sine warp / horizontal wobble. New features sit at 0 (off) on presets saved before they existed</span></div>
     <div class="hk-row"><span class="hk-key">scatter</span><span class="hk-desc">Cuts the frame into a square grid and rearranges it. grid sets how many cells across, from a handful of big slabs up to 48 fine tiles. shuffle is how far a cell may travel, up to ten cells away, and amount is how many of them move at all — the rest pass through untouched. pixelate quantises inside each cell, from full detail down to one flat colour per tile. rate re-rolls the arrangement on a timer; at 0 it holds still, so you get a fixed scramble rather than a churn. seam darkens a border inside each cell so the grid reads as laid tiles. mode picks how cells move: 0 scatter (each jumps somewhere random), 1 swap (cells trade in pairs — a true permutation, so nothing is duplicated or lost), 2 rows (whole rows slide sideways), 3 columns (whole columns slide vertically), 4 spin (cells stay put but their contents rotate in 90 degree steps)</span></div>
-    <div class="hk-row"><span class="hk-key">feature-dots</span><span class="hk-desc">Marks corner features with coloured dots that stay attached to what they mark. Detection is Shi-Tomasi cornerness measured densely across the frame, with one candidate per cell, so pitch alone sets density and dots cannot clump. pitch is the cell spacing and sensitivity how readily a point counts as a feature. dot-size and jitter shape the dots — dot-size follows a straight scale for the lower third of its travel and then eases off, because a dot wider than about two cells cannot be found by the fragments at its own edge and would draw as a square rather than a circle. tint, backdrop and gamma set colour. track lays the lattice out in the motion of the image rather than on the screen, so a dot slides with the thing it marked instead of the grid blinking as features cross it, and settle sets how strongly that field relaxes back toward the grid each frame — too little and it shears apart, too much and dots snap back to the lattice. link joins each dot to its neighbours: link is the line thickness and 0 turns links off, link-style picks mesh (a four-sided net) or web (mesh plus both diagonals), and cohere sets how closely two dots must be carrying the same material in the same direction before they are joined, so a net holds together across a moving object and tears at the edge of one. At track 0 there is no motion to compare and the net simply joins neighbours. Lines take their width from feature strength the same way dots take their radius, and they draw underneath the dots — at a fine pitch with large dots there may be nothing left to see between them, so open the pitch or drop dot-size to read the net. Needs float render targets; without them feature-dots does not draw, which the I overlay reports</span></div>
-    <div class="hk-row"><span class="hk-key">flow-dots</span><span class="hk-desc">The same idea as feature-dots but built the other way round, and the one to reach for if you want dots that actually travel. feature-dots lays a grid out in a field that follows the image and is pulled back toward its rest state every frame, so dots stretch away and settle back rather than going anywhere. Here each dot is its own thing: it spawns on a feature, is carried by the measured motion for its lifetime, and then respawns. Nothing pulls it home. flow scales how closely it follows the motion — 0.5 is exactly the measured speed, higher overdrives it. life is how long a dot lasts before respawning, staggered per dot so the field never blinks all at once, and fade softens the ends so a respawn does not pop. drift caps how far a dot may wander before it is respawned early; it exists because a dot can only be drawn by fragments that look for it, and the search is five cells wide. edge blends what counts as a feature: at 0 only corners register, which is what corner detection is for and why a plain straight edge scores almost nothing; wind it up and contours, outlines and long edges start carrying dots too. pitch, sensitivity, dot-size, jitter, tint, backdrop and gamma work as they do on feature-dots. Needs float render targets, as feature-dots does</span></div>
+    <div class="hk-row"><span class="hk-key">flow-dots</span><span class="hk-desc">Dots that spawn on visual features, are carried by the motion of the image, and respawn. It replaced feature-dots, which laid a grid out in a field that followed the image and was pulled back toward its rest state every frame, so dots stretched away and settled rather than going anywhere. Here each dot is its own thing, with its own position and its own age, and nothing pulls it home. The controls are grouped: the lattice first, then what counts as a feature, then how a dot lives, then travel, then colour, then the net. LATTICE &mdash; pitch is the cell spacing, dot-size the radius, jitter how far a dot strays from its cell. FEATURE &mdash; sensitivity is the detector gain and it runs BACKWARDS &mdash; 2000 at the bottom of the slider, 2 at the top, each tenth of travel a factor of two, so pulling it DOWN is what brings more of the frame up to dot-worthy; it runs on the square root of cornerness, which is linear in contrast where cornerness itself is quadratic. gamma sets how much the dot field distinguishes a strong feature from a weak one, and it is the most powerful control here: measured on a face against a busy room, taking it from the top of its travel to the bottom moves the face from nine per cent of the background's ink to seventy. detect sweeps what registers &mdash; 0 corners only, 0.5 every contour, and past 0.5 into the inverse, so at 1 the dots land on everything that is NOT a feature and the features are left bare; around 0.75 the two cancel into a near-uniform field. Flat regions are where optical flow has nothing to solve for, so inverted dots barely respond to the footage and will mostly sit still or fall. LIFE &mdash; flow scales how closely a dot follows the motion: 0.25 is exactly the measured speed, the default 0.5 runs at twice it, and the top of the slider at four times, because Lucas-Kanade over a 3x3 window systematically under-reads real motion. life is how long a dot lasts, staggered per dot so the field never blinks all at once; the soft ends are automatic, fifteen per cent of the life at each end with a four-frame minimum for very short lives. TRAVEL &mdash; fall is a nine-position selector, off then eight compass directions starting at down and stepping clockwise, and fall-speed sets the rate, from a crawl to about a screen height in under a second. Changing direction changes the velocity and not the position, so a hard turn does not jump the field. Travel is unlimited because every dot shares it: a common velocity is a translation of the whole lattice rather than a journey each dot has to be searched for. The same fact is why it cannot accelerate, so this is a steady fall rather than a ballistic one. COLOUR &mdash; tint runs from the colour of whatever the dot is sitting on, taken at square-root brightness so a dark frame still reads, to a per-dot palette hue that drifts slowly. NET &mdash; link joins each dot to its neighbours to the right and below, and is the line thickness; 0 turns the net off entirely and is the default, so nothing saved before it existed changes. A link lasts exactly as long as both its dots do and nothing else ends it: the pairing is fixed when the dots spawn, it is never re-tied, and the line stretches to whatever length the two dots drift apart to. It thins out only as one end dies, so a respawn does not pop. This came over from feature-dots, which had it as three sliders; there was one param byte left, so the mesh style is fixed and only the thickness is exposed, and feature-dots' coherence test &mdash; which cut a link whenever its two dots disagreed about where they were going &mdash; was dropped rather than kept, since that is the opposite of a net that stretches. Length is capped only by how far a dot may wander before it is recycled, which is about three cells. Lines take the colour of the dot they start from, and they draw underneath the dots &mdash; at a fine pitch with large dots there may be nothing left to see between them, so open the pitch or drop dot-size to read the net. SELFIE MODE, since it is the case that catches everyone out: skin is smooth, and a corner detector measures contrast, so a face carries about one twentieth of a busy background's cornerness even when it is lit identically &mdash; and if the camera exposes for the window behind you, the quadratic law takes another factor of three. The lever is gamma down, or detect up: at 0.9 the face carries more ink than the room does. Sensitivity will not fix it, because it raises both halves of the frame together. The dots composite onto black, so use a screen or add blend to put the footage back. Needs float render targets, which the I overlay reports</span></div>
     <div class="hk-row"><span class="hk-key">maze-flight</span><span class="hk-desc">Endless flight through an infinite fractal maze — a solid universe with corridors carved at three nested scales, so every wall is itself a smaller maze. Ported from a CC0 shader by ksin on glslop. speed sets how fast you travel (0 freezes the frame), fov widens or narrows the lens, turns is how hard the path wanders — at 0 it runs dead straight. width sets corridor size and density how many walls open, so the two together take you from tight warren to open hall. detail switches in the second and third nested scales at a third and three-quarters of its travel, and also buys the extra march steps needed to resolve them — it is the performance control, so drop it first if the frame rate suffers. It ships at 0.6, which leaves the third scale off: those corridors are under a tenth of a unit wide and sweep past the camera faster than a frame, which is most of what reads as sparkle. Push it past 0.75 for the full fractal and expect the near field to get busy. glow lights convex edges, circuits runs light along the wall grooves, windows lights sparse wall panels. hue sets the neon colour and drifts slowly on its own, saturation and fog finish the image. It ignores video entirely, so in LIVE mode set the slot blend to screen or add — the corridors are near black and the footage shows through them while the neon stays lit. Two slots running it land in different parts of the maze</span></div>
     <div class="hk-row"><span class="hk-key">quaternion</span><span class="hk-desc">A 4D Julia set raymarched as a solid object you orbit around — the fractal equivalent of a sculpture on a turntable. Ported from a CC0 shader by ufffd on glslop. FORM: form slides through five seed quaternions, and every position on it is a well-formed creature rather than a set of presets with dead space between them. slice is the interesting one — the object is genuinely four-dimensional and this cuts a different 3D cross-section through it, so the shape reorganises rather than deforming; it stops short of the values where the set becomes empty. morph drifts the seed on a small circle so the creature breathes, and at 0 it holds still. detail sets iteration count and march steps together: it barely touches the silhouette but triples the cost, so it is the surface-detail and performance control. CAMERA: spin orbits the camera, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in — turn it up to come closer, and the top of the travel puts the eye inside the object, so you fly through the structure rather than orbiting it. Which forms enclose you there varies: at the very top, form around a quarter and around one wrap right around you, form near three quarters opens back out into a gap. speed drives the morph and tumble only, so at speed 0 with spin up you get a frozen form you can rotate around. COLOUR: hue rotates the palette. palette picks which orbit trap drives the colour — each of the four is scaled so it sweeps a full turn of the wheel rather than parking the object on one hue. glow is the electric rim light, and shade balances flat-and-electric against modelled-and-solid. The background is black, so on a screen or add blend the object floats over video</span></div>
     <div class="hk-row"><span class="hk-key">mandelbox</span><span class="hk-desc">Folded architecture rather than a creature — infinite slabs, corridors and rounded corners cut out of one solid, raymarched on the same turntable as quaternion. SHAPE: scale is the main form control and runs from stocky and rounded to lacy and spindly; the slider is warped so equal moves give equal change rather than doing most of its work at one end. fold sets the size of the box the space keeps folding back into, which is the strongest shape knob here — but the camera is normalised against it, so the object stays the same size on screen and fold changes only what it looks like. morph drifts scale and fold on a small circle so the structure breathes, and at 0 it holds still. detail sets iterations and march steps together. CAMERA: spin orbits, centred at half travel so left of centre reverses; tilt raises or lowers the eye; zoom pulls the camera in, and at the top of its travel you are inside the folds looking out through them. speed drives the morph and tumble only. COLOUR: hue rotates the palette, palette picks which orbit trap drives it, glow is the rim light, shade balances flat against modelled. The background is black, so on a screen or add blend it floats over video</span></div>
@@ -1503,8 +1502,8 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
     <div class="hk-row"><span class="hk-key">zoom-fx</span><span class="hk-desc">Zoom with a heartbeat. zoom scales from a quarter up to 3x about the chosen centre, and pulse adds a continuous sine breathing on top. At pulse 0 it is a static zoom</span></div>
     <div class="hk-section">Parameters</div>
     <div class="hk-row"><span class="hk-key">param slider</span><span class="hk-desc">Drag horizontally to change value. Tap a row to select it (highlighted). Some params are toggles (☐/☑) — tap to flip</span></div>
-    <div class="hk-row"><span class="hk-key">pattern centring</span><span class="hk-desc">Effects built on a repeating grid used to measure that grid out from the bottom-left corner of the frame, because that is where the coordinate origin sits. It looked fine standing still, but animating the size — especially from an LFO — slid the whole pattern diagonally out of that corner instead of scaling in place. bitcrush, ascii, halftone and feature-dots now count their grids out from the CENTRE of the frame, so a size sweep grows and shrinks around the middle and whatever is in the centre of shot stays put. halftone gained the most: its angle sliders rotate about the origin too, so they used to swing the entire screen around the bottom-left corner rather than spinning the dot screen in place. gamma-ray, grain, oscilloscope and scatter are deliberately unchanged — measured, they gain nothing, and scatter's grid has to stay an exact tiling for its swap mode to remain reversible. Existing presets shift by under half a cell standing still; the difference is only obvious in motion</span></div>
-    <div class="hk-row"><span class="hk-key">snapping sliders</span><span class="hk-desc">Some params are selectors rather than continuous values and snap to fixed positions as you drag: style on plasma, flowing-colours and zoom-clouds, sides on kaleidoscope, sectors on kaleido-warp, charset and invert on ascii, 1-bit on bitcrush, mode on scatter, and link-style on feature-dots. The row shows the position number rather than a decimal, and the help entry for that shader lists what each one is</span></div>
+    <div class="hk-row"><span class="hk-key">pattern centring</span><span class="hk-desc">Effects built on a repeating grid used to measure that grid out from the bottom-left corner of the frame, because that is where the coordinate origin sits. It looked fine standing still, but animating the size — especially from an LFO — slid the whole pattern diagonally out of that corner instead of scaling in place. bitcrush, ascii, halftone and flow-dots now count their grids out from the CENTRE of the frame, so a size sweep grows and shrinks around the middle and whatever is in the centre of shot stays put. halftone gained the most: its angle sliders rotate about the origin too, so they used to swing the entire screen around the bottom-left corner rather than spinning the dot screen in place. gamma-ray, grain, oscilloscope and scatter are deliberately unchanged — measured, they gain nothing, and scatter's grid has to stay an exact tiling for its swap mode to remain reversible. Existing presets shift by under half a cell standing still; the difference is only obvious in motion</span></div>
+    <div class="hk-row"><span class="hk-key">snapping sliders</span><span class="hk-desc">Some params are selectors rather than continuous values and snap to fixed positions as you drag: style on plasma, flowing-colours and zoom-clouds, sides on kaleidoscope, sectors on kaleido-warp, charset and invert on ascii, 1-bit on bitcrush, mode on scatter, and fall on flow-dots. The row shows the position number rather than a decimal, and the help entry for that shader lists what each one is</span></div>
     <div class="hk-row"><span class="hk-key">GEN / FX layer</span><span class="hk-desc">Tap the GEN or FX layer buttons to switch which shader's params are shown in the upper slot</span></div>
     <div class="hk-row"><span class="hk-key">audio badge</span><span class="hk-desc">Each param row has an audio badge (—/B/M/T/V). Tap to cycle: none → bass → mid → treble → volume. The selected band drives that param with audio level</span></div>
     <div class="hk-row"><span class="hk-key">LFO badge</span><span class="hk-desc">Each param row has an LFO badge (—/L1/L2/L3). Tap to assign an LFO to that param — cycles through LFOs then back to none. Audio and LFO modulation add together</span></div>
@@ -1775,7 +1774,7 @@ html,body { width:100%; height:100%; background:#000; overflow:hidden; }
 // 30px of 408px, so at 8px Courier New (0.6em advance) it has 372px to itself.
 // Longer is not broken — the line wraps — but it costs vertical space in a 40vh
 // panel every session, not just the one you named it in.
-const BUILD = '2026-08-12n · blend off on shader/load';
+const BUILD = '2026-08-12w · links persist for dot life; cap 3.0';
 console.log('recur_web build ' + BUILD);
 
 // ── GLSL sources ─────────────────────────────────────────────────────────────
@@ -3137,6 +3136,44 @@ void main(){
 
 // FX shaders — process video/camera/gen output
 // ASCII atlas — measure pixel density of each candidate char and sort light→dark
+// How far a flow-dots particle may drift from its own cell centre, in cells,
+// before PART_SRC recycles it. It is the single number that decides how far a dot
+// travels, how long a link between two dots can stretch, and how wide the draw
+// pass has to sweep to find either - so it is declared once here and interpolated
+// into both shaders rather than written twice.
+//
+// The sweep is quadratic in it, and the cost lands on the DOT path as well as the
+// link path, because a fragment has to look everywhere a particle could be.
+// Measured at pitch 12, dot-size 0.35, link 1.0, over 3000 fragments:
+//
+//   cap   max link   dot taps   link far-taps   total vs 1.3
+//   1.3     3.6         9.9          22.0          1.0x
+//   3.0     7.0        37.9          88.8          4.0x
+//   4.0     9.0        62.9         149.8          6.7x
+//   6.0    13.0       131.7         319.9         14.0x
+//
+// 3.0 is the chosen point: roughly double the reach of the 1.3 this shipped with,
+// for about four times the taps. Moving it is a one-line change and PART_R below
+// re-derives itself, but check the frame rate on the slowest target rather than
+// the fastest - none of this has been GPU-verified.
+const PART_CAP = 3.0;
+// Hard bound on the draw sweep, re-derived from PART_CAP rather than typed. A
+// fragment must look everywhere a contributing particle can be: cap from its own
+// cell centre, plus the widest a dot can be drawn (dot-size 1.5 cells + 1.5px of
+// edge softness, which is 0.375 cells at the finest pitch), plus half a cell for
+// the fragment's own position. The link path needs cap + 0.575 + 1 for the far
+// end, which is the smaller of the two, so the dot path sets this.
+// It was 5 when cap was 1.3. The old note said the clamp was what the texel wrap
+// assumed - it is not: the wrap only requires that two cells sharing a texel
+// never appear in one sweep, and they are PART_TEX = 512 apart, so any R under
+// 255 is safe. The real assumption, unchanged, is that the screen is under 512
+// cells wide.
+const PART_R = Math.ceil(PART_CAP + Math.max(1.5 + 0.375, 0.2 + 0.375 + 1) + 0.5);
+// GLSL ES has no implicit int-to-float, so a whole-numbered cap has to reach the
+// shader as `3.000` rather than `3`. PART_R is only ever used where an integer
+// literal is wanted, so it interpolates raw.
+const PART_CAP_F = PART_CAP.toFixed(3);
+
 const ASCII_CW = 10, ASCII_CH = 14;
 const ASCII_FAMILY = '"Courier New","MS Gothic","Hiragino Kaku Gothic Pro",monospace';
 // A monospace face needs ~1.21x its em size for ascent+descent, so drawing at
@@ -3722,230 +3759,32 @@ void main(){
     def: [0.3],
   },
   {
-    // Stipples the frame with dots clustering on visual features. Cornerness is
-    // Shi-Tomasi, evaluated densely. One candidate per cell, so dots cannot clump
-    // and cell pitch sets density. With track > 0 the lattice is laid out in the
-    // material-coordinate field ADVECT_SRC maintains, so a dot slides with what
-    // it marked; at track 0 it is pinned to the screen. Chain feedback before
-    // this one for trails.
+    // DEPRECATED - feature-dots, removed in 2026-08-12v. flow-dots answers the
+    // same brief with particles that actually travel, and now carries the link
+    // net as well, so there was nothing left that only this could do. Out with it
+    // went the material field: ADVECT_SRC, fboMat, ensureMat and advectMaterial.
+    //
+    // THE ENTRY STAYS, and that is deliberate. Shader indices are stored as whole
+    // bytes - V5 puts an FX index in one byte and a JSON preset stores the same
+    // number - so the table is append-only in both directions: appending moves no
+    // existing byte, but DELETING the twentieth entry would renumber scatter to 19
+    // and flow-dots to 20 and silently reinterpret every preset and share URL
+    // naming either of them. A patch saved with scatter would open as flow-dots.
+    // Holding the index costs one passthrough and keeps every other patch honest.
+    //
+    // An old patch that used feature-dots therefore still loads, and that slot now
+    // passes its input through unchanged rather than drawing dots.
+    //
+    // Hidden from the shader grid - the FX grid build skips any entry carrying
+    // dep - so it cannot be put into a new chain. No params, which cycleParam
+    // already guards for, so it has no rows in the panel either.
+    // PASS_SRC is declared below this table and would be in TDZ here, so the
+    // one-line source is inline rather than shared.
     name: 'feature-dots',
-    usesPrev: true,
-    params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','track','settle','link','link-style','cohere'],
-    snapVals: [null,null,null,null,null,null,null,null,null,null,[0,1],null],
-    def: [0.450, 0.413, 0.280, 0.868, 0.984, 0.000, 0.400, 0.600, 0.160, 0.000, 0.000, 0.500],
-    src: H+PAL+`
-// H declares vU under mediump, which is genuine fp16 on Apple Silicon and
-// mobile: the varying arrives pre-quantised, before any field lookup, and the
-// lattice built from it seams at the quantisation steps. A precision statement
-// here cannot promote a varying already declared, so the fragment position is
-// rebuilt from gl_FragCoord instead - declared highp by the ES 3.00 fragment
-// language, exactly the pixel centre, no new varying, no change to H.
-precision highp float;
-uniform sampler2D uMat;
-uniform sampler2D uCorner;
-float fdHash(vec2 p){
-  p=fract(p*vec2(123.34,456.21));
-  p+=dot(p,p+45.32);
-  return fract(p.x*p.y);
-}
-// The jittered site for a cell, in lattice units. One site per cell, so dots
-// cannot clump and cell pitch alone sets density. Both the dot pass and the
-// link pass go through this - a link has to end exactly where its dot sits, and
-// two copies of the formula would drift apart the first time either is touched.
-vec2 fdSite(vec2 c, float jit, float sd){
-  return c+.5+(vec2(fdHash(c+sd),fdHash(c.yx+sd+7.13))-.5)*jit;
-}
-// Cornerness, now one tap: CORNER_SRC bakes the 16-tap Shi-Tomasi once per
-// frame. This used to be evaluated inline per candidate site per fragment - up
-// to 400 taps a fragment at large dot-size, with neighbouring fragments in a
-// cell re-deriving nearly the same value. Making a site cost one tap is what
-// brings the link pass into budget.
-float fdK(vec2 rp, float sens, float gam){
-  return pow(clamp(texture(uCorner,rp).r*sens,0.,1.),gam);
-}
-void main(){
-  vec2 fc=gl_FragCoord.xy;                  // highp, exact, pixel centre
-  vec2 uv=fc/uRes;
-  float spacing=mix(4.,40.,uP1*uP1);
-  // NOT recentred against the old inline range, deliberately. Baking cornerness
-  // costs 0.54-0.73 of the inline value, and scaling sens back up to match the
-  // mean dot radius was a mistake: k = pow(clamp(c*sens,0,1),gamma) saturates,
-  // so the extra gain lands as MORE CELLS PINNED AT k = 1 rather than as bigger
-  // dots. Measured on a textured subject over a soft background, x1.8 took the
-  // share of background cells at k > 0.5 from 7.6% to 31.4% - full-size dots on
-  // flat areas, which have no image gradient, so Lucas-Kanade finds no flow
-  // there and those dots cannot track anything. They sit still and recolour,
-  // which reads as the whole effect having stopped following the image.
-  // The honest cost of the prepass is dots ~9% smaller in radius. Pay it.
-  float sens   =mix(140.,2.,uP2);
-  // dot-size. A fragment only ever tests sites within its own +-2 cell window,
-  // so a radius past ~2 cells draws a truncated dot. Measured on an isolated
-  // site at k=1, the fraction of the dot the window cannot draw is 0.00% at
-  // radius 1.75, 0.21% at 2.0, 4.9% at 2.25, 22% at 3.0 and 62% at the old 4.6
-  // ceiling - where the axial and diagonal extents sit at exactly 1:1.414 and
-  // the dot is a square, not a circle. 2.0 is the largest round number still
-  // under a quarter of a percent.
-  // The map is the OLD linear one up to 0.30, so every preset at or below that
-  // is bit-identical (the default is 0.28), then bends asymptotically to 2.0 so
-  // the top of the slider still moves instead of going dead at 0.43. C1 at the
-  // knee; monotone; never reaches 2.0.
-  float dRk    =.06+4.54*.30;
-  float dotR   =uP3<=.30 ? .06+4.54*uP3
-                         : dRk+(2.-dRk)*(1.-exp(-(4.54/(2.-dRk))*(uP3-.30)));
-  float jit    =uP4*2.0;
-  float gamma  =mix(.15,1.4,uP7*uP7);
-  float track  =uP8;
-  float link   =uP10;
-
-  // The lattice is laid out in MATERIAL space, not screen space, so a dot
-  // slides with what it marked instead of the grid blinking as features cross
-  // it. The field stores DISPLACEMENT (label - position), so a zero-filled or
-  // unbound texture is exactly identity and needs no seeding frame - see
-  // ADVECT_SRC.
-  vec2 dsp=(track>0.)?texture(uMat,uv).xy:vec2(0.);
-
-  // Lattice counted from the frame CENTRE: spacing is continuous, so a corner
-  // anchor drags the whole dot field diagonally as it changes.
-  //
-  // mv*uRes == fc + dsp*uRes exactly, so writing it this way keeps the fragment
-  // position out of a round trip through uRes - which is mediump in H, and fp16
-  // only holds even integers past 2048, so an odd buffer width over 2048 would
-  // shift every uv by up to half a pixel. uRes now scales only the small
-  // displacement and the shared centre offset, where an error translates the
-  // whole lattice equally and is invisible.
-  vec2 shCtr=uRes*.5;
-  vec2 gp=(fc+dsp*uRes-shCtr)/spacing;
-  vec2 base=floor(gp);
-
-  vec3 acc=vec3(0.);
-  float cov=0.;
-  // Edge softness in PIXELS, not cells. A fixed .1 cells is 4px at spacing 40
-  // and .4px at spacing 4 - mush at one end of pitch, aliasing at the other.
-  float soft=max(.02,1.5/spacing);
-
-  // ---- links ---------------------------------------------------------------
-  // A link joins a site to a forward neighbour that is carrying the same
-  // material in the same direction. link is the half-width in cells; at 0 this
-  // whole block is skipped, which is what makes link-style and cohere neutral
-  // for any preset written before they existed. Neighbours are FORWARD only, so
-  // each edge is generated exactly once however many fragments see it.
-  if (link>0.){
-    int   st  =uP11>.5?1:0;                 // 0 mesh (+x,+y), 1 web (+ diagonals)
-    // Capped to equal ink between the styles: at 0.20 cells the mesh covers 59%
-    // of frame before the cornerness gate and web reaches the same at 0.09, so
-    // changing style changes the pattern rather than the density. Past that
-    // neither reads as a net.
-    float hw  =link*(st==1?.09:.20);
-    // Divergence tolerance, in cells. Measured on an advected field with two
-    // regions moving opposite ways: adjacent material inside one region stays
-    // under ~1px of divergence while across the boundary it reaches ~50px, so
-    // the discriminator has about 50x of headroom and is not delicate. Squared
-    // because the useful band is all at the low end.
-    float tol =mix(.02,4.,(1.-uP12)*(1.-uP12));
-    vec2  g   =gp-base;                     // where in its own cell this fragment sits
-    float jr  =jit*.5+.5;                   // how far a site can stray from its cell
-    float lim =hw+soft;
-    for (int oy=-2;oy<=2;oy++){
-    for (int ox=-2;ox<=2;ox++){
-      vec2 ca=base+vec2(float(ox),float(oy));
-      vec2 oc=vec2(float(ox),float(oy));
-      bool haveA=false; vec2 pa=vec2(0.);
-      for (int e=0;e<4;e++){
-        if (e>=2&&st==0) break;             // mesh is +x and +y only
-        vec2 dxy=e==0?vec2(1,0):e==1?vec2(0,1):e==2?vec2(1,1):vec2(1,-1);
-        // Conservative cell-level reject: integers and jit only, no hashing and
-        // no taps. Bounds the segment by the box its two endpoints can occupy,
-        // which cuts 50 edges to ~15 (mesh) and 100 to ~31 (web) at the default
-        // jitter. It never drops an edge the exact test would have kept.
-        vec2 lo=min(oc,oc+dxy)+.5-jr-g;
-        vec2 hi=max(oc,oc+dxy)+.5+jr-g;
-        vec2 bb=max(lo,max(-hi,vec2(0.)));
-        if (dot(bb,bb)>lim*lim) continue;
-        if (!haveA){ pa=fdSite(ca,jit,uSeed); haveA=true; }
-        vec2 cb=ca+dxy;
-        vec2 pb=fdSite(cb,jit,uSeed);
-        // Exact distance to the segment. Still no taps.
-        vec2 ab=pb-pa, ap=gp-pa;
-        float t=clamp(dot(ap,ab)/max(dot(ab,ab),1e-6),0.,1.);
-        vec2 cp=pa+ab*t;
-        float dl=length(gp-cp);
-        if (dl>lim) continue;
-        // Only survivors reach a texture: about 1.5 edges a fragment at the
-        // default jitter, 21 in the worst fragment measured.
-        vec2 sa=(pa*spacing+shCtr)/uRes, sb=(pb*spacing+shCtr)/uRes;
-        // A link must not run to a dot the dot pass would not have drawn.
-        if (sa.x<0.||sa.x>1.||sa.y<0.||sa.y>1.) continue;
-        if (sb.x<0.||sb.x>1.||sb.y<0.||sb.y>1.) continue;
-        vec2 ra=clamp(sa-dsp,0.,1.), rb=clamp(sb-dsp,0.,1.);
-        // As strong as the weaker end, so links fade out with the dots they join.
-        float k=min(fdK(ra,sens,gamma),fdK(rb,sens,gamma));
-        if (k<.02) continue;
-        // "Moving the same way" is read off the material field, not from raw
-        // per-frame flow - the field is already smoothed by the relax step, and
-        // per-frame flow is exactly the jitter that field exists to suppress.
-        // Divergence breaks a link across a motion boundary and leaves it intact
-        // inside an object. At track 0 there is no field, so the mesh is static
-        // and joins on proximity alone.
-        float coh=1.;
-        if (track>0.){
-          float div=length((texture(uMat,ra).xy-texture(uMat,rb).xy)*uRes)/spacing;
-          coh=1.-smoothstep(tol*.6,tol,div);
-          if (coh<=0.) continue;
-        }
-        // Width tracks feature strength, exactly as the dot radius does -
-        // multiplying alpha by k instead put links at 4% of a dot's brightness
-        // and read as no change at all. main() applies alpha twice (acc is
-        // scaled by a, then FC scales acc by cov), so on the default black
-        // backdrop anything short of a = 1 gets squared. A dot survives that
-        // because its alpha reaches 1 at the centre whatever k is; a link has
-        // to be built the same way.
-        float lw=hw*sqrt(k);
-        float a=(1.-smoothstep(lw-soft,lw+soft,dl))*coh;
-        if (a<=0.) continue;
-        vec3 src=texture(uTex,clamp((cp*spacing+shCtr)/uRes-dsp,0.,1.)).rgb;
-        acc+=mix(src,pal(fract(fdHash(ca+cb+11.3)+uTime*.02),1.),uP5)*a;
-        cov=max(cov,a);
-      }
-    }}
-  }
-
-  // ---- dots ----------------------------------------------------------------
-  // 5x5 sweep around the fragment's cell. The +-2 window bounds jitter too: a
-  // site displaced more than ~2 cells could not be found by the fragments it
-  // covers. jit maxes at 2.0 (+-1.0 cell).
-  float reach=dotR+.15, reach2=reach*reach;
-  for (int oy=-2;oy<=2;oy++){
-  for (int ox=-2;ox<=2;ox++){
-    vec2 c=base+vec2(float(ox),float(oy));
-    vec2 ctr=fdSite(c,jit,uSeed);
-    // Reject on distance first: r never exceeds dotR, so anything further than
-    // reach cannot contribute. Squared - length()'s sqrt bought nothing here,
-    // and the survivor reuses d2.
-    vec2 dv=gp-ctr;
-    float d2=dot(dv,dv);
-    if (d2>reach2) continue;
-    vec2 sp=(ctr*spacing+shCtr)/uRes;
-    if (sp.x<0.||sp.x>1.||sp.y<0.||sp.y>1.) continue;
-
-    // Cornerness and colour are read in screen space: the feature is where it
-    // is now, even though the cell that owns it is labelled in material space.
-    // sp+(uv-mv) == sp-dsp, since mv is uv+dsp.
-    vec2 rp=clamp(sp-dsp,0.,1.);
-
-    float k=fdK(rp,sens,gamma);
-    if (k<.02) continue;
-
-    float r=dotR*sqrt(k);
-    float a=1.-smoothstep(r-soft,r+soft,sqrt(d2));
-    if (a<=0.) continue;
-
-    vec3 src=texture(uTex,rp).rgb;
-    acc+=mix(src,pal(fract(fdHash(c+3.7)+uTime*.02),1.),uP5)*a;
-    cov=max(cov,a);
-  }}
-
-  FC=vec4(mix(texture(uTex,uv).rgb*uP6,acc,cov),1.);
-}`
+    dep: true,
+    params: [],
+    def: [],
+    src: H+`void main(){ FC=texture(uTex,vU); }`
   },
   {
     name: 'scatter',
@@ -4025,92 +3864,314 @@ void main(){
   FC=vec4(col,1.);}`
   },
   {
-    // Lagrangian counterpart to feature-dots. Where that one lays a lattice out
-    // in an advected coordinate field - which is Eulerian, so every point shares
-    // one clock and the relax term drags them all back to where they started -
-    // this one gives every dot its own position and its own age. A dot spawns on
-    // a feature, is carried by the flow for its lifetime, and respawns. Nothing
-    // pulls it home, so there is no stretch-and-snap.
-    // Travel is bounded by the +-5 cell sweep, not by anything physical: a
-    // fragment cannot draw a particle it does not look at. The window has to
-    // cover drift + dot-size + jitter/2 + soft, which at the maxima is
-    // 2.0 + 1.5 + 0.5 + 0.375 = 4.375, so 5 is the smallest that fits.
+    // The dot effect. It replaced feature-dots, which laid a lattice out in an
+    // advected coordinate field - Eulerian, so every point shared one clock and a
+    // relax term dragged them all back to where they started, and a dot stretched
+    // away and settled rather than travelling. Turning the relax off was not an
+    // option either: the field then sheared without bound and the local area ratio
+    // ran to zero within seconds. A field has nowhere to put a per-dot lifetime.
+    // Here every dot has its own position and its own age. It spawns on a feature,
+    // is carried by the flow for its lifetime, and respawns. Nothing pulls it
+    // home, so there is no stretch-and-snap.
+    // PER-PARTICLE travel is bounded by the cell sweep, not by anything physical:
+    // a fragment cannot draw a particle it does not look at. The window has to
+    // cover cap + dot-size + soft + half a cell, which at the maxima is
+    // 1.3 + 1.5 + 0.375 + 0.5 = 3.675, so the sweep sizes itself to that per
+    // draw and never needs more than +-4.
+    // SHARED travel is free and unbounded, which is what `fall` is. A velocity
+    // every dot has in common is not a displacement at all - it is a rigid
+    // translation of the whole lattice - so it rides in uScroll, applied
+    // identically to the cell->screen map here and in PART_SRC, and costs not one
+    // extra tap. Each dot still travels exactly v*age from wherever it spawned,
+    // because its spawn point was carried by the same translation. The price is
+    // that it cannot accelerate: gravity from spawn is age-dependent, every dot
+    // has a different age, and that is a per-particle displacement again.
+    // fall is a 9-position selector - off plus eight compass points - and
+    // fall-speed is its rate. Both are spent entirely in the CPU integrator that
+    // maintains uScroll, so neither is read in this source; it only ever sees the
+    // accumulated offset. Sensitivity, gamma and detect are likewise read only by
+    // PART_SRC, where they are spent once at spawn rather than every frame. The
+    // backdrop control is gone: the dots composite onto black.
     name: 'flow-dots',
     usesPrev: true,
-    params: ['pitch','sensitivity','dot-size','jitter','tint','backdrop','gamma','flow','life','drift','fade','edge'],
-    def: [0.450, 0.413, 0.350, 0.700, 0.984, 0.000, 0.400, 0.500, 0.400, 0.600, 0.250, 0.350],
+    // Twelve, grouped: the lattice, then what counts as a feature, then how a dot
+    // lives, then travel, then colour, then the net. fade is gone - it was a
+    // FRACTION of the life, so the two multiplied and neither could be reasoned
+    // about alone; it is now a fixed number of frames at each end with a floor,
+    // which is what people were setting it to anyway.
+    // link is the LAST byte N_P has. Appending it is preset-safe because 0 is
+    // neutral - the whole block is skipped at 0 - so every flow-dots patch and
+    // share URL written before it existed loads bit-identical. There is no
+    // thirteenth: feature-dots carried link-style and cohere as their own params
+    // and neither fits, so the style is fixed to mesh and the coherence tolerance
+    // to a constant. See the link block for both numbers.
+    params: ['pitch','dot-size','jitter','sensitivity','gamma','detect','flow','life','fall','fall-speed','tint','link'],
+    def: [0.450, 0.350, 0.700, 0.350, 0.400, 0.175, 0.500, 0.400, 0.000, 0.350, 0.984, 0.000],
+    // fall picks one of eight directions or none, so the slider has to land
+    // exactly on a position rather than between two of them.
+    snapVals: [null,null,null,null,null,null,null,null,[0,1,2,3,4,5,6,7,8],null,null,null],
     src: H+PAL+`
 precision highp float;
 uniform sampler2D uPart;
 uniform vec2 uCells;
+uniform vec2 uScroll;
 float pHash(vec2 p){
   p=fract(p*vec2(123.34,456.21));
   p+=dot(p,p+45.32);
   return fract(p.x*p.y);
 }
+// Fade envelope across the life, so a respawn does not pop. Age only - it says
+// nothing about how strong a feature the particle spawned on.
+float pFade(vec4 st, float fade){
+  return min(smoothstep(0.,fade,st.z),1.-smoothstep(1.-fade,1.,st.z));
+}
+// What a DOT is drawn at: the envelope scaled by the cornerness it spawned on, so
+// a weak feature draws a small dot. Links deliberately do not use this - see the
+// link block.
+float pK(vec4 st, float fade){ return st.w*pFade(st,fade); }
+// Dot colour: a per-particle palette hue that drifts, mixed toward the image
+// colour under the dot. Called at the point of use rather than hoisted - rp is
+// different for every particle, so this is the one cache-hostile read in the
+// loop and it must stay at once per surviving dot, not once per swept cell.
+vec3 pColour(vec2 cell, vec2 cid, vec4 st, float spacing, vec2 shCtr){
+  vec3 c=pal(fract(pHash(cid+3.7)+uTime*.02),1.);
+  // At full tint the image contributes nothing, so skip the tap outright. The
+  // condition is on a uniform, so control flow stays coherent.
+  if (uP11<.999){
+    vec2 rp=clamp(((cell+uScroll+st.xy)*spacing+shCtr)/uRes,0.,1.);
+    // Square root on the way in, for the same reason the detector has one: this
+    // end of the slider took the image colour raw, and on anything but a bright
+    // frame that meant black dots on a black backdrop - which is why the slider
+    // looked like it did nothing. The root lifts the dark end hard (0.04 becomes
+    // 0.2) while leaving the ordering and the hue alone.
+    c=mix(sqrt(texture(uTex,rp).rgb),c,uP11);
+  }
+  return c;
+}
 void main(){
   vec2 fc=gl_FragCoord.xy;
-  vec2 uv=fc/uRes;
   float spacing=mix(4.,40.,uP1*uP1);
-  float dotR   =mix(.04,1.5,uP3);
-  float drift  =mix(.25,2.,uP10);
-  float fade   =clamp(uP11,.02,.49);
+  float dotR   =mix(.04,1.5,uP2);
+  // Residual cap, in cells - see PART_CAP, which is interpolated in here and
+  // handed to PART_SRC through its own uniform slot, so the two cannot drift.
+  // It bounds the FLOW residual only; the travelling is uScroll's job and is not
+  // capped at all.
+  float cap    =${PART_CAP_F};
+  // fade was its own slider and should not have been. It was a FRACTION of the
+  // life, so raising either lengthened the soft ends and neither could be
+  // reasoned about alone. It is now 15% of the life at each end - slightly
+  // crisper than the 0.25 it used to ship at - with a four-frame minimum that
+  // only bites below about 26 frames, where a proportional fade would be under
+  // two frames and the respawn would pop. The life expression has to match
+  // PART_SRC's exactly.
+  float lifeF  =6.+294.*uP8*uP8;
+  float fade   =clamp(max(4./lifeF,.15),.02,.45);
   vec2  shCtr  =uRes*.5;
   // No material field here: the lattice is plain screen space and the particles
   // do the moving. That is the whole difference.
+  // gs is the fragment in LATTICE coordinates - screen cells minus the shared
+  // scroll. Every cell index below is a lattice index, and the scroll is added
+  // back only when a world position is reconstructed.
   vec2 gp=(fc-shCtr)/spacing;
-  vec2 base=floor(gp);
+  vec2 gs=gp-uScroll;
+  vec2 base=floor(gs);
   float soft=max(.02,1.5/spacing);
   float lim=dotR+soft;
-  float reach=drift+lim;                    // furthest a cell's particle can reach
+  float reach=cap+lim;                      // furthest a cell's particle can reach
   vec2 hc=floor(uCells*.5);
+
+  // ---- links ---------------------------------------------------------------
+  // A link joins a particle to the one in the next cell along. link is the
+  // half-width in cells; at 0 the entire block below is skipped and nothing else
+  // in this shader reads uP12, which is what makes the appended param neutral for
+  // every patch written before it existed.
+  //
+  // A LINK LASTS AS LONG AS BOTH ITS DOTS DO, and nothing else ends it. The
+  // pairing is permanent by construction: a particle belongs to its spawn cell
+  // for its whole life and never migrates, so the pair (cell, cell+x) is fixed
+  // and there is no re-tying to suppress. Two things used to cut a live link and
+  // no longer do:
+  //   - COHERENCE. feature-dots joined two sites only when they were carrying the
+  //     same material in the same direction, read off the material field. Ported
+  //     to particles it became a velocity comparison, which severed a link the
+  //     moment two dots disagreed about where they were going - the opposite of
+  //     a net that stretches. Gone, along with the spawn-point rebuild it needed.
+  //   - FEATURE STRENGTH. The width used pK, which folds in the cornerness a
+  //     particle spawned on, so a link to a weak feature stayed permanently thin.
+  //     It now uses pFade, the age envelope alone, so a link is full width for the
+  //     whole overlap of the two lives and thins only as one dot dies.
+  // What remains is length, and that is not a link limit at all: two neighbours
+  // can be at most 1 + 2*cap apart because PART_SRC recycles a particle that
+  // drifts further. See PART_CAP.
+  //
+  // feature-dots carried this as THREE params and only one byte of N_P was left,
+  // so two of them are now constants:
+  //   style  - fixed to MESH, the forward +x and +y neighbours. Web added both
+  //            diagonals, and since the two styles were capped to equal ink that
+  //            meant half the line width for twice the edges. Mesh is the one
+  //            that still reads at a fine pitch.
+  //   cohere - removed outright rather than fixed at a constant, for the reason
+  //            above: it ends a live link, which is exactly what this must not do.
+  // Neighbours are FORWARD only, so each edge is generated exactly once however
+  // many fragments end up looking at it.
+  float link=uP12;
+  float hw  =link*.20;                      // the equal-ink cap feature-dots used
+  float llim=hw+soft;                       // widest a line can be drawn
+  // How far the near cell of an edge can sit from this fragment: its own particle
+  // is within cap of the cell centre, the far end is one cell beyond that, and
+  // the line carries llim of width. Smaller than what a large dot-size already
+  // asks for, so links never widen the sweep on their own.
+  float lreach=(link>0.)?cap+llim+1.:0.;
 
   vec3 acc=vec3(0.);
   float cov=0.;
 
-  for (int oy=-5;oy<=5;oy++){
-  for (int ox=-5;ox<=5;ox++){
-    vec2 cell=base+vec2(float(ox),float(oy));
+  // The sweep only has to reach as far as a particle can actually be. A cell's
+  // particle sits within cap of that cell's centre, the fragment sits within
+  // half a cell of base, and a dot is drawn out to lim - so no offset beyond
+  // reach+0.5 can ever survive the centre reject, and iterating past it is pure
+  // ALU spent on cells that were always going to be thrown away. The bound is
+  // uniform across the draw, so the branch stays coherent, and most settings sit
+  // well under the clamp: it is the maximum dot-size that reaches PART_R, not the
+  // default. Clamp derived from PART_CAP - see PART_R.
+  int R=int(min(${PART_R}.,ceil(max(reach,lreach)+.5)));
+  vec2 g=gs-base;                           // where in its own cell this fragment sits
+  for (int oy=-R;oy<=R;oy++){
+  for (int ox=-R;ox<=R;ox++){
+    vec2 oc=vec2(float(ox),float(oy));
+    vec2 cell=base+oc;
     // Reject on the cell centre before the state tap - the particle is somewhere
-    // within drift of it, so anything further than reach cannot contribute.
+    // within cap of it, so anything further than reach cannot contribute.
     // This is what keeps the 121-cell window affordable: only the settings that
     // need the reach pay for it, and at the defaults most cells never get read.
-    vec2 cv=gp-(cell+.5);
-    if (dot(cv,cv)>reach*reach) continue;
-    vec4 st=texture(uPart,(mod(cell+hc,uCells)+.5)/uCells);
+    vec2 cv=gs-(cell+.5);
+    bool wantDot=dot(cv,cv)<=reach*reach;
+    // The same idea for each forward edge, and for the same reason it has to come
+    // before the tap: bound the segment by the box its two endpoints can occupy,
+    // which is integers and cap only - no hashing, no texture work. Forward
+    // directions are non-negative, so the near corner is the cell's own and only
+    // the far corner moves. It never drops an edge the exact test would keep.
+    bool eW0=false, eW1=false;
+    if (link>0.){
+      vec2 lo=oc+.5-cap-g;
+      vec2 b0=max(lo,max(-(oc+vec2(1.5,.5)+cap-g),vec2(0.)));
+      vec2 b1=max(lo,max(-(oc+vec2(.5,1.5)+cap-g),vec2(0.)));
+      eW0=dot(b0,b0)<=llim*llim;
+      eW1=dot(b1,b1)<=llim*llim;
+    }
+    if (!wantDot&&!eW0&&!eW1) continue;
+    // tc is the texel this lattice cell wraps onto, and tc-hc is the identity
+    // PART_SRC hashes on. With no scroll they are the same number; with scroll
+    // the lattice index runs outside the texel range and only the wrapped one is
+    // stable, so every hash on both sides has to use it, or a dot changes colour
+    // and jitter the moment the field slides past a wrap.
+    vec2 tc=mod(cell+hc,uCells);
+    vec4 st=texture(uPart,(tc+.5)/uCells);
     if (st.w<=0.) continue;                 // never spawned
-    vec2 dv=gp-(cell+st.xy);
-    float d2=dot(dv,dv);
-    if (d2>lim*lim) continue;
+    vec2 cid=tc-hc;
     // Fade in and out across the life so a respawn does not pop.
-    float k=st.w*min(smoothstep(0.,fade,st.z),1.-smoothstep(1.-fade,1.,st.z));
-    if (k<.02) continue;
-    // Strength sets the RADIUS and alpha still reaches 1, as in feature-dots -
-    // main() applies alpha twice (acc is scaled by a, then FC scales by cov), so
-    // anything short of 1 gets squared on a black backdrop.
-    float r=dotR*sqrt(k);
-    float a=1.-smoothstep(r-soft,r+soft,sqrt(d2));
-    if (a<=0.) continue;
-    vec2 rp=clamp(((cell+st.xy)*spacing+shCtr)/uRes,0.,1.);
-    acc+=mix(texture(uTex,rp).rgb,pal(fract(pHash(cell+3.7)+uTime*.02),1.),uP5)*a;
-    cov=max(cov,a);
+    float fA=pFade(st,fade);
+    float kA=st.w*fA;                       // == pK(st,fade); the dot's own value
+    // A weak feature draws a faint dot but must still carry a link, so this gate
+    // belongs to the dot rather than to the whole cell. It used to continue out of
+    // the cell here, which was equivalent while links did not exist.
+    if (wantDot&&kA>=.02){
+      vec2 dv=gs-(cell+st.xy);
+      float d2=dot(dv,dv);
+      if (d2<=lim*lim){
+        // Strength sets the RADIUS and alpha still reaches 1 - main() applies
+        // alpha twice (acc is scaled by a, then FC scales by cov), so anything
+        // short of 1 gets squared on a black backdrop.
+        float r=dotR*sqrt(kA);
+        float a=1.-smoothstep(r-soft,r+soft,sqrt(d2));
+        if (a>0.){
+          acc+=pColour(cell,cid,st,spacing,shCtr)*a;
+          cov=max(cov,a);
+        }
+      }
+    }
+
+    if (link>0.&&fA>.02){
+      vec2 pa=cell+st.xy;
+      for (int e=0;e<2;e++){
+        if (e==0?!eW0:!eW1) continue;
+        vec2 cb=cell+(e==0?vec2(1,0):vec2(0,1));
+        // Second, tighter reject, and the one that matters: the first pass had to
+        // bound BOTH endpoints by their cap boxes because it ran before any tap,
+        // but pa is now known exactly, so the segment is bounded by the box around
+        // the real point and the far cell's box alone. Same conservative property
+        // - the segment cannot leave that box - and it is what guards the far tap,
+        // which is the expensive half of the loop: measured over 6000 fragments a
+        // setting, 27.5 far taps a fragment down to 21.9 at pitch 12, 34.9 to 28.6
+        // at the finest pitch, for about 2 links actually drawn. Nothing the exact
+        // test kept was dropped in 2.4M trials.
+        vec2 blo=min(pa,cb+.5-cap), bhi=max(pa,cb+.5+cap);
+        vec2 fb=max(blo-gs,max(gs-bhi,vec2(0.)));
+        if (dot(fb,fb)>llim*llim) continue;
+        vec2 tb=mod(cb+hc,uCells);
+        vec4 sb=texture(uPart,(tb+.5)/uCells);
+        if (sb.w<=0.) continue;
+        // AGE ONLY, not pK: the width must not depend on how strong a feature
+        // either end spawned on, or a link to a weak dot is permanently thin
+        // instead of merely attached to a small dot.
+        float fB=pFade(sb,fade);
+        if (fB<=.02) continue;              // that end has died - the link goes
+        // As faded as the nearer-to-death end, so a link thins out with the dot it
+        // is losing rather than outliving it or popping.
+        float w=hw*sqrt(min(fA,fB));
+        // Exact distance to the segment. Still no further taps.
+        vec2 pb=cb+sb.xy;
+        vec2 ab=pb-pa, ap=gs-pa;
+        float t=clamp(dot(ap,ab)/max(dot(ab,ab),1e-6),0.,1.);
+        float dl=length(gs-(pa+ab*t));
+        if (dl>w+soft) continue;
+        // No length test beyond that one, and no coherence test at all: an edge
+        // that survives to here is drawn however far apart its two dots have
+        // drifted. The only ceiling is PART_CAP, which recycles a particle that
+        // wanders too far for the sweep to find it.
+        // Width carries the fade and alpha still reaches 1, exactly as the dot
+        // radius is dotR*sqrt(k). Building it the other way round - folding the
+        // fade into alpha - is what made feature-dots' first cut of links render
+        // at a few per cent of a dot and read as a param that did nothing, since
+        // main() applies alpha twice on a black backdrop.
+        float a=1.-smoothstep(w-soft,w+soft,dl);
+        if (a<=0.) continue;
+        // A link takes the colour of the end that generated it, so a net crossing
+        // a colour boundary steps rather than blends. The alternative is a second
+        // image tap for every edge, and the edge is already the expensive half of
+        // this shader.
+        acc+=pColour(cell,cid,st,spacing,shCtr)*a;
+        cov=max(cov,a);
+      }
+    }
   }}
 
-  FC=vec4(mix(texture(uTex,uv).rgb*uP6,acc,cov),1.);
+  // Backdrop is fixed at 0, so mix(vec3(0.),acc,cov) is just acc*cov and the
+  // fullscreen tap on uTex for the underlay goes with it.
+  // No backtick in here, ever - this whole source is a template literal.
+  FC=vec4(acc*cov,1.);
 }`
   },
 ];
 
+// Indices a user can actually reach. A deprecated entry keeps its index so the
+// wire does not renumber - see the feature-dots tombstone above - but it is not a
+// shader any more, so nothing that CHOOSES one may land on it: not the grid, not
+// the step keys, not randomise. Derived from the table rather than hand-listed,
+// so marking an entry dep is the only thing anyone has to remember.
+const _pickable = t => t.map((e, i) => (e.dep ? -1 : i)).filter(i => i >= 0);
+const GEN_PICK = _pickable(GEN), FX_PICK = _pickable(FX);
+
 const PASS_SRC = H+`void main(){ FC=texture(uTex,vU); }`;
 
 // Dense Shi-Tomasi cornerness for the whole frame, baked once per frame.
-// feature-dots used to evaluate this inline: 16 taps per candidate site per
+// The retired feature-dots evaluated this inline: 16 taps per candidate site per
 // fragment, up to 400 taps a fragment at large dot-size, with neighbouring
 // fragments in a cell re-deriving nearly the same value. One pass here makes a
-// site cost one tap.
-// Like uPrev and uMat this is computed from the FX chain input, so a second
-// feature-dots slot further down the chain reads the chain input's features
-// rather than its own input's.
+// site cost one tap. flow-dots reads it once per particle, at spawn.
+// Like uPrev this is computed from the FX chain input, so a second flow-dots slot
+// further down the chain reads the chain input's features rather than its own
+// input's.
 const CORNER_SRC = H+`
 precision highp float;
 void main(){
@@ -4151,11 +4212,11 @@ void main(){
 }`;
 
 // Per-texel Lucas-Kanade flow for the frame, in uv per frame. The material field
-// ADVECT_SRC maintains is an accumulator with a relax term, which is the right
-// shape for a lattice and the wrong shape for particles: a particle carries its
-// own position and its own age, so it wants the instantaneous velocity and
-// nothing else. No accumulation means no relax, no shear, and no half-float
-// binade problem - flow is a small number by construction.
+// this replaced was an accumulator with a relax term, which is the right shape
+// for a lattice and the wrong shape for particles: a particle carries its own
+// position and its own age, so it wants the instantaneous velocity and nothing
+// else. No accumulation means no relax, no shear, and no half-float binade
+// problem - flow is a small number by construction.
 const FLOW_SRC = H+`
 precision highp float;
 void main(){
@@ -4206,14 +4267,20 @@ void main(){
 //         moves off the point the dot started from, which is the opposite of
 //         tracking. A zero here means "never spawned", so a zero-filled texture
 //         seeds itself on the first frame with no explicit seed pass.
-// uP1 spacing(px) uP2 gain uP3 life(frames) uP4 jitter uP5 drift cap(cells)
-// uP6 sensitivity uP7 gamma uP8 edge blend
+// uP1 spacing(px) uP2 gain uP3 life(frames) uP4 jitter uP5 residual cap(cells)
+// uP6 sensitivity (gain on the ROOT of cornerness) uP7 gamma uP8 detect sweep
+// uScroll is the shared fall, in cells, integrated on the CPU and wrapped to
+// [0,uCells). Wrapping is exact rather than approximate: subtracting a whole
+// multiple of uCells from the scroll shifts every lattice index by the same
+// multiple, and the index only ever reaches a texel through mod(.,uCells), so
+// nothing downstream can tell the difference.
 const PART_SRC = H+`
 precision highp float;
 uniform sampler2D uPart;
 uniform sampler2D uFlow;
 uniform sampler2D uCorner;
 uniform vec2 uCells;
+uniform vec2 uScroll;
 float pHash(vec2 p){
   p=fract(p*vec2(123.34,456.21));
   p+=dot(p,p+45.32);
@@ -4224,94 +4291,66 @@ void main(){
   vec4 st=texelFetch(uPart,ivec2(tp),0);
   vec2 pos=st.xy; float t=st.z; float str=st.w;
 
-  vec2 cell=tp-floor(uCells*.5);             // signed cell index about the centre
+  vec2 cid=tp-floor(uCells*.5);              // signed cell index about the centre
+  // cid identifies the particle and never moves, so every hash below is taken on
+  // it. The lattice index the draw pass will use is a DIFFERENT representative of
+  // the same residue class once the scroll is large: the draw pass sweeps around
+  // gp-uScroll, so pick the representative of cid nearest -uScroll and both
+  // passes agree on where this particle is. The screen is under uCells cells
+  // wide - the same assumption the wrap has always rested on - so exactly one
+  // representative can be on screen.
+  vec2 cell=cid+uCells*floor((-uScroll-cid)/uCells+.5);
   vec2 shCtr=uRes*.5;
-  vec2 world=cell+pos;
+  vec2 world=cell+uScroll+pos;
   vec2 sp=(world*uP1+shCtr)/uRes;
 
   // Lifetime is staggered per particle, so the field does not blink as one.
-  float life=max(4.,uP3*(.5+pHash(cell+3.1)));
-  vec2 drift=pos-.5;
+  float life=max(4.,uP3*(.5+pHash(cid+3.1)));
+  vec2 resid=pos-.5;
 
   bool dead = str<=0.                        // never spawned - seeds a zero texture
            || t>=1.
-           || dot(drift,drift)>uP5*uP5       // drifted past what the sweep can find
+           || dot(resid,resid)>uP5*uP5       // wandered past what the sweep can find
            || sp.x<0.||sp.x>1.||sp.y<0.||sp.y>1.;
   if (dead){
-    pos=.5+(vec2(pHash(cell+.17),pHash(cell.yx+7.13))-.5)*uP4;
+    pos=.5+(vec2(pHash(cid+.17),pHash(cid.yx+7.13))-.5)*uP4;
     t=0.;
-    vec2 hs=((cell+pos)*uP1+shCtr)/uRes;
-    // .r is corner-selective Shi-Tomasi, .g responds to edges. Blending rather
-    // than switching, so a dot field can sit anywhere between marking corners
-    // only and following every contour.
-    vec2 ce=texture(uCorner,clamp(hs,0.,1.)).rg;
-    str=max(1e-4,pow(clamp(mix(ce.r,ce.g,uP8)*uP6,0.,1.),uP7));
+    vec2 hs=((cell+uScroll+pos)*uP1+shCtr)/uRes;
+    if (hs.x<0.||hs.x>1.||hs.y<0.||hs.y>1.){
+      // Off screen. Leave it unspawned rather than sampling cornerness at a
+      // clamped edge texel and holding that for a whole life: under a fall the
+      // rows below the frame are the ones about to scroll in, and a dot that
+      // arrives carrying the strength of the border pixel is not tracking
+      // anything. str=0 means it spawns properly on the first frame it is
+      // visible. With no scroll this changes nothing - such a dot was already
+      // dead again next frame, at t=0, faded to invisible.
+      str=0.;
+    } else {
+      // .r is corner-selective Shi-Tomasi, .g responds to edges. uP8 sweeps
+      // across both and out the far side: 0 corners only, 0.5 every contour,
+      // 1 the INVERSE - dots on everything that is not a feature. The invert is
+      // taken after the gain, on the normalised value, so 0.75 lands halfway
+      // between and gives a near-uniform field.
+      float eb=clamp(uP8*2.,0.,1.);
+      float iv=clamp(uP8*2.-1.,0.,1.);
+      vec2 ce=texture(uCorner,clamp(hs,0.,1.)).rg;
+      // The square root is not cosmetic. Cornerness is built from products of
+      // gradients, so it is QUADRATIC in contrast - measured on a synthetic
+      // frame, one stop of exposure costs exactly 4x, which is why the effect
+      // needs so much light. The root puts it back on the gradient's own scale,
+      // linear in contrast, and compresses the p50-to-p99 spread from about
+      // 5700x to about 75x. That spread was the real reason gamma had to sit at
+      // its floor to see anything at all.
+      float v=clamp(sqrt(mix(ce.r,ce.g,eb))*uP6,0.,1.);
+      v=mix(v,1.-v,iv);
+      str=max(1e-4,pow(v,uP7));
+    }
   } else {
     // Flow is uv per frame; convert to cells and step.
     pos+=texture(uFlow,clamp(sp,0.,1.)).xy*uRes/uP1*uP2;
     t+=1./life;
   }
   FC=vec4(pos,t,str);
-}`;
-
-// Advects a material-coordinate field. Each texel stores the DISPLACEMENT from
-// this position to the uv the material now here started from - d(x)=label(x)-x -
-// rather than the label itself. Every value therefore sits near zero, where
-// RG16F's ULP is ~3e-5 instead of ~2.4e-4 doubling at each power-of-two binade
-// and stalling the relax step into hard seams. It also makes a zero-filled or
-// unbound texture exactly identity, so no seeding frame is needed: ensureMat()
-// allocates lazily and makeFBO drops the pair on every resize, and the old
-// uFrame<2 seed missed both, leaving the lattice to converge out of the corner
-// over 1/relax frames each time.
-// Dots are laid out on a lattice in THAT space, so a dot stays attached to what
-// it marked. uP1 flow gain, uP2 relax rate. Relaxation is essential - without it
-// the field shears without bound and the lattice tears itself apart in seconds.
-const ADVECT_SRC = H+`
-// gl_FragCoord, not vU: H declares vU mediump, which is fp16 on Apple Silicon,
-// and a half-pixel error in the semi-Lagrangian fetch compounds every frame.
-precision highp float;
-uniform sampler2D uMat;
-void main(){
-  vec2 uv=gl_FragCoord.xy/uRes;
-  vec2 px=1./uRes;
-  float Jxx=0.,Jyy=0.,Jxy=0.,Jxt=0.,Jyt=0.;
-  for (int j=-1;j<=1;j++){
-    for (int i=-1;i<=1;i++){
-      vec2 q=clamp(uv+vec2(float(i),float(j))*px,0.,1.);
-      float c =dot(texture(uTex ,q).rgb,vec3(.299,.587,.114));
-      float cx=dot(texture(uTex ,clamp(q+vec2(px.x,0.),0.,1.)).rgb,vec3(.299,.587,.114));
-      float cy=dot(texture(uTex ,clamp(q+vec2(0.,px.y),0.,1.)).rgb,vec3(.299,.587,.114));
-      float pv=dot(texture(uPrev,q).rgb,vec3(.299,.587,.114));
-      float gx=cx-c, gy=cy-c, gt=c-pv;
-      Jxx+=gx*gx; Jyy+=gy*gy; Jxy+=gx*gy; Jxt+=gx*gt; Jyt+=gy*gt;
-    }
-  }
-  float det=Jxx*Jyy-Jxy*Jxy;
-  vec2 fl=vec2(0.);
-  if (abs(det)>=1e-7){
-    fl=clamp(vec2((-Jxt*Jyy+Jyt*Jxy)/det,(-Jyt*Jxx+Jxt*Jxy)/det),-6.,6.);
-  }
-  fl*=px*uP1*8.;
-
-  // Semi-Lagrangian: what is here now came from sc, so it inherits that label.
-  // In displacement terms  label(uv) = sc + d(sc)  =>  d(uv) = d(sc) + (sc-uv),
-  // where sc-uv is -fl in the interior and the true step at the border, at which
-  // point the clamp means the material did not come from uv-fl at all.
-  vec2 sc=clamp(uv-fl,0.,1.);
-  // The absolute-label form read that position back out of the field itself, so
-  // within half a texel of the frame edge it got the outermost texel CENTRE
-  // rather than sc. That half texel is REPRODUCED here, not corrected: the relax
-  // recursion amplifies a per-step border error by 1/relax (~25x) and advects it
-  // inward, so quietly improving it would move the lattice by ~9% of frame width
-  // against every existing preset. Differential run, 200 frames: 1.7e-15 against
-  // the old form with this clamp, 9.5e-2 without it. Change it deliberately or
-  // not at all.
-  vec2 sq=clamp(sc,.5*px,1.-.5*px);
-  vec2 d=texture(uMat,sc).xy+(sq-uv);
-  // Relax toward identity, or it shears without bound. mix(m,uv,r) on the
-  // absolute label is exactly d*(1-r) on the displacement.
-  d*=(1.-uP2);
-  FC=vec4(d,0.,1.);
 }`;
 
 // Two-texture blend: uTex=gen, uTex2=video
@@ -4397,7 +4436,7 @@ function makeProgram(fragSrc) {
   }
   // Cache uniform locations on the program object
   p.u = {};
-  ['uTex','uTex2','uAtlas','uPrev','uMat','uCorner','uFlow','uPart','uCells','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
+  ['uTex','uTex2','uAtlas','uPrev','uCorner','uFlow','uPart','uCells','uScroll','uAudio','uAudioLvl','uAudioHist','uHistRow','uBlend','uMode','uRes','uFrame','uTime','uSeed',
    'uP1','uP2','uP3','uP4','uP5','uP6','uP7','uP8','uP9','uP10','uP11','uP12']
     .forEach(n => p.u[n] = gl.getUniformLocation(p, n));
   // Ordered param locations for fast loop upload
@@ -4408,11 +4447,9 @@ function makeProgram(fragSrc) {
 
 // Rebuilt wholesale on context restore - see buildGLResources().
 let genProgs, fxProgs, passProg, blendProg, transformProg, vao, vbuf, vidTex, asciiAtlasTex;
-let advectProg = null;
 let cornerProg = null;
 let flowProg = null;
 let partProg = null;
-let matSeeded = false;
 
 // Lazy program cache. Always go through these rather than indexing the arrays —
 // a raw index will be undefined until the shader has been used once.
@@ -4488,7 +4525,6 @@ function buildGLResources() {
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   passProg      = makeProgram(PASS_SRC);
-  advectProg    = makeProgram(ADVECT_SRC);
   cornerProg    = makeProgram(CORNER_SRC);
   flowProg      = makeProgram(FLOW_SRC);
   partProg      = makeProgram(PART_SRC);
@@ -4524,11 +4560,6 @@ let fboTexFx = null, fboFx = null; // scratch for FX wet/dry pre-effect save
 // chain, since keeping it costs a fullscreen copy every frame.
 let fboTexPrev = null, fboPrev = null;
 let prevSeeded = false;
-// Material-coordinate field, ping-ponged. Needs float storage: 8-bit would
-// quantise the coordinate to ~1/255 of the screen and the lattice would stair-step.
-let fboMat = [null, null], fboTexMat = [null, null], matIdx = 0;
-let matOK = false;
-let matTried = false;   // extension + completeness resolved lazily, see ensureMat()
 // Baked cornerness for the frame. Single channel, but still float: the value
 // lands at 1e-2 to 1e-4 and R8 would quantise the low end to zero.
 let fboCorner = null, fboTexCorner = null;
@@ -4538,10 +4569,36 @@ let cornerOK = false, cornerTried = false, cornerSeeded = false;
 // reallocates, and two cells far enough apart to share a particle never appear
 // in the same +-4 sweep. 512x512 RGBA16F is 2 MB a side.
 const PART_TEX = 512;
+// The flow field is built at 1/FLOW_DIV of the render buffer on each axis. It is
+// the most expensive pass in the pipeline by a distance - 36 taps a fragment
+// against cornerness's 16 - and it is the one that can least afford full
+// resolution and least needs it: the output is uv per frame, so the measurement
+// is resolution-independent, and Lucas-Kanade's STEP=2 tap spacing is in TEXELS,
+// so halving the grid doubles the motion it can resolve (about 3 px a frame to
+// about 6) while giving up spatial detail a dot lattice at 4 px pitch cannot
+// show anyway. Everything downstream samples it by uv and does not care.
+// Set to 1 to put it back at full resolution; nothing else has to change.
+const FLOW_DIV = 2;
 let fboFlow = null, fboTexFlow = null;
+let _flowW = 0, _flowH = 0;
 let fboPart = [null, null], fboTexPart = [null, null], partIdx = 0;
 let flowOK = false, flowTried = false, flowSeeded = false;
 let partOK = false, partTried = false, partSeeded = false;
+// flow-dots' shared fall, in lattice cells, wrapped to [0,PART_TEX). Integrated
+// on the CPU rather than derived from uFrame because `fall` is a modulated param
+// - audio, LFO and MIDI all reach it - so the displacement is an integral of a
+// varying speed, not speed x frame. Kept across resize and pitch changes: it is
+// in cells, and a constant lattice offset is invisible, so there is nothing to
+// reset and no jump when it stops.
+const partScroll = [0, 0];
+// The eight compass points `fall` selects between, in fragcoord space, so -y is
+// down the screen. Selector position 0 is off and 1-8 index this table, which is
+// ordered as a clockwise rotation starting at down: stepping the selector turns
+// the field a eighth-turn at a time rather than jumping it about. Diagonals are
+// unit length, so a diagonal fall crosses the frame at the same rate as a
+// cardinal one at the same speed setting.
+const _R2 = Math.SQRT1_2;
+const FALL_DIR = [[0,-1],[-_R2,-_R2],[-1,0],[-_R2,_R2],[0,1],[_R2,_R2],[1,0],[_R2,-_R2]];
 let _frameSrcTex = null;
 let fboTexHist = null, fboHist = null;  // persistent trail history
 let fboTexHold = null, fboHold = null;  // sample-and-hold frozen frame
@@ -4639,35 +4696,10 @@ function chainNeedsHold() {
   return false;
 }
 
-// matOK is resolved here rather than at resize: it depends on both the extension
-// and a completeness check, which needs the textures to exist.
-function ensureMat() {
-  if (matTried) return matOK;
-  matTried = true;
-  matOK = !!gl.getExtension('EXT_color_buffer_float');
-  if (!matOK) return false;
-  for (let i = 0; i < 2; i++) {
-    const t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, _fbW, _fbH, 0, gl.RG, gl.HALF_FLOAT, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    const fb = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) matOK = false;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    fboMat[i] = fb; fboTexMat[i] = t;
-  }
-  return matOK;
-}
-
-// Same lazy resolution as ensureMat, and the same reason: it depends on both
-// the extension and a completeness check, and the check needs the texture to
-// exist. Without EXT_color_buffer_float there is no cornerness and feature-dots
-// draws nothing - which is what the I overlay's float-rt line already reports.
+// Resolved lazily rather than at resize: it depends on both the extension and a
+// completeness check, and the check needs the texture to exist. Without
+// EXT_color_buffer_float there is no cornerness and flow-dots draws nothing -
+// which is what the I overlay's float-rt line already reports.
 function ensureCorner() {
   if (cornerTried) return cornerOK;
   cornerTried = true;
@@ -4698,9 +4730,11 @@ function ensureFlow() {
   flowTried = true;
   flowOK = !!gl.getExtension('EXT_color_buffer_float');
   if (!flowOK) return false;
+  _flowW = Math.max(1, Math.ceil(_fbW / FLOW_DIV));
+  _flowH = Math.max(1, Math.ceil(_fbH / FLOW_DIV));
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, _fbW, _fbH, 0, gl.RG, gl.HALF_FLOAT, null);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, _flowW, _flowH, 0, gl.RG, gl.HALF_FLOAT, null);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -4750,21 +4784,15 @@ function makeFBO(w, h) {
   _dropFBO(fboHist, fboTexHist); fboHist = fboTexHist = null;
   _dropFBO(fboHold, fboTexHold); fboHold = fboTexHold = null;
   _dropFBO(fboPrev, fboTexPrev); fboPrev = fboTexPrev = null;
-  for (let i = 0; i < 2; i++) {
-    _dropFBO(fboMat[i], fboTexMat[i]);
-    fboMat[i] = null; fboTexMat[i] = null;
-  }
-  matTried = false; matOK = false;
   _dropFBO(fboCorner, fboTexCorner); fboCorner = fboTexCorner = null;
   cornerTried = false; cornerOK = false; cornerSeeded = false;
-  _dropFBO(fboFlow, fboTexFlow); fboFlow = fboTexFlow = null;
+  _dropFBO(fboFlow, fboTexFlow); fboFlow = fboTexFlow = null; _flowW = _flowH = 0;
   flowTried = false; flowOK = false; flowSeeded = false;
   // fboPart is NOT dropped: it is PART_TEX square whatever the canvas is, and
   // throwing it away would restart every particle's life on a window drag.
 
   _fbW = w; _fbH = h;
   const a = _makeAttached(), b = _makeAttached(), c = _makeAttached();
-  matSeeded = false;
   prevSeeded = false;         // contents are undefined until a frame is copied in
   if (!a || !b || !c) {
     // Free whichever of the three did land, so a retry at half size starts clean.
@@ -5211,7 +5239,10 @@ const cam = document.getElementById('cam');
 // ── Render ────────────────────────────────────────────────────────────────────
 
 // Uploads every declared uniform for one draw.
-function setUniforms(prog, tex, params, tex2, seed) {
+// resW/resH override the size uRes reports. Only the passes that render to a
+// buffer smaller than the canvas need it - a shader that derives a texel size
+// from uRes would otherwise measure the canvas and step by the wrong amount.
+function setUniforms(prog, tex, params, tex2, seed, resW, resH) {
   const u  = prog.u;
   gl.useProgram(prog);
   gl.activeTexture(gl.TEXTURE0);
@@ -5231,12 +5262,9 @@ function setUniforms(prog, tex, params, tex2, seed) {
     gl.uniform1i(u.uPrev, 2);
     gl.activeTexture(gl.TEXTURE0);
   }
-  if (u.uMat !== null && u.uMat !== undefined) {
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, (matSeeded && fboTexMat[matIdx]) ? fboTexMat[matIdx] : null);
-    gl.uniform1i(u.uMat, 3);
-    gl.activeTexture(gl.TEXTURE0);
-  }
+  // TEXTURE3 was the material-coordinate field, which went with feature-dots. The
+  // remaining units keep the numbers they had rather than closing the gap: unit
+  // indices are baked into every bind below and renumbering them buys nothing.
   if (u.uCorner !== null && u.uCorner !== undefined) {
     gl.activeTexture(gl.TEXTURE6);
     gl.bindTexture(gl.TEXTURE_2D, (cornerSeeded && fboTexCorner) ? fboTexCorner : null);
@@ -5256,6 +5284,11 @@ function setUniforms(prog, tex, params, tex2, seed) {
     gl.activeTexture(gl.TEXTURE0);
   }
   if (u.uCells !== null && u.uCells !== undefined) gl.uniform2f(u.uCells, PART_TEX, PART_TEX);
+  // One value for both flow-dots passes. updateParticles advances it before it
+  // writes the state, and the draw pass runs later in the same frame, so the two
+  // always read the same scroll - the particle positions and the search window
+  // cannot disagree by a frame.
+  if (u.uScroll !== null && u.uScroll !== undefined) gl.uniform2f(u.uScroll, partScroll[0], partScroll[1]);
   if (u.uAudio !== null && u.uAudio !== undefined) {
     ensureAudioTex();
     gl.activeTexture(gl.TEXTURE4);
@@ -5277,7 +5310,7 @@ function setUniforms(prog, tex, params, tex2, seed) {
     // Newest written row is one behind the pointer (which already advanced).
     gl.uniform1f(u.uHistRow, (audioHistRow + AUDIO_HIST_H - 1) % AUDIO_HIST_H);
   }
-  gl.uniform2f(u.uRes, cv.width, cv.height);
+  gl.uniform2f(u.uRes, resW || cv.width, resH || cv.height);
   gl.uniform1i(u.uFrame, frameCounter);
   gl.uniform1f(u.uTime, (performance.now() - startTime) / 1000);
   if (u.uSeed !== null) gl.uniform1f(u.uSeed, seed != null ? seed : 0);
@@ -5294,11 +5327,12 @@ function setUniforms(prog, tex, params, tex2, seed) {
 }
 
 // Renders one fullscreen pass of a program into an FBO (or the canvas).
-function drawQuad(prog, tex, params, targetFBO, tex2, seed) {
+function drawQuad(prog, tex, params, targetFBO, tex2, seed, resW, resH) {
   if (!prog) return;
+  const w = resW || cv.width, h = resH || cv.height;
   gl.bindFramebuffer(gl.FRAMEBUFFER, targetFBO || null);
-  gl.viewport(0, 0, cv.width, cv.height);
-  setUniforms(prog, tex, params, tex2, seed);
+  gl.viewport(0, 0, w, h);
+  setUniforms(prog, tex, params, tex2, seed, w, h);
   gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.bindVertexArray(null);
@@ -5588,31 +5622,8 @@ function snapshotPrev(tex) {
   prevSeeded = true;
 }
 
-// One extra pass per frame, only while an effect that uses the field is live.
-function advectMaterial(src, gain, relax) {
-  if (!advectProg || !prevSeeded) return;
-  if (!ensureMat()) return;
-  const dst = matIdx ^ 1;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fboMat[dst]);
-  gl.viewport(0, 0, cv.width, cv.height);
-  setUniforms(advectProg, src, [gain, relax], null, 0);
-  // makeProgram already cached this. Querying it per frame is a driver round trip
-  // in the middle of the hot path.
-  const um = advectProg.u.uMat;
-  gl.activeTexture(gl.TEXTURE3);
-  gl.bindTexture(gl.TEXTURE_2D, fboTexMat[matIdx]);
-  gl.uniform1i(um, 3);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindVertexArray(vao);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  gl.bindVertexArray(null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  matIdx = dst;
-  matSeeded = true;
-}
-
 // One pass per frame, only while an effect that reads the field is live. Runs
-// off the same source as advectMaterial, so the two fields always describe the
+// off the same source as the particle update, so the two always describe the
 // same image.
 function renderCorner(src) {
   if (!cornerProg || !ensureCorner()) return;
@@ -5624,7 +5635,10 @@ function renderCorner(src) {
 // viewport is already right.
 function renderFlow(src) {
   if (!flowProg || !ensureFlow()) return;
-  drawQuad(flowProg, src, [], fboFlow);
+  // uRes has to report the flow buffer's own size, not the canvas: FLOW_SRC
+  // derives its tap spacing from 1./uRes, and at the canvas size it would step
+  // by half a texel and read the same pixel four times.
+  drawQuad(flowProg, src, [], fboFlow, null, 0, _flowW, _flowH);
   flowSeeded = true;
 }
 
@@ -5634,20 +5648,48 @@ function renderFlow(src) {
 function updateParticles(pr) {
   if (!partProg || !flowSeeded || !cornerSeeded) return;
   if (!ensurePart()) return;
+  // Index map after the regroup: 0 pitch 1 dot-size 2 jitter 3 sensitivity
+  // 4 gamma 5 detect 6 flow 7 life 8 fall 9 fall-speed 10 tint.
   const spacing = 4 + 36 * pr[0] * pr[0];
-  // Wider than feature-dots' 140: the low end of this slider is where an edge
-  // blend needs to sit, and the whole point of this entry is that it reacts.
-  const sens    = 500 + (2 - 500) * pr[1];
-  const gamma   = 0.15 + 1.25 * pr[6] * pr[6];
+  // Exponential, and applied to the ROOT of cornerness rather than to cornerness
+  // itself - see PART_SRC. The old linear 2..500 was measured about sixty times
+  // too small at the top: saturating a p90 feature at full exposure wanted a
+  // gain near 31000, so all but the strongest one per cent of the frame came out
+  // as a fraction of a dot and the effect read as almost black. On the root the
+  // numbers land in a human range, and exponential is the right shape because
+  // exposure is multiplicative: each 0.1 of slider is a factor of two.
+  const sens    = 2 * Math.pow(1000, 1 - pr[3]);
+  const gamma   = 0.15 + 1.25 * pr[4] * pr[4];
   // 0.25 is exactly the measured flow. The range runs to 4x because Lucas-Kanade
   // over a 3x3 window systematically under-reads real motion.
-  const gain    = pr[7] * 4;
-  const life    = 6 + 294 * pr[8] * pr[8];   // frames, squared: short lives are the interesting end
-  const drift   = 0.25 + 1.75 * pr[9];
+  const gain    = pr[6] * 4;
+  const life    = 6 + 294 * pr[7] * pr[7];   // frames, squared: short lives are the interesting end
+  // Residual cap, in cells. Was the `drift` slider, then a constant held at that
+  // slider's default; now PART_CAP, which the draw shader interpolates from the
+  // same declaration rather than repeating the number.
+  const cap     = PART_CAP;
+  // `fall` is a 9-position selector: 0 is off, 1-8 are the compass points. It is
+  // snapped in the panel, so the slider value is k/8 and rounding recovers k
+  // exactly; a modulated value that lands between stops still resolves to the
+  // nearest, which is the right behaviour for a selector.
+  const fdi = Math.round(Math.min(1, Math.max(0, pr[8])) * 8);
+  // `fall-speed` is its rate, squared so the slow end has room, and normalised
+  // to frame height so a setting falls at the same visual rate whatever RENDER
+  // CAP or pitch is set to. Divided into cells because uScroll is in cells.
+  const fspd = pr[9] * pr[9] * 0.020 * cv.height / spacing;
+  if (fdi > 0 && fspd > 0) {
+    const fd = FALL_DIR[fdi - 1];
+    // Wrapping to [0,PART_TEX) is exact - see PART_SRC. Doing it every frame
+    // keeps the value small enough that adding a sub-cell step to it never falls
+    // off the end of float precision. Changing direction changes the velocity,
+    // never the accumulated offset, so a hard turn does not jump the field.
+    partScroll[0] = ((partScroll[0] + fd[0] * fspd) % PART_TEX + PART_TEX) % PART_TEX;
+    partScroll[1] = ((partScroll[1] + fd[1] * fspd) % PART_TEX + PART_TEX) % PART_TEX;
+  }
   const dst = partIdx ^ 1;
   gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[dst]);
   gl.viewport(0, 0, PART_TEX, PART_TEX);
-  setUniforms(partProg, null, [spacing, gain, life, pr[3], drift, sens, gamma, pr[11] ?? 0], null, 0);
+  setUniforms(partProg, null, [spacing, gain, life, pr[2], cap, sens, gamma, pr[5] ?? 0], null, 0);
   // setUniforms bound the CURRENT front buffer; the update has to read the one
   // it is not writing, so rebind after it rather than before.
   gl.activeTexture(gl.TEXTURE8);
@@ -5667,30 +5709,25 @@ function updateParticles(pr) {
 function renderWithFX(src) {
   _frameSrcTex = chainNeedsPrev() ? src : null;
   if (_frameSrcTex) {
-    // Which fields are actually wanted, and with what params. Both usesPrev
-    // effects need cornerness, but the material field belongs to feature-dots
-    // and the flow field and particles belong to flow-dots — running all four
-    // whenever either effect is live would pay for both.
-    let g = 0.6, r = 0.04, matWanted = false, partPr = null;
+    // Which fields are wanted, and with what params. flow-dots is the only
+    // usesPrev effect left, and the two fields it needs are not the same cost, so
+    // the walk still collects its params rather than running the prepasses on the
+    // strength of usesPrev alone. The material field that used to share this loop
+    // went with feature-dots.
+    // A slot is only found here if it is live, so a bypassed flow-dots pays for
+    // nothing - and the particle state survives the bypass, because fboPart is
+    // never dropped.
+    let partPr = null;
     for (let i = 0; i < fxSlots.length; i++) {
       if (fxSlots[i].off) continue;
       const d = FX[fxSlots[i].idx];
       if (!d || !d.usesPrev) continue;
       // Signature is (base, audioMod, lfoMod, midiMod) — an older call site
       // passed the descriptor/index/kind here, which silently resolved to
-      // undefined and left gain/settle unmodulated.
-      const pr = effParams(fxSlots[i].params, fxSlots[i].audioMod, fxSlots[i].lfoMod, fxSlots[i].midiMod);
-      if (d.name === 'flow-dots') {
-        if (!partPr) partPr = pr;
-      } else if (!matWanted) {
-        matWanted = true;
-        g = pr[7] !== undefined ? pr[7] : g;
-        r = pr[8] !== undefined ? Math.max(0.005, pr[8] * 0.25) : r;
-      }
+      // undefined and left the params unmodulated.
+      if (!partPr) partPr = effParams(fxSlots[i].params, fxSlots[i].audioMod, fxSlots[i].lfoMod, fxSlots[i].midiMod);
     }
-    renderCorner(src);
-    if (matWanted) advectMaterial(src, g, r);
-    if (partPr) { renderFlow(src); updateParticles(partPr); }
+    if (partPr) { renderCorner(src); renderFlow(src); updateParticles(partPr); }
   }
   const feedback = isFeedback();
   const { tex, tempFB, tempTex } = applyFXChain(src);
@@ -6038,14 +6075,13 @@ function perfSample(ts) {
 
 // Estimated resident GPU memory, mirroring the real allocation.
 function _bufMB() {
-  // Matches the allocation in makeFBO/_lazy/ensureMat: three RGBA8 always, the
-  // four optional ones only when live, plus the RG16F pair.
+  // Matches the allocation in makeFBO/_lazy: three RGBA8 always, the four
+  // optional ones only when live, plus the float fields.
   const px = cv.width * cv.height;
   let bytes = 3 * px * 4;
   for (const t of [fboTexFx, fboTexHist, fboTexHold, fboTexPrev]) if (t) bytes += px * 4;
-  if (fboTexMat[0]) bytes += 2 * px * 4;
   if (fboTexCorner) bytes += px * 4;               // RG16F: cornerness and edge
-  if (fboTexFlow)   bytes += px * 4;               // RG16F
+  if (fboTexFlow)   bytes += _flowW * _flowH * 4;  // RG16F at 1/FLOW_DIV per axis
   if (fboTexPart[0]) bytes += 2 * PART_TEX * PART_TEX * 8;   // RGBA16F, canvas-independent
   if (_vidTexW) bytes += _vidTexW * _vidTexH * 4;   // the uncapped one
   return bytes / 1048576;
@@ -6098,7 +6134,7 @@ function diagReport() {
     ['highp',      hp ? hp.precision + ' bits' : 'n/a'],
     ['max tex',    gl.getParameter(gl.MAX_TEXTURE_SIZE)],
     ['max rbuf',   gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)],
-    ['float rt',   gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO (feature-dots and flow-dots off)'],
+    ['float rt',   gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO (flow-dots off)'],
     ['dpr',        (window.devicePixelRatio || 1) + (Number.isInteger(window.devicePixelRatio) ? '' : '  (fractional - compositor resamples)')],
     ['screen',     `${screen.width}\u00d7${screen.height}`],
     ['canvas',     `${cv.width}\u00d7${cv.height}`],
@@ -6197,19 +6233,27 @@ function cycleParam() {
   toast('param: ' + shader.params[selParam]);
 }
 
+// Steps within the pickable entries, so the step keys walk past a deprecated one
+// rather than stopping on a slot that draws nothing.
+function _fxStep(cur, dir) {
+  const n = FX_PICK.length;
+  let at = FX_PICK.indexOf(cur);
+  // A chain slot can only hold an unpickable index by arriving from an old
+  // preset. Resume from the nearest pickable entry below it rather than refusing
+  // to move.
+  if (at < 0) at = FX_PICK.filter(i => i < cur).length - 1;
+  return FX_PICK[((at + dir) % n + n) % n];
+}
+
 // Steps the FX chain's last slot to the previous shader.
 function prevFX() {
-  const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : 0;
-  const next = cur <= 0 ? FX.length - 1 : cur - 1;
-  fxChainToggle(next);
+  fxChainToggle(_fxStep(fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : 0, -1));
   toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
 // Steps the FX chain's last slot to the next shader.
 function nextFX() {
-  const cur = fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : -1;
-  const next = (cur + 1) % FX.length;
-  fxChainToggle(next);
+  fxChainToggle(_fxStep(fxSlots.length > 0 ? fxSlots[fxSlots.length - 1].idx : -1, 1));
   toast(fxSlots.length ? fxSlots.map(sl => FX[sl.idx].name).join(' › ') : 'fx: off');
 }
 
@@ -6565,13 +6609,15 @@ const _rndI = n => Math.floor(Math.random() * n);
 
 // Distinct picks: a chain of four should be four different shaders. Duplicates
 // are legal in a chain but read as one shader turned up rather than as variety.
-function _pickDistinct(n, count) {
-  const pool = Array.from({ length: n }, (_, i) => i);
+// Takes the candidate indices rather than a count, so a deprecated entry cannot
+// be randomised into a chain.
+function _pickDistinct(candidates, count) {
+  const pool = candidates.slice();
   for (let i = pool.length - 1; i > 0; i--) {
     const j = _rndI(i + 1);
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, Math.min(count, n));
+  return pool.slice(0, Math.min(count, pool.length));
 }
 
 // A snapped param has to land exactly ON a position. The slider value that round
@@ -6587,8 +6633,8 @@ function _rndParams(sh) {
 
 // Fills both chains with fresh shaders, values, blends and LFO movement.
 function randomiseAll() {
-  const gPick = _pickDistinct(GEN.length, 4);
-  const fPick = _pickDistinct(FX.length, 4);
+  const gPick = _pickDistinct(GEN_PICK, 4);
+  const fPick = _pickDistinct(FX_PICK, 4);
 
   // Slot 0 is forced to normal at full amount: it composites onto black, where
   // any subtractive mode is an immediate blackout regardless of what follows.
@@ -7753,6 +7799,10 @@ helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) toggl
 // Build fx shader buttons dynamically
 const fxGrid = document.getElementById('fx-grid');
 FX.forEach((f, i) => {
+  // A deprecated entry holds its index for the wire's sake but has no business
+  // being offered. Skipping it here is safe because every consumer reads the true
+  // index off dataset.fi rather than the button's position in the grid.
+  if (f.dep) return;
   const btn = document.createElement('div');
   btn.className = 'sk';
   btn.dataset.action = 'fx-select';
@@ -8727,7 +8777,10 @@ const _abbrev = {
   'plasma':'PLM','kaleidoscope':'KLID','tunnel':'TUN','flowing-colours':'FLWC',
   'hypnotic-rings':'HYPR','squarewaves':'SQRW','starfield':'STRF','voronoi':'VOR',
   'waves':'WAV','zoom-clouds':'ZMCL','gamma-ray':'GAMR','oscilloscope':'OSC',
-  'feature-dots':'DOTS','flow-dots':'FLOW','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
+  // feature-dots is deprecated and draws nothing. It cannot be picked from the
+  // grid, but an old preset can still put it in a chain, and a block reading DOTS
+  // would suggest it was working - so the strip says what it is.
+  'feature-dots':'DEP','flow-dots':'FLOW','maze-flight':'MAZE','quaternion':'QUAT','mandelbox':'MBOX',
   'vhs':'VHS','glitch':'GLTCH','feedback':'FBCK','mirror':'MIR','posterize':'POST',
   'invert':'INV','bitcrush':'BTCR','colorizer':'COLR','grain':'GRN',
   'hsv-shift':'HSV','hue-cycle':'HUE','kaleido-warp':'KLWP','rotate-zoom':'RTZM',
